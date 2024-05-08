@@ -1,39 +1,196 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE mapper
-        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.book.springboot.mapper.ReaderMapper">
-
-    <!--
-    private Integer rId;//读者编号
-    private String rName;//读者姓名
-    private String rEmail;//读者邮箱
-    private Integer rIfborrow;
-    -->
-
-    <!--public List<Reader> selectAllReader();-->
-    <select id="selectAllReader" resultType="com.book.springboot.entity.Reader">
-        select * from reader
-    </select>
-
-    <!--public Reader selectByName(String name);-->
-    <select id="selectByName" resultType="com.book.springboot.entity.Reader">
-        select * from reader
-        where r_name = #{name}
-    </select>
-
-
-    <!--public void insertReader(Reader reader);-->
-    <insert id="insertReader">
-        insert into reader
-        values (null,#{rName},#{rEmail},#{rIfborrow})
-    </insert>
-
-    <!--public void updateReader(Reader reader);-->
-    <update id="updateReader">
-        update reader
-        set r_email = #{rEmail}
-        where r_name = #{rName}
-    </update>
-
+  <resultMap id="BaseResultMap" type="com.book.springboot.entity.Reader">
+    <id column="r_id" jdbcType="INTEGER" property="rId" />
+    <result column="r_name" jdbcType="VARCHAR" property="rName" />
+    <result column="r_email" jdbcType="VARCHAR" property="rEmail" />
+    <result column="r_ifborrow" jdbcType="INTEGER" property="rIfborrow" />
+  </resultMap>
+  <sql id="Example_Where_Clause">
+    <where>
+      <foreach collection="oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Update_By_Example_Where_Clause">
+    <where>
+      <foreach collection="example.oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List">
+    r_id, r_name, r_email, r_ifborrow
+  </sql>
+  <select id="selectByExample" parameterType="com.book.springboot.entity.ReaderExample" resultMap="BaseResultMap">
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    <include refid="Base_Column_List" />
+    from reader
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+  </select>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from reader
+    where r_id = #{rId,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from reader
+    where r_id = #{rId,jdbcType=INTEGER}
+  </delete>
+  <delete id="deleteByExample" parameterType="com.book.springboot.entity.ReaderExample">
+    delete from reader
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <insert id="insert" parameterType="com.book.springboot.entity.Reader">
+    insert into reader (r_id, r_name, r_email, 
+      r_ifborrow)
+    values (#{rId,jdbcType=INTEGER}, #{rName,jdbcType=VARCHAR}, #{rEmail,jdbcType=VARCHAR}, 
+      #{rIfborrow,jdbcType=INTEGER})
+  </insert>
+  <insert id="insertSelective" parameterType="com.book.springboot.entity.Reader">
+    insert into reader
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="rId != null">
+        r_id,
+      </if>
+      <if test="rName != null">
+        r_name,
+      </if>
+      <if test="rEmail != null">
+        r_email,
+      </if>
+      <if test="rIfborrow != null">
+        r_ifborrow,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="rId != null">
+        #{rId,jdbcType=INTEGER},
+      </if>
+      <if test="rName != null">
+        #{rName,jdbcType=VARCHAR},
+      </if>
+      <if test="rEmail != null">
+        #{rEmail,jdbcType=VARCHAR},
+      </if>
+      <if test="rIfborrow != null">
+        #{rIfborrow,jdbcType=INTEGER},
+      </if>
+    </trim>
+  </insert>
+  <select id="countByExample" parameterType="com.book.springboot.entity.ReaderExample" resultType="java.lang.Long">
+    select count(*) from reader
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </select>
+  <update id="updateByExampleSelective" parameterType="map">
+    update reader
+    <set>
+      <if test="record.rId != null">
+        r_id = #{record.rId,jdbcType=INTEGER},
+      </if>
+      <if test="record.rName != null">
+        r_name = #{record.rName,jdbcType=VARCHAR},
+      </if>
+      <if test="record.rEmail != null">
+        r_email = #{record.rEmail,jdbcType=VARCHAR},
+      </if>
+      <if test="record.rIfborrow != null">
+        r_ifborrow = #{record.rIfborrow,jdbcType=INTEGER},
+      </if>
+    </set>
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExample" parameterType="map">
+    update reader
+    set r_id = #{record.rId,jdbcType=INTEGER},
+      r_name = #{record.rName,jdbcType=VARCHAR},
+      r_email = #{record.rEmail,jdbcType=VARCHAR},
+      r_ifborrow = #{record.rIfborrow,jdbcType=INTEGER}
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByPrimaryKeySelective" parameterType="com.book.springboot.entity.Reader">
+    update reader
+    <set>
+      <if test="rName != null">
+        r_name = #{rName,jdbcType=VARCHAR},
+      </if>
+      <if test="rEmail != null">
+        r_email = #{rEmail,jdbcType=VARCHAR},
+      </if>
+      <if test="rIfborrow != null">
+        r_ifborrow = #{rIfborrow,jdbcType=INTEGER},
+      </if>
+    </set>
+    where r_id = #{rId,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.book.springboot.entity.Reader">
+    update reader
+    set r_name = #{rName,jdbcType=VARCHAR},
+      r_email = #{rEmail,jdbcType=VARCHAR},
+      r_ifborrow = #{rIfborrow,jdbcType=INTEGER}
+    where r_id = #{rId,jdbcType=INTEGER}
+  </update>
 </mapper>

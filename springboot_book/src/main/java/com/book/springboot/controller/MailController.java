@@ -1,5 +1,6 @@
 package com.book.springboot.controller;
 
+import com.book.springboot.dto.BorrowDto;
 import com.book.springboot.entity.Borrow;
 import com.book.springboot.service.BorrowService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +33,7 @@ public class MailController {
     @GetMapping("/send/{brId}")
     public String sendMail(@PathVariable Integer brId){
 
-        Borrow borrow = borrowService.selectById(brId);
+        BorrowDto borrow = borrowService.selectById(brId);
         SimpleMailMessage message = new SimpleMailMessage();
         Date outTime = borrow.getBrOuttime();
         Date endDate = borrow.getBrEndtime();

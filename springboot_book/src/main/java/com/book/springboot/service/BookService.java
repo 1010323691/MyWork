@@ -1,7 +1,10 @@
 package com.book.springboot.service;
 
+import com.book.springboot.dto.BookDto;
 import com.book.springboot.entity.Book;
 import com.book.springboot.mapper.BookMapper;
+import com.book.springboot.mapper.BookMapperExtra;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -11,36 +14,39 @@ import java.util.List;
 public class BookService {
     @Autowired
     BookMapper bookMapper;
+    
+    @Autowired
+    BookMapperExtra bookMapperExtra;
 
-    public List<Book> selectAll(){
-        return bookMapper.selectAllBook();
+    public List<BookDto> selectAll(){
+        return bookMapperExtra.selectAllBook();
     }
 
     public void deleteEmp(Integer id) {
-        bookMapper.deleteBook(id);
+    	bookMapperExtra.deleteBook(id);
     }
 
-    public void insertBook(Book book) {
-        bookMapper.insertBook(book);
+    public void insertBook(BookDto book) {
+    	bookMapperExtra.insertBook(book);
     }
 
-    public Book selectById(Integer id) {
-        return bookMapper.selectById(id);
+    public BookDto selectById(Integer id) {
+        return bookMapperExtra.selectById(id);
     }
 
-    public void updateBook(Book book) {
-        bookMapper.updateBook(book);
+    public void updateBook(BookDto book) {
+    	bookMapperExtra.updateBook(book);
     }
 
-    public void updateStock(Book book) {
-        bookMapper.updateStock(book);
+    public void updateStock(BookDto book) {
+    	bookMapperExtra.updateStock(book);
     }
 
-    public List<Book> selectByCategoryName(String cName){
-        return bookMapper.selectByCategory(cName);
+    public List<BookDto> selectByCategoryName(String cName){
+        return bookMapperExtra.selectByCategory(cName);
     }
 
-    public List<Book> searchBook(String bName) {
-        return bookMapper.selectByName(bName);
+    public List<BookDto> searchBook(String bName) {
+        return bookMapperExtra.selectByName(bName);
     }
 }

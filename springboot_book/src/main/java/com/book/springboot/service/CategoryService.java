@@ -13,10 +13,10 @@ public class CategoryService {
     CategoryMapper categoryMapper;
 
     public List<Category> selectAll(){
-        return categoryMapper.selectAllCategory();
+        return categoryMapper.selectByExample(null);
     }
 
     public void insertCategory(Category category){
-        categoryMapper.insertCategory(category);
+        categoryMapper.insertSelective(category);
     }
 }

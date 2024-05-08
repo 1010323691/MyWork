@@ -1,5 +1,7 @@
 package com.book.springboot.controller;
 
+import com.book.springboot.dto.BookDto;
+import com.book.springboot.dto.BorrowDto;
 import com.book.springboot.entity.Book;
 import com.book.springboot.entity.Borrow;
 import com.book.springboot.entity.Reader;
@@ -28,11 +30,11 @@ public class BorrowController {
     ReaderMapper readerMapper;
     //查询所有归还后图书记录
     @GetMapping("/borrows")
-    public String borrowList(@RequestParam(value = "pn",defaultValue = "1")Integer pn,
+    public String borrowList(@RequestParam(defaultValue = "1")Integer pn,
                        Model model){
         PageHelper.startPage(pn, 10);//每页多少条数据
-        List<Borrow> borrows = borrowService.selectBorrowed();
-        PageInfo page = new PageInfo(borrows, 5);//连续显示的页数
+        List<BorrowDto> borrows = borrowService.selectBorrowed();
+        PageInfo<BorrowDto> page = new PageInfo<>(borrows, 5);//连续显示的页数
         //放在请求域中
         model.addAttribute("pageInfo", page);
         return "book/borrowList";
@@ -40,11 +42,11 @@ public class BorrowController {
 
     //在借中图书
     @GetMapping("/borrowing")
-    public String borrowingList(@RequestParam(value = "pn",defaultValue = "1")Integer pn,
+    public String borrowingList(@RequestParam(defaultValue = "1")Integer pn,
                        Model model){
         PageHelper.startPage(pn, 10);//每页多少条数据
-        List<Borrow> borrows = borrowService.selectBorrowing();
-        PageInfo page = new PageInfo(borrows, 5);//连续显示的页数
+        List<BorrowDto> borrows = borrowService.selectBorrowing();
+        PageInfo<BorrowDto> page = new PageInfo<>(borrows, 5);//连续显示的页数
         //放在请求域中
         model.addAttribute("pageInfo", page);
         return "book/borrowing";
@@ -54,7 +56,7 @@ public class BorrowController {
     @GetMapping("/bookBorrow/{bId}")
     public String toBookBorrow(@PathVariable(value = "bId") Integer id,
                              Model model){
-        Book book = bookService.selectById(id);
+        BookDto book = bookService.selectById(id);
         model.addAttribute("book", book);
 
         return "book/bookBorrow";
@@ -72,7 +74,7 @@ public class BorrowController {
     @GetMapping("/toReturn")
     public String toReturn(@RequestParam(value = "brId")Integer id,
                            Model model){
-        Borrow borrow = borrowService.selectById(id);
+    	BorrowDto borrow = borrowService.selectById(id);
         model.addAttribute("borrow", borrow);
         return "book/return";
     }

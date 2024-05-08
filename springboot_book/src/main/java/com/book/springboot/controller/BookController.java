@@ -107,4 +107,5 @@ public class BookController {
         model.addAttribute("name", bName);
         return "book/searchList";
     }
+    public void gotoben(){}
 }

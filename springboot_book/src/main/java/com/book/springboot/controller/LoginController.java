@@ -21,8 +21,8 @@ public class LoginController {
     @Autowired
     CategoryService categoryService;
     @PostMapping("/user/login")
-    public String adminLogin(@RequestParam("username") String username,
-                             @RequestParam("password") String password,
+    public String adminLogin(@RequestParam String username,
+                             @RequestParam String password,
                              Map<String,Object> map,
                              HttpSession session){
         System.out.println("执行登录");

@@ -1,24 +1,17 @@
 package com.book.springboot.entity;
 
 public class Book {
-    private Integer bId;//编号
-    private String bName;//书名
-    private String bAuthor;//作者
-    private String bPress;//出版社
-    private Integer bStock;//库存
-    private Category bCategory;//分类
+    private Integer bId;
 
-    public Book() {
-    }
+    private String bName;
 
-    public Book(Integer bId, String bName, String bAuthor, String bPress, Integer bStock, Category bCategory) {
-        this.bId = bId;
-        this.bName = bName;
-        this.bAuthor = bAuthor;
-        this.bPress = bPress;
-        this.bStock = bStock;
-        this.bCategory = bCategory;
-    }
+    private String bAuthor;
+
+    private String bPress;
+
+    private Integer bStock;
+
+    private Integer bCategoryid;
 
     public Integer getbId() {
         return bId;
@@ -60,23 +53,27 @@ public class Book {
         this.bStock = bStock;
     }
 
-    public Category getbCategory() {
-        return bCategory;
+    public Integer getbCategoryid() {
+        return bCategoryid;
     }
 
-    public void setbCategory(Category bCategory) {
-        this.bCategory = bCategory;
+    public void setbCategoryid(Integer bCategoryid) {
+        this.bCategoryid = bCategoryid;
     }
 
     @Override
     public String toString() {
-        return "Book{" +
-                "bId=" + bId +
-                ", bName='" + bName + '\'' +
-                ", bAuthor='" + bAuthor + '\'' +
-                ", bPress='" + bPress + '\'' +
-                ", bStock=" + bStock +
-                ", bCategory=" + bCategory +
-                '}';
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().getSimpleName());
+        sb.append(" [");
+        sb.append("Hash = ").append(hashCode());
+        sb.append(", bId=").append(bId);
+        sb.append(", bName=").append(bName);
+        sb.append(", bAuthor=").append(bAuthor);
+        sb.append(", bPress=").append(bPress);
+        sb.append(", bStock=").append(bStock);
+        sb.append(", bCategoryid=").append(bCategoryid);
+        sb.append("]");
+        return sb.toString();
     }
 }

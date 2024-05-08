@@ -1,24 +1,30 @@
 package com.book.springboot.mapper;
 
 import com.book.springboot.entity.Book;
-
+import com.book.springboot.entity.BookExample;
 import java.util.List;
+import org.apache.ibatis.annotations.Param;
 
 public interface BookMapper {
+    long countByExample(BookExample example);
 
-    public List<Book> selectAllBook();
+    int deleteByExample(BookExample example);
 
-    public List<Book> selectByName(String bName);
+    int deleteByPrimaryKey(Integer bId);
 
-    public List<Book> selectByCategory(String cName);
+    int insert(Book record);
 
-    public Book selectById(Integer id);
+    int insertSelective(Book record);
 
-    public void insertBook(Book book);
+    List<Book> selectByExample(BookExample example);
 
-    public void deleteBook(Integer id);
+    Book selectByPrimaryKey(Integer bId);
 
-    public void updateBook(Book book);
+    int updateByExampleSelective(@Param("record") Book record, @Param("example") BookExample example);
 
-    public void updateStock(Book book);
+    int updateByExample(@Param("record") Book record, @Param("example") BookExample example);
+
+    int updateByPrimaryKeySelective(Book record);
+
+    int updateByPrimaryKey(Book record);
 }

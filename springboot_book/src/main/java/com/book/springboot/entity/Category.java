@@ -1,16 +1,9 @@
 package com.book.springboot.entity;
 
 public class Category {
-    private Integer cId;//分类编号
-    private String cName;//分类名称
+    private Integer cId;
 
-    public Category(Integer cId, String cName) {
-        this.cId = cId;
-        this.cName = cName;
-    }
-
-    public Category() {
-    }
+    private String cName;
 
     public Integer getcId() {
         return cId;
@@ -30,9 +23,13 @@ public class Category {
 
     @Override
     public String toString() {
-        return "Category{" +
-                "cId=" + cId +
-                ", cName='" + cName + '\'' +
-                '}';
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().getSimpleName());
+        sb.append(" [");
+        sb.append("Hash = ").append(hashCode());
+        sb.append(", cId=").append(cId);
+        sb.append(", cName=").append(cName);
+        sb.append("]");
+        return sb.toString();
     }
 }

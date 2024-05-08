@@ -2,7 +2,9 @@ package com.book.springboot.entity;
 
 public class Admin {
     private Integer aId;
+
     private String aUsername;
+
     private String aPassword;
 
     public Integer getaId() {
@@ -31,10 +33,14 @@ public class Admin {
 
     @Override
     public String toString() {
-        return "Admin{" +
-                "aId=" + aId +
-                ", aUsername='" + aUsername + '\'' +
-                ", aPassword='" + aPassword + '\'' +
-                '}';
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().getSimpleName());
+        sb.append(" [");
+        sb.append("Hash = ").append(hashCode());
+        sb.append(", aId=").append(aId);
+        sb.append(", aUsername=").append(aUsername);
+        sb.append(", aPassword=").append(aPassword);
+        sb.append("]");
+        return sb.toString();
     }
 }

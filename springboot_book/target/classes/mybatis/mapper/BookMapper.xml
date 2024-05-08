@@ -1,82 +1,228 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE mapper
-        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.book.springboot.mapper.BookMapper">
-
-    <!--
-    private Integer bId;//编号
-    private String bName;//书名
-    private String bAuthor;//作者
-    private String bPress;//出版社
-    private Integer bStock;//库存
-    private Category bCategory;//分类
-    -->
-
-   <resultMap id="myBook" type="com.book.springboot.entity.Book">
-      <id column="b_id" property="bId"/>
-      <result column="b_name" property="bName"/>
-      <result column="b_author" property="bAuthor"/>
-      <result column="b_press" property="bPress"/>
-      <result column="b_stock" property="bStock"/>
-      <association property="bCategory" javaType="com.book.springboot.entity.Category">
-         <id column="c_id" property="cId"/>
-         <result column="c_name" property="cName"/>
-      </association>
-   </resultMap>
-
-    <!--public List<Book> selectAllBook();-->
-   <select id="selectAllBook" resultMap="myBook">
-      select b.*,c.c_name from book b left join category c
-      on b.b_categoryid = c.c_id
-      order by b.b_id
-   </select>
-
-    <!--public List<Book> selectByName();-->
-   <select id="selectByName" resultMap="myBook">
-      select b.*,c.c_name from book b left join category c
-      on b.b_categoryid = c.c_id
-      where b_name like concat('%',#{bName},'%')
-   </select>
-
-   <!--public Book selectById(Integer id);-->
-   <select id="selectById" resultMap="myBook">
-      select b.*,c.c_name from book b left join category c
-      on b.b_categoryid = c.c_id
-      where b_id = #{bId}
-   </select>
-
-   <!--public List<Book> selectByCategory(String cName);-->
-   <select id="selectByCategory" resultMap="myBook">
-      select b.*,c.c_name from book b left join category c
-      on b.b_categoryid = c.c_id
-      where c.c_name = #{cName}
-   </select>
-
-    <!--public void insertBook(Book book);-->
-   <insert id="insertBook">
-      insert into book(b_id,b_name,b_author,b_press,b_stock,b_categoryid)
-      values (null,#{bName},#{bAuthor},#{bPress},#{bStock},#{bCategory.cId})
-   </insert>
-
-    <!--public void deleteBook(Integer id);-->
-   <delete id="deleteBook">
-      delete from book
-      where b_id=#{bId}
-   </delete>
-
-    <!--public void updateBook(Book book);-->
-   <update id="updateBook">
-      update book
-      set b_name=#{bName},b_author=#{bAuthor},b_press=#{bPress},b_stock=#{bStock},b_categoryid=#{bCategory.cId}
-      where b_id=#{bId}
-   </update>
-
-   <!--public void updateStock(Book book);-->
-   <update id="updateStock">
-      update book
-      set b_stock=#{bStock}
-      where b_id=#{bId}
-   </update>
-
+  <resultMap id="BaseResultMap" type="com.book.springboot.entity.Book">
+    <id column="b_id" jdbcType="INTEGER" property="bId" />
+    <result column="b_name" jdbcType="VARCHAR" property="bName" />
+    <result column="b_author" jdbcType="VARCHAR" property="bAuthor" />
+    <result column="b_press" jdbcType="VARCHAR" property="bPress" />
+    <result column="b_stock" jdbcType="INTEGER" property="bStock" />
+    <result column="b_categoryid" jdbcType="INTEGER" property="bCategoryid" />
+  </resultMap>
+  <sql id="Example_Where_Clause">
+    <where>
+      <foreach collection="oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Update_By_Example_Where_Clause">
+    <where>
+      <foreach collection="example.oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List">
+    b_id, b_name, b_author, b_press, b_stock, b_categoryid
+  </sql>
+  <select id="selectByExample" parameterType="com.book.springboot.entity.BookExample" resultMap="BaseResultMap">
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    <include refid="Base_Column_List" />
+    from book
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+  </select>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from book
+    where b_id = #{bId,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from book
+    where b_id = #{bId,jdbcType=INTEGER}
+  </delete>
+  <delete id="deleteByExample" parameterType="com.book.springboot.entity.BookExample">
+    delete from book
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <insert id="insert" parameterType="com.book.springboot.entity.Book">
+    insert into book (b_id, b_name, b_author, 
+      b_press, b_stock, b_categoryid
+      )
+    values (#{bId,jdbcType=INTEGER}, #{bName,jdbcType=VARCHAR}, #{bAuthor,jdbcType=VARCHAR}, 
+      #{bPress,jdbcType=VARCHAR}, #{bStock,jdbcType=INTEGER}, #{bCategoryid,jdbcType=INTEGER}
+      )
+  </insert>
+  <insert id="insertSelective" parameterType="com.book.springboot.entity.Book">
+    insert into book
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="bId != null">
+        b_id,
+      </if>
+      <if test="bName != null">
+        b_name,
+      </if>
+      <if test="bAuthor != null">
+        b_author,
+      </if>
+      <if test="bPress != null">
+        b_press,
+      </if>
+      <if test="bStock != null">
+        b_stock,
+      </if>
+      <if test="bCategoryid != null">
+        b_categoryid,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="bId != null">
+        #{bId,jdbcType=INTEGER},
+      </if>
+      <if test="bName != null">
+        #{bName,jdbcType=VARCHAR},
+      </if>
+      <if test="bAuthor != null">
+        #{bAuthor,jdbcType=VARCHAR},
+      </if>
+      <if test="bPress != null">
+        #{bPress,jdbcType=VARCHAR},
+      </if>
+      <if test="bStock != null">
+        #{bStock,jdbcType=INTEGER},
+      </if>
+      <if test="bCategoryid != null">
+        #{bCategoryid,jdbcType=INTEGER},
+      </if>
+    </trim>
+  </insert>
+  <select id="countByExample" parameterType="com.book.springboot.entity.BookExample" resultType="java.lang.Long">
+    select count(*) from book
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </select>
+  <update id="updateByExampleSelective" parameterType="map">
+    update book
+    <set>
+      <if test="record.bId != null">
+        b_id = #{record.bId,jdbcType=INTEGER},
+      </if>
+      <if test="record.bName != null">
+        b_name = #{record.bName,jdbcType=VARCHAR},
+      </if>
+      <if test="record.bAuthor != null">
+        b_author = #{record.bAuthor,jdbcType=VARCHAR},
+      </if>
+      <if test="record.bPress != null">
+        b_press = #{record.bPress,jdbcType=VARCHAR},
+      </if>
+      <if test="record.bStock != null">
+        b_stock = #{record.bStock,jdbcType=INTEGER},
+      </if>
+      <if test="record.bCategoryid != null">
+        b_categoryid = #{record.bCategoryid,jdbcType=INTEGER},
+      </if>
+    </set>
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExample" parameterType="map">
+    update book
+    set b_id = #{record.bId,jdbcType=INTEGER},
+      b_name = #{record.bName,jdbcType=VARCHAR},
+      b_author = #{record.bAuthor,jdbcType=VARCHAR},
+      b_press = #{record.bPress,jdbcType=VARCHAR},
+      b_stock = #{record.bStock,jdbcType=INTEGER},
+      b_categoryid = #{record.bCategoryid,jdbcType=INTEGER}
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByPrimaryKeySelective" parameterType="com.book.springboot.entity.Book">
+    update book
+    <set>
+      <if test="bName != null">
+        b_name = #{bName,jdbcType=VARCHAR},
+      </if>
+      <if test="bAuthor != null">
+        b_author = #{bAuthor,jdbcType=VARCHAR},
+      </if>
+      <if test="bPress != null">
+        b_press = #{bPress,jdbcType=VARCHAR},
+      </if>
+      <if test="bStock != null">
+        b_stock = #{bStock,jdbcType=INTEGER},
+      </if>
+      <if test="bCategoryid != null">
+        b_categoryid = #{bCategoryid,jdbcType=INTEGER},
+      </if>
+    </set>
+    where b_id = #{bId,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.book.springboot.entity.Book">
+    update book
+    set b_name = #{bName,jdbcType=VARCHAR},
+      b_author = #{bAuthor,jdbcType=VARCHAR},
+      b_press = #{bPress,jdbcType=VARCHAR},
+      b_stock = #{bStock,jdbcType=INTEGER},
+      b_categoryid = #{bCategoryid,jdbcType=INTEGER}
+    where b_id = #{bId,jdbcType=INTEGER}
+  </update>
 </mapper>

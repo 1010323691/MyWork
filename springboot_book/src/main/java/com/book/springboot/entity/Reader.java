@@ -1,20 +1,13 @@
 package com.book.springboot.entity;
 
 public class Reader {
-    private Integer rId;//读者编号
-    private String rName;//读者姓名
-    private String rEmail;//读者邮箱
+    private Integer rId;
+
+    private String rName;
+
+    private String rEmail;
+
     private Integer rIfborrow;
-
-    public Reader() {
-    }
-
-    public Reader(Integer rId, String rName, String rEmail, Integer rIfborrow) {
-        this.rId = rId;
-        this.rName = rName;
-        this.rEmail = rEmail;
-        this.rIfborrow = rIfborrow;
-    }
 
     public Integer getrId() {
         return rId;
@@ -50,11 +43,15 @@ public class Reader {
 
     @Override
     public String toString() {
-        return "Reader{" +
-                "rId=" + rId +
-                ", rName='" + rName + '\'' +
-                ", rEmail='" + rEmail + '\'' +
-                ", rIfborrow=" + rIfborrow +
-                '}';
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().getSimpleName());
+        sb.append(" [");
+        sb.append("Hash = ").append(hashCode());
+        sb.append(", rId=").append(rId);
+        sb.append(", rName=").append(rName);
+        sb.append(", rEmail=").append(rEmail);
+        sb.append(", rIfborrow=").append(rIfborrow);
+        sb.append("]");
+        return sb.toString();
     }
 }

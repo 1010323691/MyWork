@@ -3,28 +3,21 @@ package com.book.springboot.entity;
 import java.util.Date;
 
 public class Borrow {
-    private Integer brId;//记录id
-    private Date brOuttime;//出借时间
-    private Date brEndtime;//截止时间
-    private Date brBacktime;//归还时间
-    private int brIfreturn;//是否归还 0未归还，1已归还
-    private String brRecord;//附加说明
-    private Book brBook;//图书
-    private Reader brReader;//读者
+    private Integer brId;
 
-    public Borrow() {
-    }
+    private Date brOuttime;
 
-    public Borrow(Integer brId, Date brOuttime, Date brEndtime, Date brBacktime, int brIfreturn, String brRecord, Book brBook, Reader brReader) {
-        this.brId = brId;
-        this.brOuttime = brOuttime;
-        this.brEndtime = brEndtime;
-        this.brBacktime = brBacktime;
-        this.brIfreturn = brIfreturn;
-        this.brRecord = brRecord;
-        this.brBook = brBook;
-        this.brReader = brReader;
-    }
+    private Date brEndtime;
+
+    private Date brBacktime;
+
+    private Integer brIfreturn;
+
+    private String brRecord;
+
+    private Integer brBookid;
+
+    private Integer brReaderid;
 
     public Integer getBrId() {
         return brId;
@@ -58,11 +51,11 @@ public class Borrow {
         this.brBacktime = brBacktime;
     }
 
-    public int getBrIfreturn() {
+    public Integer getBrIfreturn() {
         return brIfreturn;
     }
 
-    public void setBrIfreturn(int brIfreturn) {
+    public void setBrIfreturn(Integer brIfreturn) {
         this.brIfreturn = brIfreturn;
     }
 
@@ -74,33 +67,37 @@ public class Borrow {
         this.brRecord = brRecord;
     }
 
-    public Book getBrBook() {
-        return brBook;
+    public Integer getBrBookid() {
+        return brBookid;
     }
 
-    public void setBrBook(Book brBook) {
-        this.brBook = brBook;
+    public void setBrBookid(Integer brBookid) {
+        this.brBookid = brBookid;
     }
 
-    public Reader getBrReader() {
-        return brReader;
+    public Integer getBrReaderid() {
+        return brReaderid;
     }
 
-    public void setBrReader(Reader brReader) {
-        this.brReader = brReader;
+    public void setBrReaderid(Integer brReaderid) {
+        this.brReaderid = brReaderid;
     }
 
     @Override
     public String toString() {
-        return "Borrow{" +
-                "brId=" + brId +
-                ", brOuttime=" + brOuttime +
-                ", brEndtime=" + brEndtime +
-                ", brBacktime=" + brBacktime +
-                ", brIfreturn=" + brIfreturn +
-                ", brRecord='" + brRecord + '\'' +
-                ", brBook=" + brBook +
-                ", brReader=" + brReader +
-                '}';
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().getSimpleName());
+        sb.append(" [");
+        sb.append("Hash = ").append(hashCode());
+        sb.append(", brId=").append(brId);
+        sb.append(", brOuttime=").append(brOuttime);
+        sb.append(", brEndtime=").append(brEndtime);
+        sb.append(", brBacktime=").append(brBacktime);
+        sb.append(", brIfreturn=").append(brIfreturn);
+        sb.append(", brRecord=").append(brRecord);
+        sb.append(", brBookid=").append(brBookid);
+        sb.append(", brReaderid=").append(brReaderid);
+        sb.append("]");
+        return sb.toString();
     }
 }

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>Dashboard Template for Bootstrap</title>
+    <!-- Bootstrap core CSS -->
+    <link href="asserts/css/bootstrap.min.css" th:href="@{/webjars/bootstrap/4.0.0/css/bootstrap.min.css}" rel="stylesheet">
+    <!-- Custom styles for this template -->
+    <link href="asserts/css/dashboard.css" th:href="@{/asserts/css/dashboard.css}" rel="stylesheet">
+</head>
+
+<body>
+<!-- 引入抽取的topbar 模板名：会使用thymeleaf的前后缀配置规则进行解析 -->
+<div th:replace="commons/bar::topbar"></div>
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- 引入侧边栏 使用id的方式引入 -->
+        <div th:replace="commons/bar::#leftbar(activeUri='emps')"></div>
+
+        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 pt-3 px-4">
+            <form th:action="@{/book}" method="post">
+                <!--发送put请求修改员工数据-->
+                <!--
+                1、SpringMVC中配置HiddenHttpMethodFilter;（SpringBoot自动配置好的）
+                2、页面创建一个post表单
+                3、创建一个input项，name="_method";值就是我们指定的请求方式
+                -->
+                <input type="hidden" name="_method" value="put" th:if="${book!=null}">
+                <input type="hidden" name="bId" th:if="${book!=null}" th:value="${book.bId}">
+                <div class="form-group">
+                    <label>书名</label>
+                    <input name="bName" type="text" class="form-control" placeholder="例：朝花夕拾" th:value="${book!=null}?${book.bName}">
+                </div>
+                <div class="form-group">
+                    <label>作者</label>
+                    <input name="bAuthor" type="text" class="form-control" placeholder="例：鲁迅" th:value="${book!=null}?${book.bAuthor}">
+                </div>
+                <div class="form-group">
+                    <label>出版社</label><br/>
+                    <input name="bPress" type="text" class="form-control" placeholder="例：天津人民出版社" th:value="${book!=null}?${book.bPress}">
+                </div>
+                <div class="form-group">
+                    <label>库存</label><br/>
+                    <input name="bStock" type="text" class="form-control" placeholder="例：45" th:value="${book!=null}?${book.bStock}">
+                </div>
+                <div class="form-group">
+                    <label>书籍分类</label>
+                    <!--提交的是分类的id-->
+                    <select class="form-control" name="bCategory.cId">
+                        <option th:selected="${book!=null}?${cate.cId == book.bCategory.cId}" th:value="${cate.cId}" th:each="cate:${category}" th:text="${cate.cName}">1</option>
+                    </select>
+                </div>
+                <button type="submit" id="addBtn" class="btn btn-primary" th:text="${book!=null}?'修改':'添加'"></button>
+            </form>
+        </main>
+    </div>
+</div>
+<script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js">
+
+</script>
+</body>
+</html>

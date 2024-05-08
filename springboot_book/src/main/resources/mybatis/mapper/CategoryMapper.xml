@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.book.springboot.mapper.CategoryMapper">
+
+    <!--
+    private Integer cId;//分类编号
+    private String cName;//分类名称
+    -->
+
+    <!--public List<Category> selectAllCategory();-->
+    <select id="selectAllCategory" resultType="com.book.springboot.entity.Category">
+        select * from category
+    </select>
+
+    <!--public void insertCategory(Category category);-->
+    <insert id="insertCategory">
+        insert into category
+        values (null,#{cName})
+    </insert>
+
+    <!--public void deleteCategory(Integer id);-->
+    <delete id="deleteCategory">
+        delete from category
+        where c_id = #{cId}
+    </delete>
+
+</mapper>

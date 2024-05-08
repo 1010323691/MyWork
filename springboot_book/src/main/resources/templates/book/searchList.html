@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>图书管理系统</title>
+    <!-- Bootstrap core CSS -->
+    <link href="asserts/css/bootstrap.min.css" th:href="@{/webjars/bootstrap/4.0.0/css/bootstrap.min.css}" rel="stylesheet">
+    <!-- Custom styles for this template -->
+    <link href="asserts/css/dashboard.css" th:href="@{/asserts/css/dashboard.css}" rel="stylesheet">
+</head>
+
+<body>
+<!-- 引入抽取的topbar 模板名：会使用thymeleaf的前后缀配置规则进行解析 -->
+<div th:replace="commons/bar::topbar"></div>
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- 引入侧边栏 使用id的方式引入 -->
+        <div th:replace="commons/bar::#leftbar(activeUri='books')"></div>
+
+        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 pt-3 px-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <h2>图书列表</h2>
+                </div>
+                <div class="col-md-1 offset-md-6">
+                    <a class="btn btn-sm btn-success" href="emp" th:href="@{/book}">添加</a>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-sm">
+                    <thead>
+                    <tr>
+                        <th>编号</th>
+                        <th>书名</th>
+                        <th>作者</th>
+                        <th>出版社</th>
+                        <th>库存</th>
+                        <th>分类</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <!-- 循环遍历emps -->
+                    <tr th:each="book:${pageInfo.list}">
+                        <td th:text="${book.bId}"></td>
+                        <td th:text="${book.bName}"></td>
+                        <td th:text="${book.bAuthor}"></td>
+                        <td th:text="${book.bPress}"></td>
+                        <td th:text="${book.bStock}"></td>
+                        <td th:text="${book.bCategory.cName}"></td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary" href="#" th:href="@{/bookBorrow/}+${book.bId}">出借</a>
+                            <a class="btn btn-sm btn-outline-primary" href="#" th:href="@{/book/}+${book.bId}">编辑</a>
+                            <button class="btn btn-sm btn-outline-danger delete">删除</button>
+                        </td>
+                    </tr>
+                    </tbody>
+
+                </table>
+            </div>
+            <!--<div class="col-md-5 offset-md-7">-->
+            <div style="position: absolute;top: 650px;left: 800px">
+                <nav aria-label="Page navigation example">
+                    <ul class="pagination">
+                        <!-- 首页  th:if="${pageInfo.pageNum le '1'}" -->
+                        <li th:if="${pageInfo.pageNum} gt '1'">
+                            <a class="page-link" th:href="'/search?pn=1&&bName='+${name}">首页</a>
+                        </li>
+                        <li class="page-item disabled" th:if="${pageInfo.pageNum} le '1'">
+                            <a class="page-link" th:href="'/search?pn=1&&bName='+${name}">首页</a>
+                        </li>
+
+                        <!-- 上一页 -->
+                        <li th:if="${pageInfo.pageNum} gt '1'">
+                            <a class="page-link" th:href="'/search?pn=' + ${pageInfo.pageNum - 1}+'&&bName='+${name}"><span aria-hidden="true">&laquo;</span></a>
+                        </li>
+                        <li class="page-item disabled" th:if="${pageInfo.pageNum} le '1'">
+                            <a class="page-link" th:href="'/search?pn=' + ${pageInfo.pageNum - 1}+'&&bName='+${name}"><span aria-hidden="true">&laquo;</span></a>
+                        </li>
+
+                        <!-- 中间页 -->
+                        <li th:each="pageNum:${pageInfo.navigatepageNums}">
+                            <a class="page-link" th:href="'/search?pn=' + ${pageNum}+'&&bName='+${name}" th:text="${pageNum}" th:if="${pageNum ne pageInfo.pageNum}"></a>
+                            <a class="page-link" th:href="'/search?pn=' + ${pageNum}+'&&bName='+${name}" th:text="${pageNum}" th:if="${pageNum eq pageInfo.pageNum}" th:style="'font-weight:bold;background: #6faed9;'"></a>
+                        </li>
+
+                        <!-- 下一页 -->
+                        <li th:if="${pageInfo.pageNum} lt ${pageInfo.pages}">
+                            <a class="page-link" th:href="'/search?pn=' + ${pageInfo.pageNum + 1}+'&&bName='+${name}"><span aria-hidden="true">&raquo;</span></a>
+                        </li>
+                        <li class="page-item disabled" th:if="${pageInfo.pageNum} ge ${pageInfo.pages}">
+                            <a class="page-link" th:href="'/search?pn=' + ${pageInfo.pageNum + 1}+'&&bName='+${name}"><span aria-hidden="true">&raquo;</span></a>
+                        </li>
+
+                        <!-- 尾页 -->
+                        <li th:if="${pageInfo.pageNum} lt ${pageInfo.pages}">
+                            <a class="page-link" th:href="'/search?pn=' + ${pageInfo.pages}+'&&bName='+${name}">尾页</a>
+                        </li>
+                        <li class="page-item disabled" th:if="${pageInfo.pageNum} ge ${pageInfo.pages}">
+                            <a class="page-link" th:href="'/search?pn=' + ${pageInfo.pages}+'&&bName='+${name}">尾页</a>
+                        </li>
+
+                    </ul>
+                </nav>
+            </div>
+        </main>
+
+    </div>
+</div>
+
+<!-- 删除验证 -->
+<script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+<script>
+    $(function(){
+        $(".delete").click(function () {
+            console.log("点击了")
+            var bookName = $(this).parents("tr").find("td:eq(1)").text();
+            var bookId = $(this).parents("tr").find("td:eq(0)").text();
+            if (confirm("确定要删除【"+bookName+"】吗？")){
+                $.ajax({
+                    url:"/book/"+bookId,
+                    type:"DELETE",
+                    complete:function(){
+                        console.log("执行结束")
+                        $(location).prop('href', '/books')
+                    }
+                })
+            }
+        })
+        //搜索
+        $('#search').bind('keypress', function (event) {
+            if (event.keyCode == "13") {
+                var text = $("#search").val();
+                location.href="/search?bName="+text;
+            }
+        })
+    })
+</script>
+</body>
+</html>

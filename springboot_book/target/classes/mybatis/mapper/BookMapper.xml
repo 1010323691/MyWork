@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.book.springboot.mapper.BookMapper">
+
+    <!--
+    private Integer bId;//编号
+    private String bName;//书名
+    private String bAuthor;//作者
+    private String bPress;//出版社
+    private Integer bStock;//库存
+    private Category bCategory;//分类
+    -->
+
+   <resultMap id="myBook" type="com.book.springboot.entity.Book">
+      <id column="b_id" property="bId"/>
+      <result column="b_name" property="bName"/>
+      <result column="b_author" property="bAuthor"/>
+      <result column="b_press" property="bPress"/>
+      <result column="b_stock" property="bStock"/>
+      <association property="bCategory" javaType="com.book.springboot.entity.Category">
+         <id column="c_id" property="cId"/>
+         <result column="c_name" property="cName"/>
+      </association>
+   </resultMap>
+
+    <!--public List<Book> selectAllBook();-->
+   <select id="selectAllBook" resultMap="myBook">
+      select b.*,c.c_name from book b left join category c
+      on b.b_categoryid = c.c_id
+      order by b.b_id
+   </select>
+
+    <!--public List<Book> selectByName();-->
+   <select id="selectByName" resultMap="myBook">
+      select b.*,c.c_name from book b left join category c
+      on b.b_categoryid = c.c_id
+      where b_name like concat('%',#{bName},'%')
+   </select>
+
+   <!--public Book selectById(Integer id);-->
+   <select id="selectById" resultMap="myBook">
+      select b.*,c.c_name from book b left join category c
+      on b.b_categoryid = c.c_id
+      where b_id = #{bId}
+   </select>
+
+   <!--public List<Book> selectByCategory(String cName);-->
+   <select id="selectByCategory" resultMap="myBook">
+      select b.*,c.c_name from book b left join category c
+      on b.b_categoryid = c.c_id
+      where c.c_name = #{cName}
+   </select>
+
+    <!--public void insertBook(Book book);-->
+   <insert id="insertBook">
+      insert into book(b_id,b_name,b_author,b_press,b_stock,b_categoryid)
+      values (null,#{bName},#{bAuthor},#{bPress},#{bStock},#{bCategory.cId})
+   </insert>
+
+    <!--public void deleteBook(Integer id);-->
+   <delete id="deleteBook">
+      delete from book
+      where b_id=#{bId}
+   </delete>
+
+    <!--public void updateBook(Book book);-->
+   <update id="updateBook">
+      update book
+      set b_name=#{bName},b_author=#{bAuthor},b_press=#{bPress},b_stock=#{bStock},b_categoryid=#{bCategory.cId}
+      where b_id=#{bId}
+   </update>
+
+   <!--public void updateStock(Book book);-->
+   <update id="updateStock">
+      update book
+      set b_stock=#{bStock}
+      where b_id=#{bId}
+   </update>
+
+</mapper>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.book.springboot.mapper.ReaderMapper">
+
+    <!--
+    private Integer rId;//读者编号
+    private String rName;//读者姓名
+    private String rEmail;//读者邮箱
+    private Integer rIfborrow;
+    -->
+
+    <!--public List<Reader> selectAllReader();-->
+    <select id="selectAllReader" resultType="com.book.springboot.entity.Reader">
+        select * from reader
+    </select>
+
+    <!--public Reader selectByName(String name);-->
+    <select id="selectByName" resultType="com.book.springboot.entity.Reader">
+        select * from reader
+        where r_name = #{name}
+    </select>
+
+
+    <!--public void insertReader(Reader reader);-->
+    <insert id="insertReader">
+        insert into reader
+        values (null,#{rName},#{rEmail},#{rIfborrow})
+    </insert>
+
+    <!--public void updateReader(Reader reader);-->
+    <update id="updateReader">
+        update reader
+        set r_email = #{rEmail}
+        where r_name = #{rName}
+    </update>
+
+</mapper>

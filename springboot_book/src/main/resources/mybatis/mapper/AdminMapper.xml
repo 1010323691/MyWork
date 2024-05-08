@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.book.springboot.mapper.AdminMapper">
+
+    <!--
+    private Integer aId;
+    private String aUsername;
+    private String aPassword;
+    -->
+
+    <!--public Admin selectByUsername();-->
+    <select id="selectByUsername" resultType="com.book.springboot.entity.Admin">
+        select * from admin
+        where a_username = #{username}
+    </select>
+
+</mapper>

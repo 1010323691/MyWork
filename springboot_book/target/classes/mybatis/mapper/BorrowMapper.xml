@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.book.springboot.mapper.BorrowMapper">
+
+    <!--
+    private int brId;//记录id
+    private Book brBook;//图书
+    private Reader brReader;//读者
+    private Date brOuttime;//出借时间
+    private Date brEndtime;//截止时间
+    private Date brBacktime;//归还时间
+    private int brIfreturn;//是否归还 0未归还，1已归还
+    private String brRecord;//附加说明
+    -->
+
+    <resultMap id="myBorrow" type="com.book.springboot.entity.Borrow">
+        <id column="br_id" property="brId"/>
+        <result column="br_outtime" property="brOuttime"/>
+        <result column="br_endtime" property="brEndtime"/>
+        <result column="br_backtime" property="brBacktime"/>
+        <result column="br_ifreturn" property="brIfreturn"/>
+        <result column="br_record" property="brRecord"/>
+        <association property="brBook" javaType="com.book.springboot.entity.Book">
+            <id column="b_id" property="bId"/>
+            <result column="b_name" property="bName"/>
+        </association>
+        <association property="brReader" javaType="com.book.springboot.entity.Reader">
+            <id column="r_id" property="rId"/>
+            <result column="r_name" property="rName"/>
+            <result column="r_email" property="rEmail"/>
+        </association>
+    </resultMap>
+
+    <!--public List<Borrow> selectAllBorrow();-->
+    <select id="selectAllBorrow" resultMap="myBorrow">
+        select br.br_id,b.b_name,r.r_name,br.br_outtime,br.br_endtime,br.br_backtime,br.br_ifreturn,br.br_record
+        from borrow br
+        left join book b on br.br_bookid = b.b_id
+        left join reader r on br.br_readerid = r.r_id
+        order by br.br_id
+    </select>
+
+    <!--public List<Borrow> selectBorrowing();-->
+    <select id="selectBorrowing" resultMap="myBorrow">
+        select br.br_id,b.b_name,r.r_name,r.r_email,br.br_outtime,br.br_endtime,br.br_backtime,br.br_ifreturn,br.br_record
+        from borrow br
+        left join book b on br.br_bookid = b.b_id
+        left join reader r on br.br_readerid = r.r_id
+		WHERE br.br_ifreturn=0
+        order by br.br_id
+    </select>
+
+    <!--public List<Borrow> selectBorrowed();-->
+    <select id="selectBorrowed" resultMap="myBorrow">
+        select br.br_id,b.b_name,r.r_name,br.br_outtime,br.br_endtime,br.br_backtime,br.br_ifreturn,br.br_record
+        from borrow br
+        left join book b on br.br_bookid = b.b_id
+        left join reader r on br.br_readerid = r.r_id
+		WHERE br.br_ifreturn=1
+        order by br.br_id
+    </select>
+
+    <!--public Borrow selectById();-->
+    <select id="selectById" resultMap="myBorrow">
+        select br.br_id,b.b_id,b.b_name,r.r_name,r.r_email,br.br_outtime,br.br_endtime,br.br_backtime,br.br_ifreturn,br.br_record
+        from borrow br
+        left join book b on br.br_bookid = b.b_id
+        left join reader r on br.br_readerid = r.r_id
+		WHERE br_id = #{brId}
+    </select>
+
+    <!--public void insertBorrow();-->
+    <insert id="insertBorrow">
+        insert into borrow
+        values (null,#{brOuttime},#{brEndtime},null,#{brIfreturn},null,#{brBook.bId},#{brReader.rId})
+    </insert>
+
+    <!--public void updateBorrow(Borrow borrow);-->
+    <update id="updateBorrow">
+        update borrow
+        set br_backtime=#{brBacktime},br_ifreturn=#{brIfreturn},br_record=#{brRecord}
+        where br_id = #{brId}
+    </update>
+</mapper>

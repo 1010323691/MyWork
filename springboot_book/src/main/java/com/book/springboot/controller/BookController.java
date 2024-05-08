@@ -108,5 +108,4 @@ public class BookController {
         return "book/searchList";
     }
     
-    public void searchBookmainab(){}
 }

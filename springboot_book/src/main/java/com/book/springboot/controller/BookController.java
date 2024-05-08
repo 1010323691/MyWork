@@ -107,5 +107,6 @@ public class BookController {
         model.addAttribute("name", bName);
         return "book/searchList";
     }
-    public void searchBookAB() {}
+    
+    public void searchBookmainab(){}
 }

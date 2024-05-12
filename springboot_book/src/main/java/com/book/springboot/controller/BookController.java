@@ -1,7 +1,6 @@
 package com.book.springboot.controller;
 
 import com.book.springboot.dto.BookDto;
-import com.book.springboot.entity.Book;
 import com.book.springboot.entity.Category;
 import com.book.springboot.service.BookService;
 import com.book.springboot.service.CategoryService;

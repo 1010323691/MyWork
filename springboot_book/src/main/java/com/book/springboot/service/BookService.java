@@ -1,7 +1,6 @@
 package com.book.springboot.service;
 
 import com.book.springboot.dto.BookDto;
-import com.book.springboot.entity.Book;
 import com.book.springboot.mapper.BookMapper;
 import com.book.springboot.mapper.BookMapperExtra;
 

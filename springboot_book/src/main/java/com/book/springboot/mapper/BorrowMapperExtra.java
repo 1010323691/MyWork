@@ -1,7 +1,6 @@
 package com.book.springboot.mapper;
 
 import com.book.springboot.dto.BorrowDto;
-import com.book.springboot.entity.Borrow;
 
 import java.util.List;
 

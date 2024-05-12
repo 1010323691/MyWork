@@ -1,7 +1,6 @@
 package com.book.springboot.mapper;
 
 import com.book.springboot.dto.BookDto;
-import com.book.springboot.entity.Book;
 
 import java.util.List;
 

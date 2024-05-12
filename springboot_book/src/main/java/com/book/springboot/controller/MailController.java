@@ -1,7 +1,6 @@
 package com.book.springboot.controller;
 
 import com.book.springboot.dto.BorrowDto;
-import com.book.springboot.entity.Borrow;
 import com.book.springboot.service.BorrowService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;

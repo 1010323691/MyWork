@@ -488,10 +488,14 @@ const UI = {
             this.elements.apiTypeSelect.value = savedApiType;
         }
 
-        // API 地址
-        const savedUrl = localStorage.getItem(Config.storageKeys.apiUrl);
-        if (savedUrl && this.elements.apiUrl) {
-            this.elements.apiUrl.value = savedUrl;
+        // API 地址：根据 API 类型设置默认地址，不直接加载缓存
+        const currentApiType = this.elements.apiTypeSelect?.value || Config.defaultApiType;
+        const defaultUrl = currentApiType === Config.apiTypes.VLLM
+            ? Config.defaultVllmUrl
+            : Config.defaultApiUrl;
+
+        if (this.elements.apiUrl) {
+            this.elements.apiUrl.value = defaultUrl;
         }
 
         // 模型

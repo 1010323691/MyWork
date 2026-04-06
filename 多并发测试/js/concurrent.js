@@ -75,8 +75,6 @@ const Concurrent = {
      */
     checkAllCompleted() {
         if (this.completedCount === this.tasks.length) {
-            this.isRunning = false;
-            this.abortController = null;
             return true;
         }
         return false;
@@ -103,6 +101,9 @@ const Concurrent = {
         try {
             const controller = new AbortController();
 
+            // 记录请求开始时间（用于 QPS 计算）
+            this.requestTimestamps.push(Date.now());
+
             // 发送请求，获取流式响应
             const stream = await API.chat(
                 config.prompt,
@@ -110,9 +111,6 @@ const Concurrent = {
                 config.temperature,
                 controller
             );
-
-            // 记录请求开始时间（用于 QPS 计算）
-            this.requestTimestamps.push(Date.now());
 
             // 解析流式响应
             await API.parseStream(stream,
@@ -216,6 +214,7 @@ const Concurrent = {
         this.abortController = null;
         UI.updateConcurrentStatus(0);
         UI.updateSummary(this.results);
+        UI.setTesting(false);  // 重置 UI 状态：按钮和并发中徽章
     },
 
     /**
@@ -242,7 +241,7 @@ const Concurrent = {
             this.lastQpsCalc = now;
         };
 
-        this.qpsTimer = setInterval(calcQps, Config.uiUpdateInterval);
+        this.qpsTimer = setInterval(calcQps, Config.uiUpdateInterval / 2);
         calcQps();
     },
 

@@ -61,7 +61,7 @@ resultsTableBody     - 结果表格 tbody
 | `UI.clearResultsTable()` | 清空结果表格 | `App.startTest()`, `UI.bindEvents()` |
 | `UI.updateSummary(results)` | 更新统计汇总 (平均值) | `Concurrent.checkAllCompleted()` |
 | `UI.exportToCsv()` | 导出结果为 CSV | `UI.bindEvents()` |
-| `UI.loadSavedConfig()` | 从 localStorage 加载配置 | `App.init()` |
+| `UI.loadSavedConfig()` | 从 localStorage 加载配置（API 地址按类型加载默认值） | `App.init()` |
 
 ## UI 更新流程
 

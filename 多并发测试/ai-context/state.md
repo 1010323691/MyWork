@@ -33,10 +33,10 @@ Concurrent = {
     results: Array,            // 测试结果数组
 
     // QPS 统计
-    requestTimestamps: Array,  // 请求时间戳列表
+    requestTimestamps: Array,  // 请求时间戳列表（在 API.chat() 之前记录）
     lastQpsCalc: number,       // 上次 QPS 计算时间
     currentQps: number,        // 当前 QPS 值
-    qpsTimer: IntervalID,      // QPS 计算定时器
+    qpsTimer: IntervalID,      // QPS 计算定时器（每 50ms 触发）
 }
 ```
 

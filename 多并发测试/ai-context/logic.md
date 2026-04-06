@@ -96,14 +96,20 @@ Concurrent.runRequest(id, config)
 
 ```
 startQpsCalc()
-  → setInterval(calcQps, 100ms)
+  → setInterval(calcQps, 50ms)  // 每 50ms 更新一次，更平滑
 
-calcQps() 每 100ms 执行:
+runRequest() 中：
+  → this.requestTimestamps.push(Date.now())  // 在 API.chat() 之前记录
+  → API.chat() 发起请求
+
+calcQps() 每 50ms 执行:
   → now = Date.now()
   → 过滤窗口外的时间戳 (默认 1 秒窗口)
   → currentQps = 窗口内请求数 / 窗口秒数
   → UI.updateQps(currentQps)
 ```
+
+**注意**：时间戳必须在 `API.chat()` **之前**记录，否则会记录请求返回流的时间而不是请求发起时间，导致 QPS 计算错误。
 
 ## 关键调用链
 

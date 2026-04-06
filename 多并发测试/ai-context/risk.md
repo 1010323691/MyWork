@@ -1,276 +1,148 @@
-# 风险点与注意事项
+# 风险点文档
+
+## 容易出 bug 的地方
+
+### 1. 状态同步问题
+**位置**：`js/concurrent.js`、`js/ui.js`
+
+**风险**：Concurrent 状态与 UI 显示不同步
+
+**场景**：
+- `runAll()` 结束时调用 `UI.setTesting(false)`，但如果在此之前 UI 状态未正确更新，可能导致按钮状态混乱
+- `completedCount` 与 `results` 数组长度可能不一致（如异常中断）
+
+**建议**：修改状态逻辑时，同时检查所有引用该状态的 UI 更新方法
 
 ---
 
-## 易错区域
+### 2. 流式响应解析容错性
+**位置**：`js/api.js` `parseStream()`
 
-### 1. UI 与状态不同步
+**风险**：SSE 格式解析对异常数据容错性差
 
-**问题**: UI 更新与 Concurrent 状态不一致
+**场景**：
+- vLLM 返回非标准 SSE 格式时 JSON.parse 失败
+- Ollama 返回空行或非 JSON 行时解析失败
+- 当前虽然有 try-catch，但 silent fail 可能隐藏真实问题
 
-**常见场景**:
-- 测试中途停止，Concurrent.isRunning 未重置
-- 任务计数错误 (runningCount/completedCount)
-
-**位置**:
-- `concurrent.js:runAll()` - 必须确保 finally 或 catch 中更新计数
-- `ui.js:setTesting()` - 测试结束时必须调用
-
-**修复原则**:
-```javascript
-// 任何时候修改计数，都要同步更新 UI
-this.runningCount--;
-UI.updateConcurrentStatus(this.runningCount);
-```
+**建议**：修改解析逻辑时需同时测试两种 API 类型
 
 ---
 
-### 2. AbortController 管理
+### 3. AbortController 作用域
+**位置**：`js/concurrent.js`、`js/api.js`
 
-**问题**: 停止测试时请求未被正确取消
+**风险**：AbortController 的作用域不一致
 
-**常见场景**:
-- Concurrent.abortController 未正确传递到 API.chat()
-- 每个请求的独立 controller 未被 abort
+**场景**：
+- `Concurrent.abortController` 用于停止全部请求
+- `runRequest()` 中每个请求也创建独立的 `AbortController`，但未保存引用
+- `stop()` 调用 `abort()` 后，已启动的请求可能继续执行
 
-**位置**:
-- `concurrent.js:stop()` - 必须 abort 全局 controller
-- `concurrent.js:runRequest()` - 每个请求需要独立 controller
-
-**修复原则**:
-```javascript
-// 停止时 abort 所有请求
-stop() {
-    this.isRunning = false;
-    if (this.abortController) {
-        this.abortController.abort();
-    }
-}
-```
+**建议**：当前设计是全局 abort + 每个请求独立超时，修改时需注意一致性
 
 ---
 
-### 3. 流式响应解析
+### 4. localStorage 读取时序
+**位置**：`js/ui.js` `loadSavedConfig()`
 
-**问题**: token 统计不准确或内存泄漏
+**风险**：页面加载时 localStorage 未完全读取
 
-**常见场景**:
-- vLLM 的 usage 只在最后一个 chunk，中间需要估算
-- Ollama 的 eval_count 在 done=true 时返回
-- stream 未完整读取就中断
+**场景**：
+- `App.init()` 调用 `UI.loadSavedConfig()` 是同步的
+- 但 `App.loadModels()` 是异步的，模型下拉框可能在配置恢复后才填充
+- 如果 `savedModel` 不在新加载的模型列表中，会选择默认值
 
-**位置**:
-- `api.js:parseStream()` - 两个 API 类型的解析逻辑
-
-**修复原则**:
-```javascript
-// 兜底 token 数
-const visibleTokens = outputTokens > 0 ? outputTokens : accumulatedContent.length;
-```
+**建议**：修改配置加载逻辑时，需等待模型列表加载完成后再恢复模型选择
 
 ---
 
-### 4. localStorage 与 UI 不同步
+### 5. 并发计数逻辑
+**位置**：`js/concurrent.js` `runRequest()`
 
-**问题**: 修改配置后未保存，刷新后丢失
+**风险**：`runningCount` 在异步边界可能不准确
 
-**常见场景**:
-- 新增输入框未绑定 change 事件
-- API 类型切换后未更新默认地址
+**场景**：
+- `runningCount++` 在请求开始时
+- `runningCount--` 在 `onComplete` 或 catch 中
+- 如果 `parseStream()` 抛出未捕获异常，计数可能不归零
 
-**位置**:
-- `ui.js:bindEvents()` - 所有输入框必须有 change 事件
-- `ui.js:loadSavedConfig()` - 加载逻辑与保存逻辑对应
-
-**修复原则**:
-```javascript
-// 每次 change 事件必须保存
-this.elements.xyz.addEventListener('change', () => {
-    localStorage.setItem(Config.storageKeys.xyz, this.elements.xyz.value);
-});
-```
-
----
-
-### 5. DOM 元素不存在
-
-**问题**: 访问未初始化的 UI.elements 导致报错
-
-**常见场景**:
-- init() 之前调用 UI 方法
-- HTML 元素 ID 变更未同步更新
-
-**位置**:
-- `ui.js` 所有更新方法 - 必须检查元素存在性
-
-**修复原则**:
-```javascript
-// 所有 UI 方法必须有空值检查
-updateConnectionStatus(isConnected, message) {
-    if (!this.elements.connectionStatus) return;
-    // ...
-}
-```
+**建议**：使用 `try...finally` 确保计数清理
 
 ---
 
 ## 强耦合区域
 
-### 1. UI 与 Concurrent 强耦合
+### 1. UI ↔ Concurrent 双向调用
+**位置**：`js/ui.js`、`js/concurrent.js`
 
-**表现**: UI 模块直接访问 Concurrent 内部状态
+**耦合**：
+- `Concurrent.runRequest()` 调用 `UI.updateTaskList()`、`UI.updateTaskProgress()`
+- `UI.bindEvents()` 调用 `Concurrent.clear()`、`Concurrent.getResults()`
 
-**位置**:
-- `ui.js:updateTaskList()` - 访问 `Concurrent.tasks`
-- `ui.js:exportToCsv()` - 访问 `Concurrent.getResults()`
-- `ui.js:updateMetrics()` - 访问 `concurrentState.results`
-
-**风险**: 修改 Concurrent 数据结构需要同步修改 UI
-
-### 2. Concurrent 与 UI 强耦合
-
-**表现**: Concurrent 模块直接调用 UI 方法
-
-**位置**:
-- `concurrent.js:runRequest()` - 调用多个 UI 更新方法
-- `concurrent.js:runAll()` - 调用 UI.setTesting()
-
-**风险**: UI 框架切换时 Concurrent 需要大量修改
-
-### 3. API 与 Config 强耦合
-
-**表现**: API 模块直接使用 Config 常量
-
-**位置**:
-- `api.js:getApiUrl()` - 使用 Config 默认地址
-- `api.js:chat()` - 使用 Config.apiTypes
-
-**风险**: 修改配置结构影响 API 逻辑
+**影响**：修改一方可能影响另一方
 
 ---
 
-## 修改时需特别小心
+### 2. UI ↔ App 双向调用
+**位置**：`js/ui.js`、`js/main.js`
 
-### 修改并发逻辑
+**耦合**：
+- `UI.bindEvents()` 绑定 `App.startTest()`、`App.stopTest()`、`App.loadModels()`
+- `App` 的所有 UI 更新通过 `UI.*` 方法
 
-**文件**: `concurrent.js:runAll()`
-
-**风险**: 
-- 并发数与实际请求数不一致
-- 任务状态错误
-- QPS 计算错误
-
-**建议**:
-1. 确保 `Promise.allSettled` 包裹所有请求
-2. 确保每个请求的计数增减匹配
-3. 测试不同并发数 (1, 10, 50, 100)
+**影响**：UI 事件与业务逻辑强绑定
 
 ---
 
-### 修改流式解析
+### 3. API 类型判断分散
+**位置**：`js/api.js` 多处
 
-**文件**: `api.js:parseStream()`
+**耦合**：
+- `getApiType()` 在 `checkConnection()`、`getModels()`、`chat()`、`parseStream()` 中重复调用
+- 每个方法都需根据 `apiType` 分支处理
 
-**风险**:
-- 内存泄漏 (stream 未读完)
-- token 统计错误
-- TTFT 计算错误
-
-**建议**:
-1. 确保 while(true) 循环正确结束
-2. 确保 onComplete 只调用一次
-3. 验证两个 API 类型的响应格式
+**影响**：新增 API 类型需修改多个方法
 
 ---
 
-### 修改 UI 状态控制
+## 修改时需要特别小心的逻辑
 
-**文件**: `ui.js:setTesting()`
+### 1. runAll() 的异步流程
+**文件**：`js/concurrent.js`
 
-**风险**:
-- 按钮状态混乱
-- 用户在测试中修改配置
-- 测试结束后无法重新开始
+**原因**：
+- 涉及 `Promise.allSettled`、多个异步回调
+- QPS 定时器与任务执行并行
+- 最终状态更新依赖所有任务完成
 
-**建议**:
-1. 确保测试开始时禁用所有配置输入
-2. 确保测试结束时恢复所有状态
-3. 验证 stopBtn 的启用/禁用逻辑
-
----
-
-### 修改 localStorage 键名
-
-**文件**: `config.js:storageKeys`
-
-**风险**:
-- 已有用户配置丢失
-- 新旧键名冲突
-
-**建议**:
-1. 修改后清理浏览器 localStorage 测试
-2. 考虑向后兼容 (读取旧键名迁移)
+**小心点**：
+- 修改时需确保 `isRunning = false` 和 `setTesting(false)` 在正确时机执行
+- QPS 定时器的启动/停止需与任务执行对齐
 
 ---
 
-### 修改验证逻辑
+### 2. parseStream() 的回调机制
+**文件**：`js/api.js`
 
-**文件**: `main.js:validateInput()`
+**原因**：
+- `onToken` 和 `onComplete` 回调由外部传入
+- 回调中修改 Concurrent 状态和 UI
+- 流式数据分块到达，需累积处理
 
-**风险**:
-- 允许非法值传入
-- 用户无提示提交失败
-
-**建议**:
-1. 每个验证必须有明确错误提示
-2. 验证并发数边界 (1-100)
-3. 验证必填字段非空
-
----
-
-## 调试建议
-
-### 查看任务状态
-
-```javascript
-console.log('Tasks:', Concurrent.tasks);
-console.log('Counts:', {
-    pending: Concurrent.pendingCount,
-    running: Concurrent.runningCount,
-    completed: Concurrent.completedCount
-});
-```
-
-### 查看 API 请求
-
-```javascript
-// 在 api.js:chat() 开头添加
-console.log('[API] Request:', {
-    url: `${this.getApiUrl()}/...`,
-    body: { model, prompt: prompt.substring(0, 50) + '...' }
-});
-```
-
-### 查看流式响应
-
-```javascript
-// 在 api.js:parseStream() 的 onToken 回调中添加
-console.log('[Token]', content.substring(0, 100));
-```
+**小心点**：
+- 修改时需确保回调的调用时机和参数正确
+- vLLM 和 Ollama 的回调触发点不同
 
 ---
 
-## 测试检查清单
+### 3. 全局对象依赖
+**文件**：所有 JS 文件
 
-修改后必须验证:
+**原因**：
+- `App`、`Concurrent`、`API`、`UI`、`Config` 都是全局对象
+- 文件加载顺序依赖 HTML 中的 script 标签顺序
 
-- [ ] 单个请求正常工作 (并发数=1)
-- [ ] 多个并发正常工作 (并发数=10)
-- [ ] 停止测试功能正常
-- [ ] 清空结果功能正常
-- [ ] 配置修改后保存正确
-- [ ] 刷新页面配置恢复
-- [ ] vLLM API 正常工作
-- [ ] Ollama API 正常工作
-- [ ] 模型切换后正常请求
-- [ ] 导出 CSV 功能正常
+**小心点**：
+- 新增模块需注意加载顺序
+- 避免在模块初始化时依赖其他模块（应通过函数调用）

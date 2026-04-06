@@ -1,153 +1,114 @@
-# UI 层模块说明
+# UI 层文档
+
+## 文件
+- `js/ui.js` - UI 模块
+
+## 模块职责
+- DOM 元素缓存与初始化
+- 事件绑定（按钮点击、输入变更）
+- 界面状态更新（连接状态、测试状态、任务列表、结果表格）
+- 指标显示（QPS、吞吐量、TTFT 等）
+- CSV 导出功能
+
+## 与其他模块的依赖关系
+- **依赖**：`Config`（配置常量）
+- **被依赖**：`App`、`Concurrent`（调用 UI 方法更新界面）
+- **独立**：不直接依赖 `API` 模块
 
 ---
 
-## 文件清单
+## 核心结构
 
-| 文件 | 职责 |
-|------|------|
-| `index.html` | 页面结构定义 |
-| `css/style.css` | 全部样式定义 |
-| `js/ui.js` | UI 渲染模块 (`UI` 对象) |
-
----
-
-## UI 模块结构 (`js/ui.js`)
-
-### 核心对象
-
+### DOM 元素缓存（UI.elements）
 ```
-UI = {
-    elements: {},           // DOM 元素缓存
-    init(),                // 初始化 DOM 引用
-    bindEvents(),          // 绑定事件监听器
-    // 状态更新
-    updateConnectionStatus(),
-    setLoading(),
-    setTesting(),
-    // 指标更新
-    updateConcurrentStatus(),
-    updateTotalRequests(),
-    updateQps(),
-    updateTotalThroughput(),
-    updateMetrics(),
-    // 任务列表
-    updateTaskList(),
-    updateTaskProgress(),
-    updateTaskStatus(),
-    updateTaskResult(),
-    clearTaskList(),
-    // 结果表格
-    addResultRow(),
-    clearResultsTable(),
-    updateSummary(),
-    // 工具函数
-    exportToCsv(),
-    formatTime(),
-    loadSavedConfig(),
-    resetMetrics()
-}
+connectionStatus      - 连接状态徽章
+concurrentStatus      - 并发中徽章
+apiTypeSelect         - API 类型下拉框（ollama/vllm）
+apiUrl                - API 地址输入框
+modelSelect           - 模型下拉框
+refreshBtn            - 刷新模型按钮
+promptInput           - 提示词输入框
+concurrentCount       - 并发数输入框
+temperature           - 温度参数输入框
+startBtn              - 开始按钮
+stopBtn               - 停止按钮
+clearBtn              - 清空按钮
+exportCsvBtn          - 导出 CSV 按钮
+concurrentCountDisplay- 并发数显示
+totalRequests         - 总请求数显示
+qps                   - QPS 显示
+totalThroughput       - 总吞吐量显示
+avgTtf                - 平均 TTFT 显示
+avgSpeed              - 平均速度显示
+avgTotalTime          - 平均总耗时显示
+concurrentTasksList   - 并发任务列表容器
+resultsTableBody      - 结果表格 tbody
 ```
 
 ---
 
-## DOM 元素映射 (`UI.elements`)
+## 核心方法
 
-| 元素 ID | 用途 | 对应变量 |
-|--------|------|--------|
-| `connectionStatus` | 连接状态徽章 | `UI.elements.connectionStatus` |
-| `concurrentStatus` | 并发中状态徽章 | `UI.elements.concurrentStatus` |
-| `apiTypeSelect` | API 类型选择器 | `UI.elements.apiTypeSelect` |
-| `apiUrl` | API 地址输入框 | `UI.elements.apiUrl` |
-| `modelSelect` | 模型选择器 | `UI.elements.modelSelect` |
-| `refreshBtn` | 刷新模型按钮 | `UI.elements.refreshBtn` |
-| `promptInput` | 提示词输入框 | `UI.elements.promptInput` |
-| `concurrentCount` | 并发数输入框 | `UI.elements.concurrentCount` |
-| `temperature` | Temperature 输入框 | `UI.elements.temperature` |
-| `startBtn` | 开始测试按钮 | `UI.elements.startBtn` |
-| `stopBtn` | 停止测试按钮 | `UI.elements.stopBtn` |
-| `clearBtn` | 清空结果按钮 | `UI.elements.clearBtn` |
-| `exportCsvBtn` | 导出 CSV 按钮 | `UI.elements.exportCsvBtn` |
-| `concurrentCountDisplay` | 并发数显示 | `UI.elements.concurrentCountDisplay` |
-| `totalRequests` | 总请求数显示 | `UI.elements.totalRequests` |
-| `qps` | QPS 显示 | `UI.elements.qps` |
-| `totalThroughput` | 总吞吐量显示 | `UI.elements.totalThroughput` |
-| `avgTtf` | 平均 TTFT 显示 | `UI.elements.avgTtf` |
-| `avgSpeed` | 平均速度显示 | `UI.elements.avgSpeed` |
-| `avgTotalTime` | 平均总耗时显示 | `UI.elements.avgTotalTime` |
-| `concurrentTasksList` | 任务列表容器 | `UI.elements.concurrentTasksList` |
-| `resultsTableBody` | 结果表格 body | `UI.elements.resultsTableBody` |
-
----
-
-## 事件绑定 (`bindEvents()`)
-
-| 事件 | 触发元素 | 处理逻辑 |
-|------|--------|--------|
-| `change` | `apiTypeSelect` | 保存 apiType → 更新默认地址 → 刷新模型列表 |
-| `change` | `apiUrl` | 保存 apiUrl 到 localStorage |
-| `change` | `modelSelect` | 保存 model 到 localStorage |
-| `change` | `promptInput` | 保存 prompt 到 localStorage |
-| `change` | `concurrentCount` | 边界限制 (1-100) → 保存 |
-| `change` | `temperature` | 保存到 localStorage |
-| `click` | `refreshBtn` | 调用 `App.loadModels()` |
-| `click` | `startBtn` | 调用 `App.startTest()` |
-| `click` | `stopBtn` | 调用 `App.stopTest()` |
-| `click` | `clearBtn` | 确认对话框 → 清空结果 |
-| `click` | `exportCsvBtn` | 调用 `exportToCsv()` |
-
----
-
-## 核心 UI 更新函数
+### 初始化
+- `init()` - 初始化 DOM 元素引用并绑定事件
+- `loadSavedConfig()` - 从 localStorage 加载保存的配置
 
 ### 状态控制
+- `setLoading(bool)` - 设置加载状态（禁用开始/刷新按钮）
+- `setTesting(bool)` - 设置测试状态（控制按钮启用/禁用、显示并发中徽章）
 
-- `setTesting(isTesting)` - 测试中禁用/启用按钮
-  - 禁用：startBtn, modelSelect, refreshBtn, concurrentCount
-  - 启用：stopBtn
-  - 控制并发中徽章显示
+### 状态显示更新
+- `updateConnectionStatus(bool, string)` - 更新连接状态徽章
+- `updateConcurrentStatus(number)` - 更新当前并发数显示
+- `updateTotalRequests(number)` - 更新总请求数
+- `updateQps(number)` - 更新 QPS 显示
+- `updateTotalThroughput(number)` - 更新总吞吐量
 
-### 指标更新
-
-- `updateMetrics(concurrentState)` - 基于 Concurrent 状态更新指标
-- `updateSummary(results)` - 计算并更新平均值指标
-
-### 任务列表
-
+### 任务列表更新
 - `updateTaskList()` - 渲染所有任务状态
-- `updateTaskProgress(task)` - 更新单个任务进度
-- `updateTaskStatus(task, status, message)` - 更新任务状态样式
+- `updateTaskProgress(task)` - 更新单个任务的 token 进度
+- `updateTaskStatus(task, status, message)` - 更新任务状态（error/aborted）
+- `updateTaskResult(task, result)` - 更新任务完成结果
+- `clearTaskList()` - 清空任务列表
 
 ### 结果表格
+- `addResultRow(result)` - 添加一行结果到表格（插入到第一行）
+- `clearResultsTable()` - 清空结果表格
+- `updateMetrics(concurrentState)` - 更新指标（总请求数、吞吐量）
+- `updateSummary(results)` - 更新汇总统计（平均 TTFT、速度、总耗时）
 
-- `addResultRow(result)` - 添加结果行到表格顶部
-- `clearResultsTable()` - 清空表格
-- 限制最大行数：`Config.maxTableRows` (100 行)
+### 导出功能
+- `exportToCsv()` - 导出当前结果为 CSV 文件
+
+### 工具方法
+- `formatTime(timestamp)` - 格式化时间为 HH:mm:ss
 
 ---
 
-## 样式类名 (`css/style.css`)
+## 事件绑定（bindEvents）
 
-| 类名 | 用途 |
-|------|------|
-| `.status-badge.connected` | 连接成功状态 |
-| `.status-badge.error` | 错误状态 |
-| `.status-badge.active` | 并发中状态 |
-| `.status-badge.hidden` | 隐藏状态 |
-| `.concurrent-task-item.running` | 任务进行中 |
-| `.concurrent-task-item.completed` | 任务完成 |
-| `.concurrent-task-item.error` | 任务错误 |
-| `.metric-card.highlight` | 高亮指标卡片 |
-| `.btn-primary/secondary/danger/outline` | 按钮样式 |
+| 事件 | 触发操作 |
+|------|----------|
+| apiTypeSelect change | 保存类型 → 更新默认地址 → 刷新模型列表 |
+| apiUrl change | 保存地址到 localStorage |
+| modelSelect change | 保存模型到 localStorage |
+| promptInput change | 保存提示词到 localStorage |
+| concurrentCount change | 校验范围后保存 |
+| temperature change | 保存温度参数 |
+| refreshBtn click | 调用 `App.loadModels()` |
+| startBtn click | 调用 `App.startTest()` |
+| stopBtn click | 调用 `App.stopTest()` |
+| clearBtn click | 确认 → 清空 `Concurrent`、表格、任务列表、指标 |
+| exportCsvBtn click | 调用 `exportToCsv()` |
 
 ---
 
 ## 修改指引
 
-| 修改场景 | 修改位置 |
-|--------|--------|
-| 新增输入框 | `index.html` 添加元素 → `ui.js:init()` 缓存 → `bindEvents()` 绑定事件 |
-| 修改按钮行为 | `ui.js:bindEvents()` 对应事件处理器 |
-| 修改表格列 | `index.html:results-table` 表头 → `ui.js:addResultRow()` 行内容 |
-| 修改样式 | `css/style.css` 对应类名 |
-| 修改本地存储键名 | `config.js:storageKeys` |
+| 问题类型 | 查看位置 |
+|----------|----------|
+| UI 元素不显示 | `init()` 中的 `getElementById` |
+| 点击事件无效 | `bindEvents()` 中的事件监听器 |
+| 样式问题 | `index.html` 或 `css/style.css` |
+| 数据未更新到界面 | 对应 `update*` 方法 |
+| 表格排序问题 | `addResultRow()` 中的 `insertBefore` |

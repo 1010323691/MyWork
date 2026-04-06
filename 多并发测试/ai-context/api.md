@@ -1,300 +1,97 @@
-# API 通信模块说明
+# API 通信文档
+
+## 文件
+- `js/api.js` - API 对象
+
+## 模块职责
+- 封装 Ollama 和 vLLM 两种 API 的调用
+- 提供流式响应（SSE）解析
+- 处理连接检查与模型列表获取
+- 实现 Ollama 模型加载的重试机制
+
+## 与其他模块的依赖关系
+- **依赖**：`Config`（API 类型枚举、默认 URL）
+- **被依赖**：`App`（连接检查、模型加载）、`Concurrent`（聊天请求）
+- **独立**：不包含业务逻辑，纯 API 封装
 
 ---
 
-## 文件清单
+## 核心方法
 
-| 文件 | 职责 |
-|------|------|
-| `js/api.js` | API 封装 (`API` 对象) |
+### 配置获取
+- `getApiType()` - 获取当前 API 类型（从 localStorage 或默认值）
+- `getApiUrl()` - 获取当前 API 地址（从 localStorage 或根据类型返回默认值）
+
+### 连接与模型
+- `checkConnection()` - 检查连接：
+  - vLLM: `GET /v1/models`
+  - Ollama: `GET /api/tags`
+  - 5 秒超时
+
+- `getModels()` - 获取模型列表：
+  - vLLM: 解析 `{ data: [{ id }] }` 格式
+  - Ollama: 解析 `{ models: [{ name }] }` 格式
+
+### 聊天请求（核心）
+- `chat(prompt, model, temperature, controller)` - 发送聊天请求：
+  - vLLM: `POST /v1/chat/completions`（OpenAI 兼容）
+  - Ollama: `POST /api/chat`
+  - 支持流式响应（`Accept: text/event-stream`）
+  - Ollama 特有：模型加载时重试 5 次（每次间隔 1 秒）
+
+### 流式响应解析（核心）
+- `parseStream(stream, onToken, onComplete)` - 解析流式响应：
+  - 使用 `TextDecoder` 解码
+  - vLLM：解析 SSE 格式（`data: {...}`）
+  - Ollama：解析每行 JSON 格式
+  - 实时回调 `onToken(content, tokens, type)`
+  - 完成回调 `onComplete(stats)`
 
 ---
 
-## API 对象 (`js/api.js`)
+## vLLM 与 Ollama 的差异
 
-**职责**: 封装 vLLM 和 Ollama API 请求，处理流式响应
-
-### 方法列表
-
-```javascript
-API = {
-    getApiType(),           // 获取当前 API 类型
-    getApiUrl(),            // 获取当前 API URL
-    checkConnection(),      // 检查连接
-    getModels(),            // 获取模型列表
-    chat(prompt, model, temperature, controller),  // 发送流式请求
-    parseStream(stream, onToken, onComplete)       // 解析流式响应
-}
-```
-
----
-
-## API 类型支持
-
-### vLLM (OpenAI 兼容)
-
-**端点**:
-
-| 方法 | 端点 | 用途 |
-|------|------|------|
-| GET | `/v1/models` | 获取模型列表 |
-| POST | `/v1/chat/completions` | 聊天接口 (流式) |
-
-**响应格式**:
-
-```json
-// GET /v1/models
-{
-    "data": [
-        { "id": "model-name", ... }
-    ]
-}
-
-// POST /v1/chat/completions (SSE)
-data: {"id":"...","choices":[{"delta":{"content":"..."}],"usage":{"prompt_tokens":10,"completion_tokens":5}}}
-data: [DONE]
-```
+### vLLM（OpenAI 兼容）
+| 项目 | 值 |
+|------|----|
+| 模型列表 | `/v1/models` → `{ data: [{ id }] }` |
+| 聊天接口 | `/v1/chat/completions` |
+| 流格式 | SSE：`data: { choices: [{ delta: { content } }] }` |
+| 结束标记 | `data: [DONE]` |
+| token 统计 | `usage.completion_tokens`（在最后一个 chunk） |
 
 ### Ollama
-
-**端点**:
-
-| 方法 | 端点 | 用途 |
-|------|------|------|
-| GET | `/api/tags` | 获取模型列表 |
-| POST | `/api/chat` | 聊天接口 (流式) |
-
-**响应格式**:
-
-```json
-// GET /api/tags
-{
-    "models": [
-        { "name": "model-name", ... }
-    ]
-}
-
-// POST /api/chat (JSON lines)
-{"message":{"content":"..."},"eval_count":5,"done":true}
-```
+| 项目 | 值 |
+|------|----|
+| 模型列表 | `/api/tags` → `{ models: [{ name }] }` |
+| 聊天接口 | `/api/chat` |
+| 流格式 | 每行 JSON：`{ message: { content }, done: bool }` |
+| 结束标记 | `done: true` |
+| token 统计 | `eval_count`（在 done 时返回） |
 
 ---
 
-## 核心方法详解
+## 完成回调数据结构（onComplete）
 
-### getApiType()
-
-**逻辑**:
-```javascript
-localStorage.getItem(Config.storageKeys.apiType) || Config.defaultApiType
-```
-
-**返回值**: `'vllm'` 或 `'ollama'`
-
-### getApiUrl()
-
-**逻辑**:
-```javascript
-savedUrl = localStorage.getItem(Config.storageKeys.apiUrl)
-if (savedUrl) return savedUrl
-
-// 根据 API 类型返回默认地址
-apiType === 'vllm' ? Config.defaultVllmUrl : Config.defaultApiUrl
-```
-
-### checkConnection()
-
-**用途**: 检查与服务器的连接
-
-**请求**:
-- vLLM: `GET /v1/models`
-- Ollama: `GET /api/tags`
-
-**超时**: 5 秒
-
-**返回**:
-```javascript
-{ success: true, data: ... }  // 连接成功
-{ success: false, error: '...' }  // 连接失败
-```
-
-### getModels()
-
-**用途**: 获取模型列表
-
-**逻辑**:
-```javascript
-if (apiType === 'vllm') {
-    // vLLM 格式：{ data: [{ id: 'xxx' }] }
-    return data.data?.map(m => m.id).filter(Boolean)
-} else {
-    // Ollama 格式：{ models: [{ name: 'xxx' }] }
-    return data.models?.map(m => m.name).filter(Boolean)
-}
-```
-
-### chat(prompt, model, temperature, controller)
-
-**参数**:
-- `prompt`: 用户输入的提示词
-- `model`: 选中的模型
-- `temperature`: 温度参数 (默认 0.7)
-- `controller`: AbortController (用于停止请求)
-
-**返回**: `ReadableStream` (响应体流)
-
-**请求体**:
-
-vLLM:
-```json
-{
-    "model": "xxx",
-    "messages": [{"role": "user", "content": "..."}],
-    "stream": true,
-    "temperature": 0.7
-}
-```
-
-Ollama:
-```json
-{
-    "model": "xxx",
-    "messages": [{"role": "user", "content": "..."}],
-    "stream": true,
-    "options": {"temperature": 0.7}
-}
-```
-
-**重试机制**:
-- Ollama 特有：检测到 `loading model` 错误时，重试 5 次，间隔 1 秒
-
-### parseStream(stream, onToken, onComplete)
-
-**参数**:
-- `stream`: ReadableStream (来自 chat())
-- `onToken(content, tokens, type)`: 每收到一个 token 的回调
-- `onComplete(stats)`: 请求完成的回调
-
-**返回对象** (onComplete 参数):
 ```javascript
 {
-    content: string,           // 完整内容
-    outputTokens: number,      // 输出 token 数
-    totalTime: number,         // 总耗时 (ms)
-    ttf: number | null,        // 首字延迟 (ms)
-    speed: number             // 生成速度 (tokens/s)
+  content: string,          // 完整响应内容
+  outputTokens: number,     // 输出 token 数
+  totalTime: number,        // 总耗时（ms）
+  ttf: number | null,       // TTFT（首字时间，ms）
+  speed: number             // 生成速度（tokens/s）
 }
 ```
-
-**解析逻辑**:
-
-vLLM (SSE 格式):
-```javascript
-// 分割 SSE 行
-const lines = chunk.split('\n');
-
-// 解析 data: {...}
-if (line.startsWith('data: ')) {
-    const data = JSON.parse(line.substring(6));
-    
-    // 获取内容
-    if (data.choices?.[0]?.delta?.content) {
-        // 更新 accumulatedContent
-        // 记录 firstTokenTime
-        // 调用 onToken()
-    }
-    
-    // 获取 usage
-    if (data.usage) {
-        promptTokens = data.usage.prompt_tokens;
-        outputTokens = data.usage.completion_tokens;
-    }
-}
-
-// 结束标记
-if (line.startsWith('data: [DONE]')) {
-    // 计算统计
-    // 调用 onComplete()
-}
-```
-
-Ollama (JSON lines 格式):
-```javascript
-const lines = chunk.split('\n');
-
-for (const line of lines) {
-    const data = JSON.parse(line);
-    
-    // 获取内容
-    if (data.message?.content) {
-        // 更新 accumulatedContent
-        // 记录 firstTokenTime
-        // 调用 onToken()
-    }
-    
-    // 结束标记
-    if (data.done) {
-        outputTokens = data.eval_count;
-        // 计算统计
-        // 调用 onComplete()
-    }
-}
-```
-
----
-
-## 性能指标计算
-
-### TTFT (Time to First Token)
-
-```javascript
-ttf = firstTokenTime - startTime
-```
-
-### 生成速度
-
-```javascript
-generationTime = (lastTokenTime - firstTokenTime) / 1000  // 秒
-visibleTokens = outputTokens > 0 ? outputTokens : accumulatedContent.length
-speed = visibleTokens / generationTime  // tokens/s
-```
-
-### 总耗时
-
-```javascript
-totalTime = endTime - startTime  // ms
-```
-
----
-
-## 错误处理
-
-| 错误类型 | 处理方式 |
-|--------|--------|
-| AbortError | 直接抛出 (用户主动停止) |
-| loading model (Ollama) | 重试 5 次，间隔 1 秒 |
-| HTTP 错误 | 抛出错误信息 |
-| JSON 解析错误 | 忽略该行 |
-| 网络错误 | 抛出错误信息 |
 
 ---
 
 ## 修改指引
 
-| 修改场景 | 修改位置 |
-|--------|--------|
-| 新增 API 类型 | `api.js:checkConnection()/getModels()/chat()` 添加分支 |
-| 修改请求参数 | `api.js:chat()` 请求体部分 |
-| 修改解析逻辑 | `api.js:parseStream()` 对应 API 类型的解析代码 |
-| 修改超时时间 | `api.js:checkConnection()` setTimeout |
-| 修改重试次数 | `api.js:chat()` maxRetries |
-| 修改默认地址 | `config.js:defaultVllmUrl/defaultApiUrl` |
-
----
-
-## 注意事项
-
-1. **流式响应必须完整读取**: 不能中断 stream 读取，否则可能导致内存泄漏
-2. **AbortController 传递**: 每个请求需要独立的 controller 用于取消
-3. **Ollama 模型加载**: 某些模型首次请求时会后台加载，需要重试
-4. **Token 统计不准确**: vLLM 的 usage 只在最后一个 chunk 返回，需要用 content.length 兜底
+| 问题类型 | 查看位置 |
+|----------|----------|
+| 连接失败 | `checkConnection()` |
+| 模型列表为空 | `getModels()` |
+| 请求被拒绝 | `chat()` 中的 fetch 选项 |
+| 流式解析错误 | `parseStream()` 中的格式解析 |
+| 新增 API 类型 | `getApiType()`、`chat()`、`parseStream()` |
+| 重试机制调整 | `chat()` 中的 `maxRetries` |

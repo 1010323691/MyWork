@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大模型多并发测试</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+        <div class="nav-brand">
+            <span class="brand-icon">🚀</span>
+            <span class="brand-text">大模型多并发测试</span>
+        </div>
+        <div class="nav-status">
+            <span id="connectionStatus" class="status-badge">未连接</span>
+            <span id="concurrentStatus" class="status-badge hidden">并发中</span>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="main-container">
+        <!-- 左侧控制面板 -->
+        <aside class="sidebar">
+            <!-- API 配置 -->
+            <section class="card config-card">
+                <h3 class="card-title">API 配置</h3>
+                <div class="form-group">
+                    <label for="apiTypeSelect">API 类型</label>
+                    <select id="apiTypeSelect" class="form-select">
+                        <option value="vllm">vLLM</option>
+                        <option value="ollama">Ollama</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="apiUrl">API 地址</label>
+                    <input type="text" id="apiUrl" value="http://127.0.0.1:8000" placeholder="API 服务器地址">
+                </div>
+                <div class="form-group">
+                    <label for="modelSelect">选择模型</label>
+                    <select id="modelSelect" class="form-select">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
+                <button id="refreshBtn" class="btn btn-secondary btn-block">
+                    <span class="btn-icon">🔄</span>
+                    刷新模型列表
+                </button>
+            </section>
+
+            <!-- 测试参数 -->
+            <section class="card test-config-card">
+                <h3 class="card-title">测试参数</h3>
+                <div class="form-group">
+                    <label for="promptInput">测试提示词</label>
+                    <textarea id="promptInput" rows="4" placeholder="输入测试用的提示词...">请简要介绍一下人工智能的发展历史</textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="concurrentCount">并发数</label>
+                        <input type="number" id="concurrentCount" value="1" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="temperature">Temperature</label>
+                        <input type="number" id="temperature" value="0.7" step="0.1" min="0" max="2">
+                    </div>
+                </div>
+            </section>
+
+            <!-- 操作按钮 -->
+            <section class="card action-card">
+                <button id="startBtn" class="btn btn-primary btn-block">
+                    <span class="btn-icon">▶</span>
+                    开始并发测试
+                </button>
+                <button id="stopBtn" class="btn btn-danger btn-block" disabled>
+                    <span class="btn-icon">⏹</span>
+                    停止测试
+                </button>
+                <button id="clearBtn" class="btn btn-outline btn-block">
+                    <span class="btn-icon">🗑</span>
+                    清空结果
+                </button>
+            </section>
+        </aside>
+
+        <!-- 右侧结果展示 -->
+        <section class="results-panel">
+            <!-- 实时指标卡片 -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">并发数</div>
+                    <div class="metric-value" id="concurrentCountDisplay">0</div>
+                    <div class="metric-sub">当前并发</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">总请求数</div>
+                    <div class="metric-value" id="totalRequests">0</div>
+                    <div class="metric-sub">已发送</div>
+                </div>
+                <div class="metric-card highlight">
+                    <div class="metric-label">QPS</div>
+                    <div class="metric-value" id="qps">0</div>
+                    <div class="metric-sub">请求/秒</div>
+                </div>
+                <div class="metric-card highlight">
+                    <div class="metric-label">总吞吐量</div>
+                    <div class="metric-value" id="totalThroughput">0</div>
+                    <div class="metric-sub">tokens/秒</div>
+                </div>
+            </div>
+
+            <!-- 平均指标卡片 -->
+            <div class="metrics-grid avg-metrics">
+                <div class="metric-card">
+                    <div class="metric-label">平均 TTFT</div>
+                    <div class="metric-value" id="avgTtf">-</div>
+                    <div class="metric-sub">首字延迟</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">平均速度</div>
+                    <div class="metric-value" id="avgSpeed">-</div>
+                    <div class="metric-sub">tokens/秒</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">平均总耗时</div>
+                    <div class="metric-value" id="avgTotalTime">-</div>
+                    <div class="metric-sub">毫秒</div>
+                </div>
+            </div>
+
+            <!-- 并发任务列表 -->
+            <div class="card concurrent-tasks-card">
+                <div class="card-header">
+                    <h3 class="card-title">并发任务列表</h3>
+                </div>
+                <div id="concurrentTasksList" class="concurrent-tasks-list">
+                    <span class="placeholder-text">等待测试开始...</span>
+                </div>
+            </div>
+
+            <!-- 测试结果历史 -->
+            <div class="card results-history-card">
+                <div class="card-header">
+                    <h3 class="card-title">测试结果</h3>
+                    <div class="results-actions">
+                        <button id="exportCsvBtn" class="btn btn-sm btn-outline">导出 CSV</button>
+                    </div>
+                </div>
+                <div class="results-table-wrapper">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>模型</th>
+                                <th>输入 Tokens</th>
+                                <th>输出 Tokens</th>
+                                <th>TTFT</th>
+                                <th>生成速度</th>
+                                <th>总耗时</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 引入模块 -->
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/concurrent.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

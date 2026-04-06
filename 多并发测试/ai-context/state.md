@@ -1,76 +1,18 @@
-# 状态管理分析
+# 状态管理模块说明
 
-## 状态载体
+---
 
-项目使用**全局对象**作为状态载体，无框架状态管理。
+## 状态总览
 
-| 全局对象 | 位置 | 职责 |
-|----------|------|------|
-| `Config` | `js/config.js` | 常量配置 |
-| `API` | `js/api.js` | API 调用逻辑 |
-| `Concurrent` | `js/concurrent.js` | 并发测试状态 |
-| `UI` | `js/ui.js` | DOM 引用与 UI 逻辑 |
-| `App` | `js/main.js` | 业务流程控制 |
+项目使用**全局对象** + **localStorage** 进行状态管理，无框架状态管理。
 
-## Concurrent 对象状态
+---
 
-### 状态字段
+## 全局状态对象
 
-```javascript
-Concurrent = {
-    // 测试状态
-    isRunning: boolean,        // 测试是否进行中
-    abortController: AbortController,  // 用于中止请求
+### 1. `Config` (`js/config.js`)
 
-    // 任务计数
-    tasks: Array,              // 任务列表 [{id, status, result, content, tokens}]
-    pendingCount: number,      // 待处理任务数
-    runningCount: number,      // 运行中任务数
-    completedCount: number,    // 已完成任务数
-    totalCount: number,        // 总任务数
-
-    // 结果存储
-    results: Array,            // 测试结果数组
-
-    // QPS 统计
-    requestTimestamps: Array,  // 请求时间戳列表（在 API.chat() 之前记录）
-    lastQpsCalc: number,       // 上次 QPS 计算时间
-    currentQps: number,        // 当前 QPS 值
-    qpsTimer: IntervalID,      // QPS 计算定时器（每 50ms 触发）
-}
-```
-
-### 任务状态机
-
-```
-pending  →  running  →  completed
-                      ↘  error
-                      ↘  aborted
-```
-
-| 状态 | 说明 | 触发条件 |
-|------|------|----------|
-| `pending` | 等待中 | 任务创建初始状态 |
-| `running` | 进行中 | `runRequest()` 开始执行 |
-| `completed` | 已完成 | `onComplete` 回调触发 |
-| `error` | 错误 | 请求失败 catch 捕获 |
-| `aborted` | 已取消 | `AbortError` 捕获 |
-
-### 状态变更函数
-
-| 函数 | 状态变更 |
-|------|----------|
-| `Concurrent.initialize(count)` | 重置所有状态，创建任务队列 |
-| `Concurrent.stop()` | `isRunning = false`, 触发 `abort()` |
-| `Concurrent.clear()` | 清空结果和任务 |
-| `Concurrent.runRequest(id, config)` | `pending → running → completed/error` |
-| `Concurrent.checkAllCompleted()` | 检查是否所有任务完成，若完成则 `isRunning = false` |
-| `Concurrent.runAll(config)` | 启动所有并发请求 |
-| `Concurrent.startQpsCalc()` | 启动 QPS 计算定时器 |
-| `Concurrent.stopQpsCalc()` | 停止 QPS 定时器 |
-| `Concurrent.getResults()` | 返回结果副本 |
-
-## Config 对象常量
+**常量配置，不可修改**:
 
 ```javascript
 Config = {
@@ -82,55 +24,178 @@ Config = {
     defaultConcurrentCount: 1,
     maxConcurrentCount: 100,
     minConcurrentCount: 1,
-    storageKeys: { /* localStorage 键名 */ },
-    uiUpdateInterval: 100,        // UI 更新间隔 (ms)
-    maxTableRows: 100,            // 表格最大行数
-    qpsWindow: 1,                 // QPS 计算窗口 (秒)
-    decimalPrecision: 2           // 小数精度
+    storageKeys: { ... },  // localStorage 键名
+    uiUpdateInterval: 100,
+    maxTableRows: 100,
+    qpsWindow: 1,
+    decimalPrecision: 2
 }
 ```
 
-## localStorage 持久化
+### 2. `Concurrent` (`js/concurrent.js`)
 
-| 键名 | 内容 |
-|------|------|
-| `concurrent_test_api_url` | API 地址 |
-| `concurrent_test_api_type` | API 类型 (vllm/ollama) |
-| `concurrent_test_model` | 选中的模型 |
-| `concurrent_test_prompt` | 测试提示词 |
-| `concurrent_test_concurrent_count` | 并发数 |
-| `concurrent_test_temperature` | Temperature 值 |
+**并发测试运行时状态**:
 
-## 状态数据流
+```javascript
+Concurrent = {
+    isRunning: false,           // 是否正在运行
+    abortController: null,      // 用于停止请求
+    
+    // 任务管理
+    tasks: [],                  // 任务数组 [{ id, status, result }]
+    pendingCount: 0,            // 待处理数
+    runningCount: 0,            // 运行中数
+    completedCount: 0,          // 已完成数
+    totalCount: 0,              // 总数
+    
+    // 结果存储
+    results: [],               // 结果数组
+    
+    // QPS 统计
+    requestTimestamps: [],      // 请求时间戳
+    lastQpsCalc: 0,
+    currentQps: 0,
+    qpsTimer: null
+}
+```
+
+### 3. `UI` (`js/ui.js`)
+
+**UI 状态，通过 DOM 反映**:
+
+```javascript
+UI = {
+    elements: {}  // DOM 元素缓存
+}
+```
+
+### 4. `App` (`js/main.js`)
+
+**业务协调器，无持久状态**
+
+---
+
+## localStorage 状态
+
+**键名定义** (`Config.storageKeys`):
+
+| 键名 | 存储内容 | 默认值来源 |
+|------|--------|-----------|
+| `concurrent_test_api_type` | API 类型 (vllm/ollama) | `Config.defaultApiType` |
+| `concurrent_test_api_url` | API 地址 | `Config.defaultVllmUrl` / `Config.defaultApiUrl` |
+| `concurrent_test_model` | 选中模型 | 无 |
+| `concurrent_test_prompt` | 测试提示词 | 无 |
+| `concurrent_test_concurrent_count` | 并发数 | `Config.defaultConcurrentCount` |
+| `concurrent_test_temperature` | Temperature | `Config.defaultTemperature` |
+
+**读取位置**: `UI.loadSavedConfig()`
+
+**写入时机**:
+- API 类型/地址/模型/提示词/并发数/temperature 变更时 (change 事件)
+
+---
+
+## 数据流动
+
+### 初始化流程
 
 ```
-用户输入
-  → DOM change 事件
-  → UI.bindEvents() 捕获
-  → localStorage.setItem()  持久化
-  (下次加载时)
-  → UI.loadSavedConfig()
-  → DOM 元素恢复值
-
-App.startTest()
-  → 读取 DOM 元素值
-  → 组装 config 对象
-  → Concurrent.initialize()
-  → Concurrent.runAll(config)
-  → 每个 task 触发 runRequest()
-  → API.chat() 发起请求
-  → API.parseStream() 解析流
-  → onToken 回调 → UI.updateTaskProgress()
-  → onComplete 回调 → 更新 result → UI.addResultRow()
+页面加载
+  ↓
+config.js → Config 对象就绪
+  ↓
+api.js → API 对象就绪 (依赖 Config)
+  ↓
+concurrent.js → Concurrent 对象就绪 (依赖 API)
+  ↓
+ui.js → UI 对象就绪 (缓存 DOM)
+  ↓
+main.js → App.init()
+  ↓
+UI.loadSavedConfig() → 从 localStorage 恢复配置
+  ↓
+App.checkConnection() → 检查连接
+  ↓
+App.loadModels() → 加载模型列表
 ```
+
+### 测试执行流程
+
+```
+用户点击开始按钮
+  ↓
+UI.bindEvents → App.startTest()
+  ↓
+App.validateInput() → 验证输入
+  ↓
+App.getTestConfig() → 获取配置
+  ↓
+Concurrent.initialize(count) → 初始化任务队列
+  ↓
+UI.setTesting(true) → 更新 UI 状态
+  ↓
+Concurrent.runAll(config)
+  ↓
+并发执行 runRequest(taskId, config)
+  ↓
+API.chat(prompt, model, temperature, controller)
+  ↓
+API.parseStream(stream, onToken, onComplete)
+  ↓
+流式回调 → UI 实时更新
+  ↓
+完成回调 → 更新 Concurrent.results
+  ↓
+UI.addResultRow(result) → 添加结果行
+  ↓
+UI.updateSummary(results) → 更新统计
+```
+
+---
+
+## 任务状态流转
+
+```
+pending (待处理)
+  ↓ (runRequest 开始)
+running (运行中)
+  ↓ (请求成功)
+completed (已完成)
+  ↓
+[加入 Concurrent.results]
+
+或者:
+
+running
+  ↓ (用户点击停止)
+aborted (已取消)
+
+或者:
+
+running
+  ↓ (请求失败)
+error (错误)
+```
+
+---
 
 ## 状态同步点
 
-| 状态变更 | UI 同步函数 |
-|----------|------------|
-| `runningCount` 变更 | `UI.updateConcurrentStatus()` |
-| `completedCount` 变更 | `UI.updateMetrics()` |
-| task.status 变更 | `UI.updateTaskList()` |
-| task.tokens 变更 | `UI.updateTaskProgress()` |
-| results.push() | `UI.addResultRow()` |
-| 所有任务完成 | `UI.updateSummary()` |
+| 状态变更 | 同步位置 |
+|--------|--------|
+| 用户修改配置 | UI → localStorage |
+| 测试开始 | App → Concurrent → UI |
+| 任务状态变更 | Concurrent → UI |
+| 请求完成 | API → Concurrent → UI |
+| 测试结束 | Concurrent → UI (summary) |
+
+---
+
+## 修改指引
+
+| 修改场景 | 修改位置 |
+|--------|--------|
+| 新增配置项 | `config.js` 添加常量 → `ui.js:loadSavedConfig()` 读取 |
+| 新增状态字段 | `concurrent.js` 对应对象 → 初始化位置同步添加 |
+| 修改存储键名 | `config.js:storageKeys` |
+| 修改默认值 | `config.js` 对应 `default*` 字段 |

@@ -77,6 +77,7 @@ const Concurrent = {
         if (this.completedCount === this.tasks.length) {
             this.isRunning = false;
             this.abortController = null;
+            UI.setTesting(false);  // 重置右上角"并发中"状态徽章
             return true;
         }
         return false;

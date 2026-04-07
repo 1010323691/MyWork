@@ -6,6 +6,9 @@ import com.nexusai.llm.gateway.entity.ApiKey;
 import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.ApiKeyRepository;
 import com.nexusai.llm.gateway.security.ApiKeyService;
+import com.nexusai.llm.gateway.security.JwtService;
+
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -24,11 +27,13 @@ public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
     private final ApiKeyRepository apiKeyRepository;
+    private final JwtService jwtService;
 
     @Autowired
-    public ApiKeyController(ApiKeyService apiKeyService, ApiKeyRepository apiKeyRepository) {
+    public ApiKeyController(ApiKeyService apiKeyService, ApiKeyRepository apiKeyRepository, JwtService jwtService) {
         this.apiKeyService = apiKeyService;
         this.apiKeyRepository = apiKeyRepository;
+        this.jwtService = jwtService;
     }
 
     /**
@@ -38,20 +43,19 @@ public class ApiKeyController {
      */
     @GetMapping
     public ResponseEntity<List<ApiKeyResponse>> listApiKeys(
+            HttpServletRequest request,
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) Long userId) {
 
-        com.nexusai.llm.gateway.entity.User user = (com.nexusai.llm.gateway.entity.User) userDetails;
+        Long currentUserId = getCurrentUserId(userDetails, request);
+        boolean isAdmin = isAdmin(userDetails);
 
         // 检查是否是 ADMIN，如果是 ADMIN 且指定了 userId，则查询指定用户的 API Keys
-        boolean isAdmin = user.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
         Long targetUserId = null;
         if (isAdmin && userId != null) {
             targetUserId = userId;
         } else {
-            targetUserId = user.getId();
+            targetUserId = currentUserId;
         }
 
         List<ApiKey> apiKeys = apiKeyRepository.findByUserId(targetUserId);
@@ -65,16 +69,17 @@ public class ApiKeyController {
      */
     @PostMapping
     public ResponseEntity<ApiKeyResponse> createApiKey(
+            HttpServletRequest request,
             @AuthenticationPrincipal UserDetails userDetails,
-            @Valid @RequestBody ApiKeyRequest request) {
+            @Valid @RequestBody ApiKeyRequest requestBody) {
 
-        Long userId = ((com.nexusai.llm.gateway.entity.User) userDetails).getId();
+        Long userId = getCurrentUserId(userDetails, request);
 
         ApiKey apiKey = apiKeyService.createApiKey(
                 userId,
-                request.getName(),
-                request.getTokenLimit(),
-                request.getExpiresAtDays()
+                requestBody.getName(),
+                requestBody.getTokenLimit(),
+                requestBody.getExpiresAtDays()
         );
 
         return ResponseEntity.ok(toResponse(apiKey));
@@ -87,18 +92,18 @@ public class ApiKeyController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteApiKey(
+            HttpServletRequest request,
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long id) {
 
         ApiKey apiKey = apiKeyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("API Key not found"));
 
-        com.nexusai.llm.gateway.entity.User user = (com.nexusai.llm.gateway.entity.User) userDetails;
-        boolean isAdmin = user.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        Long currentUserId = getCurrentUserId(userDetails, request);
+        boolean isAdmin = isAdmin(userDetails);
 
         // 非 ADMIN 只能删除自己的 API Key
-        if (!isAdmin && !apiKey.getUser().getId().equals(user.getId())) {
+        if (!isAdmin && !apiKey.getUser().getId().equals(currentUserId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -113,18 +118,18 @@ public class ApiKeyController {
      */
     @PutMapping("/{id}/toggle")
     public ResponseEntity<ApiKeyResponse> toggleApiKey(
+            HttpServletRequest request,
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long id) {
 
         ApiKey apiKey = apiKeyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("API Key not found"));
 
-        com.nexusai.llm.gateway.entity.User user = (com.nexusai.llm.gateway.entity.User) userDetails;
-        boolean isAdmin = user.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        Long currentUserId = getCurrentUserId(userDetails, request);
+        boolean isAdmin = isAdmin(userDetails);
 
         // 非 ADMIN 只能切换自己的 API Key
-        if (!isAdmin && !apiKey.getUser().getId().equals(user.getId())) {
+        if (!isAdmin && !apiKey.getUser().getId().equals(currentUserId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -132,6 +137,27 @@ public class ApiKeyController {
         apiKeyRepository.save(apiKey);
 
         return ResponseEntity.ok(toResponse(apiKey));
+    }
+
+    /**
+     * 获取当前用户 ID
+     * 优先从项目 User 实体获取，否则从 request 属性中获取（由 JWT Filter 设置）
+     */
+    private Long getCurrentUserId(UserDetails userDetails, HttpServletRequest request) {
+        // 如果用户详情是项目 User 实体，直接获取 ID
+        if (userDetails instanceof User) {
+            return ((User) userDetails).getId();
+        }
+        // 否则从 request 属性中获取（由 JWT Filter 设置）
+        return (Long) request.getAttribute("currentUserId");
+    }
+
+    /**
+     * 判断当前用户是否是 ADMIN
+     */
+    private boolean isAdmin(UserDetails userDetails) {
+        return userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 
     private ApiKeyResponse toResponse(ApiKey apiKey) {

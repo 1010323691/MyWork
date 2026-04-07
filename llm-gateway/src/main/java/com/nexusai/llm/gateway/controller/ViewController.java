@@ -1,7 +1,5 @@
 package com.nexusai.llm.gateway.controller;
 
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,9 +16,9 @@ public class ViewController {
     }
 
     @GetMapping("/dashboard")
-    public String dashboardPage(@AuthenticationPrincipal UserDetails userDetails, Model model) {
-        // 传递用户信息（可能为 null，前端负责检查认证）
-        model.addAttribute("user", userDetails);
+    public String dashboardPage(Model model) {
+        // 不检查认证状态，直接返回页面
+        // 前端 JS 负责检查 token 和处理未认证跳转
         model.addAttribute("title", "管理后台");
         return "dashboard";
     }

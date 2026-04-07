@@ -11,7 +11,7 @@ const API_CONFIG = {
 };
 
 // ============================================
-// HTTP 工具类
+// HTTP 工具类（纯 Token 认证）
 // ============================================
 class API {
     /**
@@ -22,22 +22,44 @@ class API {
     }
 
     /**
-     * 检查用户是否已登录
+     * 检查用户是否已登录（纯 token 检查）
      */
     static isAuthenticated() {
-        return !!this.getAuthToken();
+        const token = this.getAuthToken();
+        if (!token) return false;
+
+        // 验证 token 是否过期
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.exp > Date.now() / 1000;
+        } catch {
+            return false;
+        }
     }
 
     /**
-     * 获取当前用户信息
+     * 从 token 解码获取用户信息
      */
     static getCurrentUser() {
-        const user = localStorage.getItem('user');
-        return user ? JSON.parse(user) : null;
+        const token = this.getAuthToken();
+        if (!token) return null;
+
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const authorities = payload.authorities || [];
+            const role = authorities.find(a => a.startsWith('ROLE_'))?.replace('ROLE_', '') || 'USER';
+            return {
+                username: payload.sub,
+                email: payload.email || '',
+                role: role
+            };
+        } catch {
+            return null;
+        }
     }
 
     /**
-     * 统一的 HTTP 请求方法（静态方法）
+     * 统一的 HTTP 请求方法
      */
     static async request(endpoint, options = {}) {
         const url = API_CONFIG.BASE_URL + endpoint;
@@ -47,6 +69,7 @@ class API {
             'Content-Type': 'application/json'
         };
 
+        // 携带 Bearer Token
         if (token) {
             defaultHeaders['Authorization'] = `Bearer ${token}`;
         }
@@ -56,12 +79,11 @@ class API {
             headers: {
                 ...defaultHeaders,
                 ...options.headers
-            },
-            timeout: API_CONFIG.TIMEOUT
+            }
         };
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), config.timeout);
+        const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
 
         try {
             const response = await fetch(url, {
@@ -72,13 +94,12 @@ class API {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                const error = new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+                const error = new Error(errorData.message || `HTTP ${response.status}`);
                 error.status = response.status;
 
                 // 401 未认证：清除 token 并跳转到登录页
                 if (response.status === 401) {
                     localStorage.removeItem('token');
-                    localStorage.removeItem('user');
                     window.location.href = '/login';
                     return Promise.reject(error);
                 }

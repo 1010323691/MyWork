@@ -5,7 +5,7 @@
 </head>
 <body>
     <!-- 头部导航栏 -->
-    <th:block th:replace="~{fragments/header :: header(${user})}"></th:block>
+    <th:block th:replace="~{fragments/header :: header}"></th:block>
 
     <!-- 主容器 -->
     <div class="container">
@@ -146,11 +146,6 @@
             </div>
         </div>
     </div>
-
-    <!-- 传递用户信息到前端 -->
-    <script th:inline="javascript">
-        window.currentUser = /*[[${user != null ? {username: user.username, email: user.email, role: user.authorities[0].authority.replace('ROLE_','')} : null}]]*/ null;
-    </script>
 
     <!-- 引入公共脚本和管理后台专用脚本 -->
     <th:block th:replace="~{fragments/scripts :: scripts('/js/dashboard.js')}"></th:block>

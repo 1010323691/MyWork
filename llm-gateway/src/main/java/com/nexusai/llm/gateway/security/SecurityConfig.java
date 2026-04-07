@@ -81,19 +81,20 @@ public class SecurityConfig {
                         .requestMatchers("/favicon.ico").permitAll()
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/login").permitAll()
-                        .requestMatchers("/dashboard").permitAll()  // 页面允许访问，前端检查 token
+                        .requestMatchers("/dashboard").permitAll()
                         // 静态资源
                         .requestMatchers("/static/**").permitAll()
                         .requestMatchers("/assets/**").permitAll()
                         .requestMatchers("/css/**").permitAll()
                         .requestMatchers("/js/**").permitAll()
-                        // 管理路径 - 所有认证用户都可以访问（Controller 中控制权限）
+                        .requestMatchers("/images/**").permitAll()
+                        .requestMatchers("/fonts/**").permitAll()
+                        // 需要认证的路径（JWT 或 API Key）
                         .requestMatchers("/api/admin/**").authenticated()
-                        // API Key 认证路径
                         .requestMatchers("/api/clients/**").authenticated()
                         .requestMatchers("/api/llm/**").authenticated()
-                        // 其他需要认证
                         .requestMatchers("/api/**").authenticated()
+                        // 其他请求允许（HTML 页面等）
                         .anyRequest().permitAll()
                 )
                 .authenticationProvider(daoAuthenticationProvider())

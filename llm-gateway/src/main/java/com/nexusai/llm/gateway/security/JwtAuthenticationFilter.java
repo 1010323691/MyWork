@@ -7,43 +7,34 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
     private final List<String> skipPaths;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtService jwtService) {
         this.jwtService = jwtService;
-        this.userDetailsService = userDetailsService;
+        // JWT 过滤器只对/api/** 路径生效，其他由 SecurityFilterChain 控制
         this.skipPaths = List.of(
                 "/api/auth/**",           // 登录注册不需要认证
-                "/api/clients/**",        // 客户端 API 使用 API Key 认证
-                "/api/llm/**",            // LLM 转发使用 API Key 认证
                 "/v3/api-docs/**",        // Swagger
                 "/swagger-ui/**",
                 "/swagger-resources/**",
                 "/actuator/**",
-                "/webjars/**",
-                "/assets/**",
-                "/favicon.ico",
-                "/css/**",                // 静态资源
-                "/js/**",
-                "/images/**",
-                "/fonts/**",
-                "/login",                 // 登录页面
-                "/"                       // 首页
+                "/webjars/**"
         );
     }
 
@@ -68,7 +59,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             username = jwtService.extractUsername(jwt);
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                // 从 JWT 提取权限（避免每次都查数据库）
+                List<String> authorityStrings = jwtService.extractAuthorities(jwt);
+                List<GrantedAuthority> authorities = new ArrayList<>();
+                for (String authority : authorityStrings) {
+                    authorities.add(new SimpleGrantedAuthority(authority));
+                }
+
+                // 创建简单的 UserDetails（仅用于认证，不需要查数据库）
+                UserDetails userDetails = new org.springframework.security.core.userdetails.User(
+                        username,
+                        "",  // 密码不需要
+                        authorities
+                );
 
                 if (jwtService.isTokenValid(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authenticationToken =
@@ -78,6 +81,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     userDetails.getAuthorities()
                             );
                     authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                    // 将 userId 存储到 request 属性中供控制器使用
+                    Long userId = jwtService.extractUserId(jwt);
+                    if (userId != null) {
+                        request.setAttribute("currentUserId", userId);
+                    }
+
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 }
             }

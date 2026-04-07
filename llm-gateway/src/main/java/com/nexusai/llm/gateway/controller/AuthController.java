@@ -6,12 +6,12 @@ import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.UserRepository;
 import com.nexusai.llm.gateway.security.JwtService;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +21,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
+@Slf4j
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -46,22 +47,16 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", "用户名或密码错误"));
         }
 
-        UserDetails userDetails = (UserDetails) userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new BadCredentialsException("User not found"));
-
-        Map<String, Object> claims = new HashMap<>();
-        String jwtToken = jwtService.generateToken(claims, userDetails);
-
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("token", jwtToken);
-        response.put("username", user.getUsername());
-        response.put("email", user.getEmail());
-        response.put("expiresIn", Duration.ofMillis(86400000).toSeconds());
+        String jwtToken = jwtService.generateToken(user);
 
-        return ResponseEntity.ok(response);
+        // 登录成功日志
+        log.info("登录成功 | 用户名：{} | 权限：{}", user.getUsername(), user.getAuthorities());
+
+        // 纯 token 响应，所有用户信息可从 token 解码获取
+        return ResponseEntity.ok(Map.of("token", jwtToken));
     }
 
     @PostMapping("/register")

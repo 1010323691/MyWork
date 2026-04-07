@@ -1,5 +1,5 @@
 /**
- * LLM Gateway - Dashboard Page JavaScript
+ * LLM Gateway - Dashboard Page JavaScript (纯 Token 认证)
  */
 
 (function() {
@@ -9,6 +9,7 @@
     // 全局状态
     // ===============================
     let apiKeys = [];
+    let currentUser = null;
     let currentUserRole = 'USER';
 
     // ===============================
@@ -20,15 +21,14 @@
     // 初始化
     // ===============================
     document.addEventListener('DOMContentLoaded', function() {
-        // 首先检查认证状态
-        const isAuthenticated = checkAuthentication();
-        if (!isAuthenticated) {
+        // 检查认证状态（纯 Token 检查）
+        if (!checkAuthentication()) {
             window.location.href = '/login';
             return;
         }
 
-        // 初始化用户角色
-        initUserRole();
+        // 初始化用户信息（从 token 解码）
+        initUserInfo();
 
         cacheElements();
         initUIBasedOnRole();
@@ -37,29 +37,19 @@
     });
 
     // ===============================
-    // 检查认证状态
+    // 检查认证状态（纯 Token 验证）
     // ===============================
     function checkAuthentication() {
-        const token = API.getAuthToken();
-        if (!token) {
-            console.log('No token found in localStorage');
+        if (!API.isAuthenticated()) {
+            console.log('无有效 Token');
             return false;
         }
 
-        // 检查 token 是否过期
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            const now = Date.now() / 1000;
-            if (payload.exp < now) {
-                console.log('Token expired');
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                return false;
-            }
-        } catch (e) {
-            console.log('Token parsing failed:', e);
+        // 获取用户信息
+        currentUser = API.getCurrentUser();
+        if (!currentUser) {
+            console.log('无法获取用户信息');
             localStorage.removeItem('token');
-            localStorage.removeItem('user');
             return false;
         }
 
@@ -67,14 +57,21 @@
     }
 
     // ===============================
-    // 初始化用户角色
+    // 初始化用户信息（从 Token 解码）
     // ===============================
-    function initUserRole() {
-        if (window.currentUser && window.currentUser.role) {
-            currentUserRole = window.currentUser.role;
+    function initUserInfo() {
+        currentUserRole = currentUser.role || 'USER';
+
+        // 显示用户信息到 header
+        const userInfo = document.getElementById('userInfo');
+        if (userInfo) {
+            userInfo.innerHTML = `
+                <span class="user-name">${escapeHtml(currentUser.username)}</span>
+                <a href="#" onclick="logout()" class="logout-btn">退出登录</a>
+            `;
         }
 
-        // 显示用户信息
+        // 显示角色提示
         const userInfoAlert = document.getElementById('userInfoAlert');
         const userRoleEl = document.getElementById('userRole');
         const userRoleDesc = document.getElementById('userRoleDesc');
@@ -114,8 +111,6 @@
     // 根据用户角色初始化 UI
     // ===============================
     function initUIBasedOnRole() {
-        console.log('Current user role:', currentUserRole);
-
         if (currentUserRole === 'USER') {
             const createApiKeyCard = document.getElementById('createApiKeyCard');
             if (createApiKeyCard) {
@@ -135,11 +130,7 @@
     // 事件监听器
     // ===============================
     function initEventListeners() {
-        // 退出登录按钮
-        const logoutBtn = document.querySelector('.logout-btn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', logout);
-        }
+        // 退出登录按钮（已在 initUserInfo 中通过 onclick 绑定）
     }
 
     // ===============================
@@ -401,7 +392,6 @@
     // ===============================
     function logout() {
         localStorage.removeItem('token');
-        localStorage.removeItem('user');
         window.location.href = '/login';
     }
 

@@ -217,12 +217,13 @@ const API = {
                             const totalTime = endTime - startTime;
                             const ttf = firstTokenTime !== null ? firstTokenTime - startTime : null;
                             // 使用 endTime 代替 lastTokenTime，确保计算到实际完成时间
-const generationTime = firstTokenTime !== null ? (endTime - firstTokenTime) / 1000 : 0;
+                            const generationTime = firstTokenTime !== null ? (endTime - firstTokenTime) / 1000 : 0;
                             const visibleTokens = outputTokens > 0 ? outputTokens : accumulatedContent.length;
                             const speed = generationTime > 0 ? visibleTokens / generationTime : 0;
 
                             onComplete({
                                 content: accumulatedContent,
+                                inputTokens: promptTokens,
                                 outputTokens: visibleTokens,
                                 totalTime: totalTime,
                                 ttf: ttf,
@@ -314,6 +315,7 @@ const generationTime = firstTokenTime !== null ? (endTime - firstTokenTime) / 10
 
                                 onComplete({
                                     content: accumulatedContent,
+                                    inputTokens: promptTokens,
                                     outputTokens: visibleTokens,
                                     totalTime: totalTime,
                                     ttf: ttf,

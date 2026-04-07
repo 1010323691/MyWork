@@ -134,7 +134,7 @@ const Concurrent = {
                     result = {
                         id: id,
                         model: config.model,
-                        inputTokens: 0, // 可在需要时添加计数
+                        inputTokens: stats.inputTokens,
                         outputTokens: stats.outputTokens,
                         totalTime: stats.totalTime,
                         speed: stats.speed,

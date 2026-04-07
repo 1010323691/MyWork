@@ -288,16 +288,27 @@ const generationTime = firstTokenTime !== null ? (endTime - firstTokenTime) / 10
 
                             // 流结束
                             if (data.done) {
-                                // Ollama 在 done 时返回准确的 eval_count
+                                // Ollama 在 done 时返回准确的统计信息
                                 if (data.eval_count !== undefined) {
                                     outputTokens = data.eval_count;
+                                }
+                                if (data.prompt_eval_count !== undefined) {
+                                    promptTokens = data.prompt_eval_count;
                                 }
 
                                 const endTime = Date.now();
                                 const totalTime = endTime - startTime;
                                 const ttf = firstTokenTime !== null ? firstTokenTime - startTime : null;
-                                // 使用 endTime 代替 lastTokenTime，确保计算到实际完成时间
-const generationTime = firstTokenTime !== null ? (endTime - firstTokenTime) / 1000 : 0;
+
+                                // 优先使用 Ollama 返回的 eval_duration（服务器实际生成耗时）
+                                let generationTime;
+                                if (data.eval_duration !== undefined) {
+                                    generationTime = data.eval_duration / 1000000000; // ns → s
+                                } else {
+                                    // 降级：用 totalTime - ttf 近似生成耗时
+                                    generationTime = ttf !== null ? (totalTime - ttf) / 1000 : 0;
+                                }
+
                                 const visibleTokens = outputTokens > 0 ? outputTokens : accumulatedContent.length;
                                 const speed = generationTime > 0 ? visibleTokens / generationTime : 0;
 

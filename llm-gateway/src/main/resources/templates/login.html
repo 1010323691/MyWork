@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <th:replace="fragments/head :: head('登录', '/css/login.css')"></th:replace>
+    <th:block th:replace="~{fragments/head :: head('登录', '/css/login.css')}"></th:block>
 </head>
 <body>
     <div class="login-container">
@@ -37,6 +37,6 @@
     </div>
 
     <!-- 引入公共脚本和登录页专用脚本 -->
-    <th:replace="fragments/scripts :: scripts('/js/login.js')"></th:replace>
+    <th:block th:replace="~{fragments/scripts :: scripts('/js/login.js')}"></th:block>
 </body>
 </html>

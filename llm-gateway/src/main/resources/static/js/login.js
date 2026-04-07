@@ -43,9 +43,25 @@
     // 检查已有会话
     // ============================================
     function checkExistingSession() {
-        if (API.isAuthenticated()) {
-            // 如果已登录，自动跳转到管理后台
-            window.location.href = '/dashboard';
+        const token = API.getAuthToken();
+        if (token) {
+            // 验证 token 是否有效（检查是否过期）
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const now = Date.now() / 1000;
+                if (payload.exp < now) {
+                    // Token 已过期，清除并停留在登录页
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                } else {
+                    // Token 有效，跳转到 dashboard
+                    window.location.href = '/dashboard';
+                }
+            } catch (e) {
+                // Token 解析失败，清除并停留在登录页
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+            }
         }
     }
 

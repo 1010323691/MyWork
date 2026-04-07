@@ -2,14 +2,12 @@ package com.nexusai.llm.gateway.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -52,8 +50,11 @@ public class SecurityConfig {
                 "/webjars/**",
                 "/actuator/**",
                 "/favicon.ico",
+                "/css/**",
+                "/js/**",
+                "/images/**",
+                "/fonts/**",
                 "/login",
-                "/dashboard",
                 "/"
         ));
     }
@@ -70,7 +71,7 @@ public class SecurityConfig {
                 ))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // 公开路径
+                        // 公开路径（无需认证）
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/v3/api-docs/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
@@ -80,18 +81,17 @@ public class SecurityConfig {
                         .requestMatchers("/favicon.ico").permitAll()
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/login").permitAll()
-                        .requestMatchers("/dashboard").permitAll()
+                        .requestMatchers("/dashboard").permitAll()  // 页面允许访问，前端检查 token
                         // 静态资源
                         .requestMatchers("/static/**").permitAll()
                         .requestMatchers("/assets/**").permitAll()
                         .requestMatchers("/css/**").permitAll()
                         .requestMatchers("/js/**").permitAll()
+                        // 管理路径 - 所有认证用户都可以访问（Controller 中控制权限）
+                        .requestMatchers("/api/admin/**").authenticated()
                         // API Key 认证路径
                         .requestMatchers("/api/clients/**").authenticated()
                         .requestMatchers("/api/llm/**").authenticated()
-                        // 管理路径
-                        .requestMatchers(HttpMethod.GET, "/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // 其他需要认证
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()

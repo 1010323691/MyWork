@@ -14,10 +14,6 @@ const API_CONFIG = {
 // HTTP 工具类
 // ============================================
 class API {
-    constructor(baseURL = API_CONFIG.BASE_URL) {
-        this.baseURL = baseURL;
-    }
-
     /**
      * 获取认证 Token
      */
@@ -41,11 +37,11 @@ class API {
     }
 
     /**
-     * 统一的 HTTP 请求方法
+     * 统一的 HTTP 请求方法（静态方法）
      */
-    async request(endpoint, options = {}) {
-        const url = this.baseURL + endpoint;
-        const token = API.getAuthToken();
+    static async request(endpoint, options = {}) {
+        const url = API_CONFIG.BASE_URL + endpoint;
+        const token = this.getAuthToken();
 
         const defaultHeaders = {
             'Content-Type': 'application/json'
@@ -76,7 +72,18 @@ class API {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+                const error = new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+                error.status = response.status;
+
+                // 401 未认证：清除 token 并跳转到登录页
+                if (response.status === 401) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login';
+                    return Promise.reject(error);
+                }
+
+                throw error;
             }
 
             return await response.json();
@@ -88,25 +95,25 @@ class API {
         }
     }
 
-    async get(endpoint) {
+    static async get(endpoint) {
         return this.request(endpoint, { method: 'GET' });
     }
 
-    async post(endpoint, data) {
+    static async post(endpoint, data) {
         return this.request(endpoint, {
             method: 'POST',
             body: JSON.stringify(data)
         });
     }
 
-    async put(endpoint, data) {
+    static async put(endpoint, data) {
         return this.request(endpoint, {
             method: 'PUT',
             body: JSON.stringify(data)
         });
     }
 
-    async delete(endpoint) {
+    static async delete(endpoint) {
         return this.request(endpoint, { method: 'DELETE' });
     }
 }

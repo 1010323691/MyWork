@@ -28,16 +28,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
         this.skipPaths = List.of(
-                "/api/auth/**",
-                "/api/clients/**",
-                "/api/llm/**",
-                "/v3/api-docs/**",
+                "/api/auth/**",           // 登录注册不需要认证
+                "/api/clients/**",        // 客户端 API 使用 API Key 认证
+                "/api/llm/**",            // LLM 转发使用 API Key 认证
+                "/v3/api-docs/**",        // Swagger
                 "/swagger-ui/**",
                 "/swagger-resources/**",
                 "/actuator/**",
                 "/webjars/**",
                 "/assets/**",
-                "/favicon.ico"
+                "/favicon.ico",
+                "/css/**",                // 静态资源
+                "/js/**",
+                "/images/**",
+                "/fonts/**",
+                "/login",                 // 登录页面
+                "/"                       // 首页
         );
     }
 

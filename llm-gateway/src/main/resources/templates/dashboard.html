@@ -1,37 +1,33 @@
 <!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <th:replace="fragments/head :: head(${user.authorities[0].authority.replace('ROLE_','')} 控制台, '/css/dashboard.css')"></th:replace>
+    <th:block th:replace="~{fragments/head :: head('管理控制台', '/css/dashboard.css')}"></th:block>
 </head>
 <body>
     <!-- 头部导航栏 -->
-    <th:replace="fragments/header :: header(${user})"></th:replace>
+    <th:block th:replace="~{fragments/header :: header(${user})}"></th:block>
 
+    <!-- 主容器 -->
     <div class="container">
-        <!-- 用户角色提示 -->
-        <div class="alert alert-info" style="margin-bottom: 20px;">
-            当前角色：<strong th:text="${user.authorities[0].authority.replace('ROLE_','')}"></strong>
-            <span th:if="${user.authorities[0].authority == 'ROLE_USER'}">
-                - 您只能查看和管理自己的 API Key
-            </span>
-            <span th:if="${user.authorities[0].authority == 'ROLE_ADMIN'}">
-                - 管理员权限，可以管理所有用户的 API Key
-            </span>
+        <!-- 用户信息提示（动态显示，由 JS 控制） -->
+        <div id="userInfoAlert" class="alert alert-info" style="margin-bottom: 20px; display: none;">
+            当前角色：<strong id="userRole"></strong>
+            <span id="userRoleDesc"></span>
         </div>
 
         <!-- 标签页导航 -->
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('apikeys')">API Key <span th:if="${user.authorities[0].authority == 'ROLE_USER'}">查看</span><th:if="${user.authorities[0].authority == 'ROLE_ADMIN'}">管理</th:if></button>
+            <button class="tab active" onclick="switchTab('apikeys')">API Key 管理</button>
             <button class="tab" onclick="switchTab('usage')">使用统计</button>
             <button class="tab" onclick="switchTab('client')">客户端工具</button>
         </div>
 
         <!-- 提示消息 -->
-        <th:replace="fragments/alerts :: alerts"></th:replace>
+        <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
 
         <!-- API Key 管理/查看 -->
         <div id="apikeys" class="tab-content active">
-            <!-- 创建 API Key 卡片 - 所有用户可见 -->
+            <!-- 创建 API Key 卡片 -->
             <div class="card" id="createApiKeyCard">
                 <div class="card-title">创建 API Key</div>
                 <div class="row">
@@ -61,7 +57,7 @@
             <div class="card">
                 <div class="card-title">
                     API Key 列表
-                    <span th:if="${user.authorities[0].authority == 'ROLE_USER'}" style="font-size: 14px; color: #666; font-weight: normal;">(仅显示您的 API Key)</span>
+                    <span id="apiKeyListSubtext" style="font-size: 14px; color: #666; font-weight: normal;"></span>
                 </div>
                 <div id="loading" class="spinner">加载中...</div>
                 <div id="apiKeyList" class="d-none">
@@ -153,14 +149,10 @@
 
     <!-- 传递用户信息到前端 -->
     <script th:inline="javascript">
-        window.currentUser = {
-            username: /*[[${user.username}]]*/ '',
-            email: /*[[${user.email}]]*/ '',
-            role: /*[[${user.authorities[0].authority.replace('ROLE_','')}]]*/ ''
-        };
+        window.currentUser = /*[[${user != null ? {username: user.username, email: user.email, role: user.authorities[0].authority.replace('ROLE_','')} : null}]]*/ null;
     </script>
 
     <!-- 引入公共脚本和管理后台专用脚本 -->
-    <th:replace="fragments/scripts :: scripts('/js/dashboard.js')"></th:replace>
+    <th:block th:replace="~{fragments/scripts :: scripts('/js/dashboard.js')}"></th:block>
 </body>
 </html>

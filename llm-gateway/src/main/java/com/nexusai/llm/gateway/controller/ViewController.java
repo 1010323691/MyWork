@@ -19,12 +19,10 @@ public class ViewController {
 
     @GetMapping("/dashboard")
     public String dashboardPage(@AuthenticationPrincipal UserDetails userDetails, Model model) {
-        if (userDetails != null) {
-            model.addAttribute("user", userDetails);
-            model.addAttribute("title", "管理后台");
-            return "dashboard";
-        }
-        return "redirect:/login";
+        // 传递用户信息（可能为 null，前端负责检查认证）
+        model.addAttribute("user", userDetails);
+        model.addAttribute("title", "管理后台");
+        return "dashboard";
     }
 
     @GetMapping("/")

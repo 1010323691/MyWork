@@ -49,8 +49,9 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
         String apiKey = request.getHeader("X-API-Key");
 
+        // 如果没有提供 API Key，跳过认证，让 JWT filter 处理
         if (apiKey == null || !apiKey.startsWith("nkey_")) {
-            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Missing or invalid API key");
+            filterChain.doFilter(request, response);
             return;
         }
 

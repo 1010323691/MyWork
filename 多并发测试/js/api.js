@@ -196,7 +196,7 @@ const API = {
         let outputTokens = 0;
         let startTime = Date.now();
         let firstTokenTime = null;
-        let lastTokenTime = null;
+        // lastTokenTime 已移除：改用 endTime 计算 generationTime
 
         try {
             while (true) {
@@ -216,7 +216,8 @@ const API = {
                             const endTime = Date.now();
                             const totalTime = endTime - startTime;
                             const ttf = firstTokenTime !== null ? firstTokenTime - startTime : null;
-                            const generationTime = firstTokenTime !== null && lastTokenTime !== null ? (lastTokenTime - firstTokenTime) / 1000 : 0;
+                            // 使用 endTime 代替 lastTokenTime，确保计算到实际完成时间
+const generationTime = firstTokenTime !== null ? (endTime - firstTokenTime) / 1000 : 0;
                             const visibleTokens = outputTokens > 0 ? outputTokens : accumulatedContent.length;
                             const speed = generationTime > 0 ? visibleTokens / generationTime : 0;
 
@@ -249,7 +250,7 @@ const API = {
                                     if (firstTokenTime === null && newContent.length > 0) {
                                         firstTokenTime = Date.now();
                                     }
-                                    lastTokenTime = Date.now();
+                                    // lastTokenTime 已移除：改用 endTime 计算 generationTime
 
                                     if (newContent.length > 0) {
                                         onToken(accumulatedContent, accumulatedContent.length, 'content');
@@ -278,7 +279,7 @@ const API = {
                                 if (firstTokenTime === null && newContent.length > 0) {
                                     firstTokenTime = Date.now();
                                 }
-                                lastTokenTime = Date.now();
+                                // lastTokenTime 已移除：改用 endTime 计算 generationTime
 
                                 if (newContent.length > 0) {
                                     onToken(accumulatedContent, accumulatedContent.length, 'content');
@@ -295,7 +296,8 @@ const API = {
                                 const endTime = Date.now();
                                 const totalTime = endTime - startTime;
                                 const ttf = firstTokenTime !== null ? firstTokenTime - startTime : null;
-                                const generationTime = firstTokenTime !== null && lastTokenTime !== null ? (lastTokenTime - firstTokenTime) / 1000 : 0;
+                                // 使用 endTime 代替 lastTokenTime，确保计算到实际完成时间
+const generationTime = firstTokenTime !== null ? (endTime - firstTokenTime) / 1000 : 0;
                                 const visibleTokens = outputTokens > 0 ? outputTokens : accumulatedContent.length;
                                 const speed = generationTime > 0 ? visibleTokens / generationTime : 0;
 

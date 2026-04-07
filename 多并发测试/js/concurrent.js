@@ -32,7 +32,7 @@ const Concurrent = {
         this.runningCount = 0;
         this.completedCount = 0;
         this.totalCount = 0;
-        this.results = [];
+        // 保留之前的测试结果，不清空 results
         this.requestTimestamps = [];
         this.lastQpsCalc = Date.now();
         this.currentQps = 0;

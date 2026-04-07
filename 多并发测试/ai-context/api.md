@@ -78,10 +78,16 @@
   content: string,          // 完整响应内容
   outputTokens: number,     // 输出 token 数
   totalTime: number,        // 总耗时（ms）
-  ttf: number | null,       // TTFT（首字时间，ms）
+  ttf: number | null,       // TTFT（首字时间，ms，包含模型思考时间）
   speed: number             // 生成速度（tokens/s）
 }
 ```
+
+## 指标计算说明
+
+- **TTFT**：从请求发出到收到第一个 token 的时间。对于支持思考的模型，此时间包含了模型的思考/推理时间。
+- **总耗时**：从请求发出到流式响应完成的总时间。
+- **生成速度**：输出 tokens 数除以生成时间（tokens/秒）。
 
 ---
 

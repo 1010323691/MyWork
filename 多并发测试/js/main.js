@@ -110,7 +110,6 @@
 
             // 更新 UI 状态
             UI.setTesting(true);
-            UI.clearResultsTable();
             UI.resetMetrics();
 
             // 更新任务列表显示

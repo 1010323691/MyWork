@@ -47,7 +47,7 @@
 ## 核心方法
 
 ### 初始化与清理
-- `initialize(concurrentCount)` - 初始化测试状态，创建任务队列
+- `initialize(concurrentCount)` - 初始化测试状态，创建任务队列（保留已有 results）
 - `stop()` - 停止测试（设置 isRunning=false，触发 abort）
 - `clear()` - 清空所有状态（结果、任务、计数）
 

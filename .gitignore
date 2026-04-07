@@ -1,1 +1,62 @@
+# Maven
 target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# Eclipse
+.metadata/
+.settings/
+.project
+.classpath
+bin/
+
+# VS Code
+.vscode/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Local configuration
+application-local.yml
+application-local.properties
+*.local.yml
+*.local.properties
+
+# Database
+*.bak
+*.sql~
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.log
+
+# Temp files
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+*.coverage

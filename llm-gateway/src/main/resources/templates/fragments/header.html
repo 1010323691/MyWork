@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<!-- 头部导航栏片段 -->
+<th:block th:fragment="header(user)">
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">LLM Gateway</div>
+            <div class="user-info">
+                <span th:if="${user != null}" th:text="${user.username} + ' (' + ${user.email} + ')'"></span>
+                <a href="#" onclick="logout()" class="logout-btn" th:if="${user != null}">退出登录</a>
+            </div>
+        </div>
+    </div>
+</th:block>
+
+</html>

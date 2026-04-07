@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<!-- 页面头部片段 -->
+<th:block th:fragment="head(title, extraCss)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title != null ? title : 'LLM Gateway'}">LLM Gateway</title>
+
+    <!-- 公共样式 -->
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+
+    <!-- 页面专用样式 -->
+    <link rel="stylesheet" th:if="${extraCss != null}" th:href="@{${extraCss}}">
+</th:block>
+
+</html>

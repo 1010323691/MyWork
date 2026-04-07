@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:replace="fragments/head :: head('登录', '/css/login.css')"></th:replace>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-logo">LLM Gateway</div>
+            <div class="login-subtitle">API 网关管理后台</div>
+
+            <!-- 错误提示 (服务端返回) -->
+            <div th:if="${error}" class="alert alert-error show" th:text="${error}"></div>
+
+            <!-- 成功提示 -->
+            <div id="successBox" class="alert alert-success" style="display: none;">
+                登录成功，跳转中...
+            </div>
+
+            <!-- 登录表单 -->
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" required
+                           placeholder="请输入用户名" autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" required
+                           placeholder="请输入密码">
+                </div>
+
+                <button type="submit" class="btn btn-primary">登录</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 引入公共脚本和登录页专用脚本 -->
+    <th:replace="fragments/scripts :: scripts('/js/login.js')"></th:replace>
+</body>
+</html>

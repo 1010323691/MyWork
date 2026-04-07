@@ -1,0 +1,59 @@
+/* ============================================
+   LLM Gateway - Login Page Styles
+   ============================================ */
+
+body {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+}
+
+.login-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    padding: 40px;
+}
+
+.login-logo {
+    text-align: center;
+    font-size: 28px;
+    font-weight: bold;
+    color: #1a1a2e;
+    margin-bottom: 10px;
+}
+
+.login-subtitle {
+    text-align: center;
+    color: #666;
+    margin-bottom: 30px;
+}
+
+/* 登录页表单组样式覆盖 */
+.login-container .form-group {
+    margin-bottom: 24px;
+}
+
+.login-container .form-group label {
+    color: #333;
+    font-weight: 500;
+}
+
+/* 登录按钮全宽样式 */
+.login-container .btn {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+}
+
+.login-container .btn-primary:hover {
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}

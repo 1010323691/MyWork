@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<!-- 统计卡片组件（支持参数化：icon, value, label） -->
+<th:block th:fragment="statsCard(icon, value, label)">
+    <div class="stat-card">
+        <div class="stat-icon" th:text="${icon}">📊</div>
+        <div class="stat-value" th:text="${value}">0</div>
+        <div class="stat-label" th:text="${label}">统计</div>
+    </div>
+</th:block>
+
+</html>

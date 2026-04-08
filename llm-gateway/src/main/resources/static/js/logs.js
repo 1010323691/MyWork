@@ -1,63 +1,52 @@
 /**
  * LLM Gateway - 请求日志页面
+ * Session/Cookie 认证模式
  */
 (function() {
     'use strict';
 
     let currentPage = 0;
     let totalPages = 0;
+    let totalElements = 0;
 
-    document.addEventListener('DOMContentLoaded', function() {
-        if (!API.isAuthenticated()) {
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!(await API.isAuthenticated())) {
             window.location.href = '/login';
             return;
         }
 
-        const user = API.getCurrentUser();
-        const userInfo = document.getElementById('userInfo');
-        if (userInfo && user) {
-            userInfo.innerHTML = `
-                <span class="user-name">${escapeHtml(user.username)}</span>
-                <a href="#" onclick="logout()" class="logout-btn">退出登录</a>
-            `;
-        }
-
-        loadApiKeyOptions();
+        await initSidebarUserInfo();
         loadLogs(0);
     });
 
-    async function loadApiKeyOptions() {
-        try {
-            const keys = await API.get('/admin/apikeys');
-            const select = document.getElementById('apiKeyFilter');
-            if (select && Array.isArray(keys)) {
-                keys.forEach(function(k) {
-                    const opt = document.createElement('option');
-                    opt.value = k.id;
-                    opt.textContent = k.name + ' (' + maskKey(k.key) + ')';
-                    select.appendChild(opt);
-                });
-            }
-        } catch (e) {
-            console.warn('加载 API Key 列表失败', e);
+    async function initSidebarUserInfo() {
+        const user = await API.getCurrentUser();
+        const usernameEl = document.getElementById('sidebarUsername');
+        const avatarEl = document.getElementById('sidebarUserAvatar');
+        if (user && usernameEl) {
+            usernameEl.textContent = user.username;
+        }
+        if (user && avatarEl) {
+            avatarEl.textContent = user.username.substring(0, 1).toUpperCase();
         }
     }
 
     async function loadLogs(page) {
         const loading = document.getElementById('logsLoading');
-        const content = document.getElementById('logsContent');
+        const container = document.getElementById('logsContainer');
         if (loading) loading.classList.remove('d-none');
-        if (content) content.classList.add('d-none');
+        if (container) container.classList.add('d-none');
 
         const params = buildParams(page);
 
         try {
             const data = await API.get('/user/logs?' + params);
-            currentPage = data.number;
-            totalPages = data.totalPages;
+            currentPage = data.number || 0;
+            totalPages = data.totalPages || 0;
+            totalElements = data.totalElements || 0;
             renderTable(data.content || []);
-            renderPagination(data.number, data.totalPages, data.totalElements);
-            if (content) content.classList.remove('d-none');
+            renderPagination();
+            if (container) container.classList.remove('d-none');
         } catch (e) {
             console.error('加载日志失败', e);
             UI.showErrorMessage('加载日志失败：' + e.message);
@@ -71,15 +60,15 @@
         p.set('page', page);
         p.set('size', 20);
 
-        const startDate = document.getElementById('startDate').value;
-        const endDate = document.getElementById('endDate').value;
-        const apiKeyId = document.getElementById('apiKeyFilter').value;
-        const status = document.getElementById('statusFilter').value;
+        const keyword = document.getElementById('filterKeyword');
+        const status = document.getElementById('filterStatus');
 
-        if (startDate) p.set('startDate', startDate);
-        if (endDate) p.set('endDate', endDate);
-        if (apiKeyId) p.set('apiKeyId', apiKeyId);
-        if (status) p.set('status', status);
+        if (keyword && keyword.value.trim()) {
+            p.set('keyword', keyword.value.trim());
+        }
+        if (status && status.value) {
+            p.set('status', status.value === 'success' ? 'SUCCESS' : 'FAIL');
+        }
 
         return p.toString();
     }
@@ -101,38 +90,33 @@
                 '<td>' + formatDateTime(log.createdAt) + '</td>' +
                 '<td>' + escapeHtml(log.apiKeyName || '-') + '</td>' +
                 '<td>' + escapeHtml(log.modelName || '-') + '</td>' +
-                '<td>' + UI.formatNumber(log.inputTokens || 0) + '</td>' +
-                '<td>' + UI.formatNumber(log.outputTokens || 0) + '</td>' +
-                '<td>' + (log.latencyMs || 0) + '</td>' +
+                '<td>' + UI.formatNumber(log.inputTokens + (log.outputTokens || 0)) + '</td>' +
+                '<td>' + (log.latencyMs || 0) + 'ms</td>' +
                 '<td>' + statusBadge + '</td>' +
+                '<td><button class="btn btn-sm btn-primary" onclick="viewLogDetails(' + log.id + ')">详情</button></td>' +
                 '</tr>';
         }).join('');
     }
 
-    function renderPagination(page, total, totalElements) {
-        const el = document.getElementById('pagination');
+    function renderPagination() {
+        const el = document.getElementById('logsPagination');
         if (!el) return;
 
-        if (total <= 1) {
+        if (totalPages <= 1) {
             el.innerHTML = '<span class="page-info">共 ' + totalElements + ' 条</span>';
             return;
         }
 
         el.innerHTML =
-            '<button ' + (page === 0 ? 'disabled' : '') + ' onclick="goPage(' + (page - 1) + ')">上一页</button>' +
-            '<span class="page-info">第 ' + (page + 1) + ' / ' + total + ' 页，共 ' + totalElements + ' 条</span>' +
-            '<button ' + (page >= total - 1 ? 'disabled' : '') + ' onclick="goPage(' + (page + 1) + ')">下一页</button>';
+            '<button ' + (currentPage === 0 ? 'disabled' : '') + ' onclick="goPage(' + (currentPage - 1) + ')">上一页</button>' +
+            '<span class="page-info">第 ' + (currentPage + 1) + ' / ' + totalPages + ' 页，共 ' + totalElements + ' 条</span>' +
+            '<button ' + (currentPage >= totalPages - 1 ? 'disabled' : '') + ' onclick="goPage(' + (currentPage + 1) + ')">下一页</button>';
     }
 
     function formatDateTime(isoStr) {
         if (!isoStr) return '-';
         const d = new Date(isoStr);
         return d.toLocaleString('zh-CN', { hour12: false });
-    }
-
-    function maskKey(key) {
-        if (!key || key.length < 10) return key;
-        return key.substring(0, 8) + '...' + key.substring(key.length - 4);
     }
 
     function escapeHtml(text) {
@@ -142,17 +126,43 @@
         return div.innerHTML;
     }
 
-    window.queryLogs = function() { loadLogs(0); };
-    window.resetFilters = function() {
-        document.getElementById('startDate').value = '';
-        document.getElementById('endDate').value = '';
-        document.getElementById('apiKeyFilter').value = '';
-        document.getElementById('statusFilter').value = '';
-        loadLogs(0);
-    };
+    window.loadLogs = function() { loadLogs(0); };
     window.goPage = function(page) { loadLogs(page); };
-    window.logout = function() {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
+    window.viewLogDetails = async function(id) {
+        try {
+            const log = await API.get('/user/logs/' + id);
+            const modal = document.getElementById('logDetailModal');
+            if (!modal) {
+                UI.showErrorMessage('未找到详情模态框');
+                return;
+            }
+            document.getElementById('detailTime').textContent = formatDateTime(log.createdAt);
+            document.getElementById('detailApiKey').textContent = log.apiKeyName || '-';
+            document.getElementById('detailModel').textContent = log.modelName || '-';
+            document.getElementById('detailInput').textContent = UI.formatNumber(log.inputTokens || 0);
+            document.getElementById('detailOutput').textContent = UI.formatNumber(log.outputTokens || 0);
+            document.getElementById('detailTotal').textContent = UI.formatNumber((log.inputTokens || 0) + (log.outputTokens || 0));
+            document.getElementById('detailLatency').textContent = (log.latencyMs || 0) + 'ms';
+            document.getElementById('detailStatus').textContent = log.status === 'SUCCESS' ? '成功' : '失败';
+            modal.style.display = 'flex';
+        } catch (e) {
+            UI.showErrorMessage('加载详情失败：' + e.message);
+        }
     };
+    window.closeModal = function() {
+        document.getElementById('logDetailModal').style.display = 'none';
+    };
+    window.logout = function() {
+        fetch('/logout', { method: 'POST', credentials: 'same-origin' })
+            .then(() => window.location.href = '/login')
+            .catch(() => window.location.href = '/login');
+    };
+
+    // Close modal on overlay click
+    document.addEventListener('click', function(e) {
+        const modal = document.getElementById('logDetailModal');
+        if (modal && e.target === modal) {
+            closeModal();
+        }
+    });
 })();

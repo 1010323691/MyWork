@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<!-- 基础布局模板 -->
+<th:block th:fragment="layout (pageTitle, extraCss, extraJs)">
+    <head>
+        <th:block th:replace="~{fragments/head :: head(pageTitle, extraCss)}"></th:block>
+    </head>
+    <body>
+        <div class="layout-container">
+            <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
+            <main class="main-content">
+                <div class="page-content">
+                    <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
+                    <div class="page-content-wrapper">
+                        <!-- 页面内容通过 thymeleaf 填充 -->
+                        <div id="mainContent">
+                            <th:block th:replace="${@thymeleafUtils.include('/pages/dashboard/content.html')}"></th:block>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        <th:block th:replace="~{fragments/scripts :: scripts(extraJs)}"></th:block>
+    </body>
+</th:block>
+
+</html>

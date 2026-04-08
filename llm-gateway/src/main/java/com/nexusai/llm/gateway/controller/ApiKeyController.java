@@ -143,15 +143,19 @@ public class ApiKeyController {
 
     /**
      * 获取当前用户 ID
-     * 优先从项目 User 实体获取，否则从 request 属性中获取（由 JWT Filter 设置）
+     * 优先从项目 User 实体获取（Session 认证），其次从 API Key 获取（API Key 认证）
      */
     private Long getCurrentUserId(UserDetails userDetails, HttpServletRequest request) {
-        // 如果用户详情是项目 User 实体，直接获取 ID
+        // 如果用户详情是项目 User 实体，直接获取 ID（Session 认证场景）
         if (userDetails instanceof User) {
             return ((User) userDetails).getId();
         }
-        // 否则从 request 属性中获取（由 JWT Filter 设置）
-        return (Long) request.getAttribute("currentUserId");
+        // 从 API Key 获取（API Key 认证场景）
+        ApiKey apiKey = (ApiKey) request.getAttribute("apiKey");
+        if (apiKey != null) {
+            return apiKey.getUser().getId();
+        }
+        return null;
     }
 
     /**

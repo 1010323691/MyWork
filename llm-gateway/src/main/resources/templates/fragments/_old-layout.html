@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<!-- 完整布局模板（包含 sidebar + main-content 框架） -->
+<th:block th:fragment="layout">
+    <div class="layout-container">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <span class="logo-icon">🚀</span>
+                    <span>LLM Gateway</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>仪表盘</span>
+                </a>
+                <a href="/logs" class="nav-item">
+                    <span class="nav-icon">📝</span>
+                    <span>请求日志</span>
+                </a>
+                <a href="/admin/users" class="nav-item admin-only">
+                    <span class="nav-icon">👥</span>
+                    <span>用户管理</span>
+                </a>
+                <a href="/admin/monitor" class="nav-item admin-only">
+                    <span class="nav-icon">📈</span>
+                    <span>系统监控</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-profile" id="userInfo">
+                    <!-- 由 JS 动态填充 -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <div class="page-content">
+                <!-- 提示消息 -->
+                <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
+
+                <!-- 页面内容区域 -->
+                <div class="page-content-wrapper">
+                    <!-- 页面内容占位符，由页面 JS 插入 -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        (function() {
+            // 初始化用户权限和菜单显示
+            var token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    var payload = JSON.parse(atob(token.split('.')[1]));
+                    var authorities = payload.authorities || [];
+                    var isAdmin = authorities.some(function(a) { return a === 'ROLE_ADMIN'; });
+                    if (isAdmin) {
+                        document.querySelectorAll('.admin-only').forEach(function(el) {
+                            el.style.display = '';
+                        });
+                    }
+                } catch(e) {}
+            }
+
+            // 更新导航激活状态
+            var path = window.location.pathname;
+            document.querySelectorAll('.nav-item').forEach(function(item) {
+                item.classList.remove('active');
+                if (item.getAttribute('href') === path ||
+                    (path.startsWith('/admin') && item.getAttribute('href').startsWith('/admin'))) {
+                    item.classList.add('active');
+                }
+            });
+        })();
+    </script>
+</th:block>
+
+</html>

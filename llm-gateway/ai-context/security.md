@@ -1,208 +1,336 @@
-# Security 层 - 安全认证
+# Security 层文档
 
-## 模块概览
-Spring Security 配置和双认证机制（JWT + API Key）。
-
----
+## 概述
+Security 层负责认证和授权，采用 Spring Security 框架。支持双重认证模式：Session/Cookie 认证（Web 页面）和 API Key 认证（API 调用）。
 
 ## 文件清单
 
-### 1. `SecurityConfig.java`
-**职责**: Spring Security 核心配置
-
-**关键配置**:
-
-| 配置项 | 说明 |
-|-----|-----|
-| `SecurityFilterChain` | 安全过滤器链配置 |
-| `corsConfigurationSource()` | CORS 跨域配置 |
-| `daoAuthenticationProvider()` | DAO 认证提供者 |
-| `passwordEncoder()` | BCrypt 密码编码器 |
-| `authenticationManager()` | 认证管理器 |
-
-**过滤器顺序**:
-1. `ApiKeyAuthenticationFilter` - 优先检查 API Key
-2. `JwtAuthenticationFilter` - 然后检查 JWT Token
-
-**路径权限规则**:
-
-| 路径 | 权限 |
-|-----|-----|
-| /api/auth/** | 公开（登录注册） |
-| /swagger-ui/** | 公开 |
-| /api/clients/** | 需认证（API Key） |
-| /api/llm/** | 需认证（API Key） |
-| /api/admin/** | 需 ADMIN 角色（JWT） |
-| /dashboard | 公开（但前端需要认证） |
+| 文件 | 路径 | 职责 |
+|------|------|------|
+| SecurityConfig | `src/main/java/com/nexusai/llm/gateway/security/SecurityConfig.java` | 安全配置（认证、授权、CORS） |
+| ApiKeyAuthenticationFilter | `src/main/java/com/nexusai/llm/gateway/security/ApiKeyAuthenticationFilter.java` | API Key 认证过滤器 |
+| CustomUserDetailsService | `src/main/java/com/nexusai/llm/gateway/security/CustomUserDetailsService.java` | 用户详情服务（Session 认证） |
+| ApiKeyService | `src/main/java/com/nexusai/llm/gateway/security/ApiKeyService.java` | API Key 服务 |
+| JwtService | `src/main/java/com/nexusai/llm/gateway/security/JwtService.java` | JWT 服务（预留） |
+| JwtAuthenticationFilter | `src/main/java/com/nexusai/llm/gateway/security/JwtAuthenticationFilter.java` | JWT 认证过滤器（预留） |
 
 ---
 
-### 2. `JwtAuthenticationFilter.java`
-**职责**: JWT Token 认证过滤器
+## SecurityConfig
+**文件**: `src/main/java/com/nexusai/llm/gateway/security/SecurityConfig.java`
 
-**核心逻辑**:
+### 职责
+配置 Spring Security 的认证、授权、CORS 策略。
+
+### 认证模式
+- **Session/Cookie**: Web 页面使用，通过表单登录创建 Session
+- **API Key**: API 调用使用，通过 `X-API-Key` 请求头传递
+
+### 关键配置
+
+#### 1. CORS 配置
+```java
+cors.configurationSource(corsConfigurationSource())
 ```
-1. 检查是否在 skipPaths（跳过路径）
-2. 从 Authorization header 提取 Bearer Token
-3. 使用 JwtService 验证 Token
-4. 加载 UserDetails 并设置 SecurityContext
-5. 放行请求
+- 允许所有源：`*`
+- 允许方法：GET, POST, PUT, DELETE, OPTIONS
+- 允许头：Authorization, Content-Type, X-API-Key
+- 暴露头：X-Remaining-Tokens, X-Total-Tokens
+
+#### 2. CSRF 禁用
+```java
+csrf.disable()
+```
+原因：
+- 登录表单使用 Cookie，CSRF 防护不适用于 JSON API
+- API 调用使用 API Key，本身具有 CSRF 防护效果
+
+#### 3. Session 管理
+```java
+sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+```
+- 按需创建 Session
+- 支持无状态 API 调用
+
+#### 4. 表单登录配置
+```java
+formLogin(form -> form
+    .loginProcessingUrl("/login")
+    .successHandler(successAuthenticationHandler())
+    .failureUrl("/login?error")
+    .usernameParameter("username")
+    .passwordParameter("password")
+    .permitAll())
 ```
 
-**跳过路径**:
-- `/api/auth/**` - 登录注册
-- `/api/clients/**` - 客户端 API
-- `/api/llm/**` - LLM 转发
-- `/swagger-ui/**` - API 文档
+#### 5. 退出登录配置
+```java
+logout(logout -> logout
+    .logoutUrl("/logout")
+    .logoutSuccessUrl("/login?logout")
+    .invalidateHttpSession(true)
+    .deleteCookies("JSESSIONID"))
+```
 
-**依赖**: `JwtService`, `UserDetailsService`
+#### 6. 路径权限配置
+```java
+authorizeHttpRequests(auth -> auth
+    .requestMatchers("/api/auth/login").permitAll()
+    .requestMatchers("/api/auth/register").permitAll()
+    .requestMatchers("/api/admin/**").hasRole("ADMIN")
+    .requestMatchers("/api/user/**").authenticated()
+    .requestMatchers("/api/llm/**").authenticated()
+    .anyRequest().permitAll())
+```
+
+#### 7. 过滤器链
+```java
+.addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+```
+- ApiKey 过滤器在表单登录过滤器之前执行
+- 优先处理 API Key 认证
+
+### 权限矩阵
+
+| 路径 | 公开 | 用户 | 管理员 |
+|------|------|------|--------|
+| /api/auth/login | ✓ | ✓ | ✓ |
+| /api/auth/register | ✓ | ✓ | ✓ |
+| /api/auth/me | - | ✓ | ✓ |
+| /api/user/** | - | ✓ | ✓ |
+| /api/admin/** | - | ✗ | ✓ |
+| /api/llm/** | - | ✓ | ✓ |
+| /api/clients/** | - | ✓ | ✓ |
+| /dashboard | - | ✓ | ✓ |
+| /admin/** | - | ✗ | ✓ |
 
 ---
 
-### 3. `ApiKeyAuthenticationFilter.java`
-**职责**: API Key 认证过滤器
+## ApiKeyAuthenticationFilter
+**文件**: `src/main/java/com/nexusai/llm/gateway/security/ApiKeyAuthenticationFilter.java`
 
-**核心逻辑**:
+### 职责
+处理 API Key 认证，从请求头提取 Key 并验证。
+
+### 执行顺序
+- 在 `UsernamePasswordAuthenticationFilter` 之前执行
+- 优先处理 API Key 认证
+
+### 认证流程
 ```
-1. 检查是否在 skipPaths（跳过路径）
-2. 从 X-API-Key header 提取 API Key
-3. 验证格式（必须以 nkey_ 开头）
-4. 查询 ApiKeyService 获取 API Key 信息
-5. 检查是否启用、是否过期
-6. 创建 API_USER 权限并设置 SecurityContext
-7. 将 ApiKey 存储到 request 属性
-8. 放行请求
+1. 检查是否跳过路径（配置在 SecurityConfig）
+2. 读取 X-API-Key 请求头
+3. 检查前缀是否为 "nkey_"
+4. 调用 ApiKeyService.findByKeyNoCache() 查找 Key
+5. 检查 Key 是否启用、未过期
+6. 创建 SecurityContext（角色：API_USER）
+7. 设置 request attribute "apiKey"
+8. 继续过滤器链
 ```
 
-**跳过路径**（由 SecurityConfig 注入）:
-- `/api/auth/**` - 登录注册
-- `/swagger-ui/**` - API 文档
-- `/dashboard` - 管理后台
-- `/login` - 登录页
+### 跳过路径
+配置在 SecurityConfig 构造函数中：
+```java
+apiKeyAuthenticationFilter.setSkipPaths(List.of(
+    "/api/auth/**",
+    "/v3/api-docs/**",
+    "/swagger-ui/**",
+    "/actuator/**",
+    ...
+));
+```
 
-**依赖**: `ApiKeyService`, `ObjectMapper`
+### 错误处理
+- **401 Unauthorized**: Key 不存在
+- **403 Forbidden**: Key 禁用或过期
+
+### SecurityContext 设置
+```java
+User principal = new User(
+    key.getId().toString(),  // 主键 ID
+    "",                       // 空密码
+    Collections.singletonList(new SimpleGrantedAuthority("API_USER"))
+);
+SecurityContextHolder.getContext().setAuthentication(authentication);
+```
+
+### Request Attribute
+```java
+request.setAttribute("apiKey", key);
+```
+- 供 Controller 层获取完整的 ApiKey 实体
+- 用于 Token 检查和日志记录
 
 ---
 
-### 4. `JwtService.java`
-**职责**: JWT Token 生成和验证
+## CustomUserDetailsService
+**文件**: `src/main/java/com/nexusai/llm/gateway/security/CustomUserDetailsService.java`
 
-**配置参数**:
-```yaml
-jwt.secret: your-256-bit-secret-key-for-jwt-generation-must-be-long-enough
-jwt.expiration: 86400000  # 24 小时
+### 职责
+实现 `UserDetailsService` 接口，用于 Session 认证。
+
+### 方法
+```java
+loadUserByUsername(String username)
 ```
 
-**核心方法**:
-| 方法 | 说明 |
-|-----|-----|
-| `generateToken(userDetails)` | 生成 JWT |
-| `extractUsername(token)` | 提取用户名 |
-| `isTokenValid(token, userDetails)` | 验证 Token |
+### 流程
+1. 调用 `UserRepository.findByUsername(username)`
+2. 如果用户不存在，抛出 `UsernameNotFoundException`
+3. 返回 User 实体（实现了 UserDetails）
+
+### User 实现 UserDetails
+- `getAuthorities()` → 返回 `["ROLE_" + userRole]`
+- `isEnabled()` → 返回 `user.enabled`
+- 其他方法默认返回 true
 
 ---
 
-### 5. `ApiKeyService.java`
-**职责**: API Key 管理
+## ApiKeyService
+**文件**: `src/main/java/com/nexusai/llm/gateway/security/ApiKeyService.java`
 
-**核心方法**:
-| 方法 | 说明 |
-|-----|-----|
-| `findByKey(key)` | 查找 API Key |
-| `createApiKey(...)` | 创建 API Key |
-| `generateKey()` | 生成 nkey_XXX 格式 Key |
-| `hasEnoughTokens()` | 检查 Token 余额 |
+### 职责
+API Key 的业务逻辑处理。
+
+### 关键方法
+- `findByKey()` - 查找 Key
+- `createApiKey()` - 创建 Key
+- `hasEnoughTokens()` - 检查 Token
+- `recordUsage()` - 记录使用
+- `generateKey()` - 生成随机 Key
+
+### Key 生成算法
+```java
+byte[] randomBytes = new byte[32];
+RANDOM.nextBytes(randomBytes);
+return "nkey_" + Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+```
+- 32 字节随机数
+- Base64 URL 编码
+- 前缀：`nkey_`
 
 ---
 
-### 6. `CustomUserDetailsService.java`
-**职责**: 加载用户详情（Spring Security 接口）
+## 认证流程图
 
-**核心方法**:
-| 方法 | 说明 |
-|-----|-----|
-| `loadUserByUsername(username)` | 从数据库加载 User |
-
----
-
-## 认证流程
-
-### JWT 认证流程（Web 管理后台）
-
+### Session 认证（Web 页面）
 ```
-1. 用户访问 /dashboard
-   ↓
-2. ViewController.dashboardPage() 检查认证
-   ↓
-3. 未认证 → 重定向到 /login
-   ↓
-4. 用户登录 → AuthController.login()
-   ↓
-5. AuthenticationManager 验证用户名密码
-   ↓
-6. JwtService.generateToken() 生成 JWT
-   ↓
-7. 前端保存 JWT 到 localStorage
-   ↓
-8. 后续请求携带 Bearer Token
-   ↓
-9. JwtAuthenticationFilter 验证 Token
-   ↓
-10. SecurityContextHolder 设置认证信息
-```
-
-### API Key 认证流程（客户端/LLM 转发）
-
-```
-1. 客户端请求 /api/llm/chat 或 /api/clients/token-usage
-   ↓
-2. 携带 X-API-Key: nkey_XXX header
-   ↓
-3. ApiKeyAuthenticationFilter 拦截
-   ↓
-4. 验证 Key 格式（nkey_ 开头）
-   ↓
-5. ApiKeyService.findByKey() 查询数据库
-   ↓
-6. 检查 enabled 和 expiresAt
-   ↓
-7. 创建 API_USER 权限
-   ↓
-8. SecurityContextHolder 设置认证信息
-   ↓
-9. 请求继续处理
+浏览器访问 /login
+    ↓
+表单提交 POST /login (username + password)
+    ↓
+SecurityFilterChain
+    ↓
+ApiKeyAuthenticationFilter（跳过，无 X-API-Key）
+    ↓
+UsernamePasswordAuthenticationFilter
+    ↓
+DaoAuthenticationProvider
+    ↓
+CustomUserDetailsService.loadUserByUsername()
+    ↓
+BCryptPasswordEncoder 验证密码
+    ↓
+创建 Session，设置 JSESSIONID Cookie
+    ↓
+重定向到 /dashboard
+    ↓
+后续请求携带 Cookie → 自动认证
 ```
 
+### API Key 认证（API 调用）
+```
+客户端发送请求 + X-API-Key: nkey_xxx
+    ↓
+SecurityFilterChain
+    ↓
+ApiKeyAuthenticationFilter
+    ↓
+ApiKeyService.findByKeyNoCache()
+    ↓
+检查 Key 启用状态、过期时间
+    ↓
+创建 SecurityContext (角色：API_USER)
+    ↓
+设置 request.setAttribute("apiKey", key)
+    ↓
+后续过滤器继续处理
+    ↓
+Controller 从 request 获取 ApiKey 实体
+```
+
+### 混合认证（用户访问）
+- **Session 认证**: 从 SecurityContext 获取 User 实体
+- **API Key 认证**: 从 request attribute 获取 ApiKey 实体
+- **统一获取用户 ID**:
+```java
+ApiKey apiKey = (ApiKey) request.getAttribute("apiKey");
+if (apiKey != null) {
+    return apiKey.getUser().getId();
+}
+if (authentication.getPrincipal() instanceof User) {
+    return ((User) authentication.getPrincipal()).getId();
+}
+```
+
 ---
 
-## 权限矩阵
+## 权限控制
 
-| 用户类型 | 认证方式 | /api/admin/** | /api/llm/** | /api/clients/** | /dashboard |
-|---------|---------|--------------|-------------|-----------------|-----------|
-| 未认证 | - | ❌ | ❌ | ❌ | ✅(重定向) |
-| USER | JWT | ❌ | ✅ | ✅ | ✅ |
-| ADMIN | JWT | ✅ | ✅ | ✅ | ✅ |
-| API_USER | API Key | ❌ | ✅ | ✅ | ❌ |
+### 注解方式
+```java
+@PreAuthorize("hasRole('ADMIN')")
+public ResponseEntity<...> adminOperation() {
+    // 仅管理员可访问
+}
+```
+
+### 配置方式
+```java
+.authorizeHttpRequests(auth -> auth
+    .requestMatchers("/api/admin/**").hasRole("ADMIN")
+    .requestMatchers("/api/user/**").authenticated()
+    ...)
+```
+
+### 角色定义
+- `ROLE_USER` - 普通用户（默认）
+- `ROLE_ADMIN` - 管理员
+- `API_USER` - API Key 认证（临时角色）
 
 ---
 
-## 修改影响
+## 常见问题
 
-| 修改文件 | 影响范围 |
-|---------|--------|
-| SecurityConfig | 所有路径权限、过滤器配置 |
-| JwtAuthenticationFilter | JWT 认证逻辑 |
-| ApiKeyAuthenticationFilter | API Key 认证逻辑 |
-| JwtService | JWT Token 生成和验证 |
-| ApiKeyService | API Key 生成和验证 |
+### 1. API Key 认证不生效
+- 检查过滤器顺序：ApiKeyAuthenticationFilter 应在 UsernamePasswordAuthenticationFilter 之前
+- 检查 X-API-Key 请求头是否正确设置
+- 检查 Key 前缀是否为 `nkey_`
+
+### 2. Session 认证失效
+- 检查 Cookie 是否正确设置
+- 检查 Session 超时配置
+- 检查 logout 是否销毁 Session
+
+### 3. 权限 403
+- 检查角色配置：`hasRole('ADMIN')` 需要 `ROLE_ADMIN`
+- 检查路径匹配顺序：更具体的路径应放在前面
+
+### 4. CORS 错误
+- 检查 AllowedOrigins 配置
+- 检查 AllowedHeaders 是否包含 `X-API-Key`
+- 检查允许凭证配置
 
 ---
 
-## 注意事项（重要）
+## 修改定位指南
 
-1. **JWT 密钥**: 生产环境必须修改 `jwt.secret` 默认值
-2. **过滤器顺序**: ApiKeyFilter 在 JwtFilter 之前，优先检查 API Key
-3. **路径匹配**: 使用 AntPathMatcher 风格的 `/**` 通配符
-4. **CORS 配置**: 当前允许所有源（*），生产环境应限制来源
-5. **API Key 格式**: 必须 `nkey_` 开头，否则被拒绝
-6. **权限检查**: 使用 `@PreAuthorize` 或 `SecurityContextHolder` 获取当前用户角色
+| 问题类型 | 优先查看文件 | 关键配置 |
+|----------|-------------|------|
+| 认证失败 | ApiKeyAuthenticationFilter / CustomUserDetailsService | 认证逻辑 |
+| 权限错误 | SecurityConfig | authorizeHttpRequests |
+| CORS 问题 | SecurityConfig.corsConfigurationSource() | 允许源、方法、头 |
+| Session 失效 | SecurityConfig.sessionManagement() | Session 策略 |
+| 过滤器顺序 | SecurityConfig.securityFilterChain() | addFilterBefore |
+| 添加新角色 | SecurityConfig + Entity.User | hasRole() |
+| API Key 生成 | ApiKeyService.generateKey() | 随机算法 |

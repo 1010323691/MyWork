@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<!-- Dashboard - API Keys 标签页内容 -->
+<th:block th:fragment="apikeysSection">
+    <!-- 创建 API Key 卡片 -->
+    <div class="card" id="createApiKeyCard">
+        <div class="card-title">创建 API Key</div>
+        <div class="row">
+            <div class="col">
+                <div class="form-group">
+                    <label>名称</label>
+                    <input type="text" id="apiKeyName" placeholder="例如：Production Key">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Token 配额 (可选)</label>
+                    <input type="number" id="tokenLimit" placeholder="留空表示无限制">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>过期天数 (可选)</label>
+                    <input type="number" id="expiresAtDays" placeholder="留空表示永不过期">
+                </div>
+            </div>
+        </div>
+        <button onclick="createApiKey()" class="btn btn-primary">创建</button>
+    </div>
+
+    <!-- API Key 列表卡片 -->
+    <div class="card">
+        <div class="card-title">
+            API Key 列表
+            <span id="apiKeyListSubtext" style="font-size: 14px; color: #666; font-weight: normal;"></span>
+        </div>
+        <div id="apiKeyLoading" class="spinner">加载中...</div>
+        <div id="apiKeyListContainer" class="d-none">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>Key</th>
+                        <th>配额</th>
+                        <th>已使用</th>
+                        <th>状态</th>
+                        <th>过期时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="apiKeyTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</th:block>
+
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仪表盘 - LLM Gateway</title>
+
+    <!-- 公共样式 -->
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+</head>
+<body>
+    <div class="layout-container">
+        <!-- 侧边栏 -->
+        <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <div class="page-content">
+                <!-- 提示消息 -->
+                <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
+
+                <!-- 页面内容区域 -->
+                <div class="page-content-wrapper">
+                    <!-- 标签页导航 -->
+                    <div class="tabs" id="tabNav">
+                        <button class="tab active" onclick="switchTab('apikeys')">API Key 管理</button>
+                        <button class="tab" onclick="switchTab('usage')">使用统计</button>
+                        <button class="tab" onclick="switchTab('client')">客户端工具</button>
+                    </div>
+
+                    <!-- API Key 管理标签页 -->
+                    <div id="apikeys" class="tab-content active">
+                        <th:block th:replace="~{pages/dashboard/_apikeys :: apikeysSection}"></th:block>
+                    </div>
+
+                    <!-- 使用统计标签页 -->
+                    <div id="usage" class="tab-content">
+                        <th:block th:replace="~{pages/dashboard/_usage :: usageSection}"></th:block>
+                    </div>
+
+                    <!-- 客户端工具标签页 -->
+                    <div id="client" class="tab-content">
+                        <th:block th:replace="~{pages/dashboard/_client :: clientSection}"></th:block>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 公共脚本 -->
+    <script th:src="@{/js/common.js}"></script>
+    <script th:src="@{/js/dashboard.js}"></script>
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</body>
+</html>

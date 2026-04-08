@@ -3,7 +3,9 @@ package com.nexusai.llm.gateway.controller;
 import com.nexusai.llm.gateway.dto.DailyTokenStat;
 import com.nexusai.llm.gateway.dto.RequestLogResponse;
 import com.nexusai.llm.gateway.dto.UserStatsResponse;
+import com.nexusai.llm.gateway.entity.ApiKey;
 import com.nexusai.llm.gateway.entity.RequestLog;
+import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.ApiKeyRepository;
 import com.nexusai.llm.gateway.repository.RequestLogRepository;
 import jakarta.persistence.criteria.Predicate;
@@ -14,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,12 +39,31 @@ public class UserController {
     }
 
     /**
+     * 获取当前用户 ID（支持 Session 认证和 API Key 认证）
+     */
+    private Long getCurrentUserId(HttpServletRequest request, Authentication authentication) {
+        // 优先从 API Key 获取（API Key 认证场景）
+        ApiKey apiKey = (ApiKey) request.getAttribute("apiKey");
+        if (apiKey != null) {
+            return apiKey.getUser().getId();
+        }
+
+        // 从 Session 认证获取（Session 认证场景）
+        if (authentication != null && authentication.getPrincipal() instanceof User) {
+            return ((User) authentication.getPrincipal()).getId();
+        }
+
+        return null;
+    }
+
+    /**
      * 查询当前用户的请求日志（分页 + 可选过滤）
      */
     @GetMapping("/logs")
     @Transactional(readOnly = true)
     public ResponseEntity<Page<RequestLogResponse>> getUserLogs(
             HttpServletRequest request,
+            Authentication authentication,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) Long apiKeyId,
@@ -49,7 +71,7 @@ public class UserController {
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String status) {
 
-        Long userId = (Long) request.getAttribute("currentUserId");
+        Long userId = getCurrentUserId(request, authentication);
         if (userId == null) {
             return ResponseEntity.status(401).build();
         }
@@ -91,8 +113,10 @@ public class UserController {
      */
     @GetMapping("/stats")
     @Transactional(readOnly = true)
-    public ResponseEntity<UserStatsResponse> getUserStats(HttpServletRequest request) {
-        Long userId = (Long) request.getAttribute("currentUserId");
+    public ResponseEntity<UserStatsResponse> getUserStats(
+            HttpServletRequest request,
+            Authentication authentication) {
+        Long userId = getCurrentUserId(request, authentication);
         if (userId == null) {
             return ResponseEntity.status(401).build();
         }

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统监控 - LLM Gateway</title>
+
+    <!-- 公共样式 -->
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+</head>
+<body>
+    <div class="layout-container">
+        <!-- 侧边栏 -->
+        <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <div class="page-content">
+                <!-- 提示消息 -->
+                <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
+
+                <!-- 页面内容区域 -->
+                <div class="page-content-wrapper">
+                    <!-- 系统信息卡片 -->
+                    <div class="card">
+                        <div class="card-title">系统信息</div>
+                        <div class="system-info-grid">
+                            <div class="info-item">
+                                <span class="info-label">JVM 内存</span>
+                                <span id="jvmMemory" class="info-value">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">堆内存使用</span>
+                                <span id="heapMemory" class="info-value">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">活跃线程</span>
+                                <span id="activeThreads" class="info-value">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">请求队列</span>
+                                <span id="requestQueue" class="info-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 实时请求统计 -->
+                    <div class="stats-grid" style="margin-top: 20px;">
+                        <div class="stat-card">
+                            <div class="stat-icon">🔄</div>
+                            <div class="stat-value" id="requestsPerSecond">0</div>
+                            <div class="stat-label">请求/秒</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">⏱️</div>
+                            <div class="stat-value" id="avgResponseTime">0ms</div>
+                            <div class="stat-label">平均响应时间</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">❌</div>
+                            <div class="stat-value" id="errorRate">0%</div>
+                            <div class="stat-label">错误率</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🔗</div>
+                            <div class="stat-value" id="activeConnections">0</div>
+                            <div class="stat-label">活跃连接</div>
+                        </div>
+                    </div>
+
+                    <!-- 请求趋势图表 -->
+                    <div class="card" style="margin-top: 20px;">
+                        <div class="card-title">实时请求趋势</div>
+                        <div id="requestTrendChart" style="height: 300px;"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 公共脚本 -->
+    <script th:src="@{/js/common.js}"></script>
+    <script th:src="@{/js/admin-monitor.js}"></script>
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</body>
+</html>

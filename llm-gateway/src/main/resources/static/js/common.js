@@ -1,5 +1,6 @@
 /**
  * LLM Gateway - Common JavaScript Utilities
+ * Session/Cookie 认证模式
  */
 
 // ============================================
@@ -11,71 +12,53 @@ const API_CONFIG = {
 };
 
 // ============================================
-// HTTP 工具类（纯 Token 认证）
+// HTTP 工具类（Session/Cookie 认证）
 // ============================================
 class API {
     /**
-     * 获取认证 Token
+     * 检查用户是否已登录（调用后端 /api/auth/me 检查 Session）
      */
-    static getAuthToken() {
-        return localStorage.getItem('token');
-    }
-
-    /**
-     * 检查用户是否已登录（纯 token 检查）
-     */
-    static isAuthenticated() {
-        const token = this.getAuthToken();
-        if (!token) return false;
-
-        // 验证 token 是否过期
+    static async isAuthenticated() {
         try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return payload.exp > Date.now() / 1000;
+            const response = await fetch('/api/auth/me', {
+                credentials: 'same-origin'  // 自动携带 Cookie
+            });
+            return response.ok;
         } catch {
             return false;
         }
     }
 
     /**
-     * 从 token 解码获取用户信息
+     * 获取当前用户信息（从后端 /api/auth/me 获取）
      */
-    static getCurrentUser() {
-        const token = this.getAuthToken();
-        if (!token) return null;
-
+    static async getCurrentUser() {
         try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            const authorities = payload.authorities || [];
-            const role = authorities.find(a => a.startsWith('ROLE_'))?.replace('ROLE_', '') || 'USER';
-            return {
-                username: payload.sub,
-                email: payload.email || '',
-                role: role
-            };
+            const response = await fetch('/api/auth/me', {
+                credentials: 'same-origin'
+            });
+            if (response.ok) {
+                return await response.json();
+            }
+            return null;
         } catch {
             return null;
         }
     }
 
     /**
-     * 统一的 HTTP 请求方法
+     * 统一的 HTTP 请求方法（Session 认证）
      */
     static async request(endpoint, options = {}) {
         const url = API_CONFIG.BASE_URL + endpoint;
-        const token = this.getAuthToken();
 
         const defaultHeaders = {
             'Content-Type': 'application/json'
         };
 
-        // 携带 Bearer Token
-        if (token) {
-            defaultHeaders['Authorization'] = `Bearer ${token}`;
-        }
-
         const config = {
             ...options,
+            credentials: 'same-origin',  // 自动携带 Session Cookie
             headers: {
                 ...defaultHeaders,
                 ...options.headers
@@ -97,9 +80,8 @@ class API {
                 const error = new Error(errorData.message || `HTTP ${response.status}`);
                 error.status = response.status;
 
-                // 401 未认证：清除 token 并跳转到登录页
-                if (response.status === 401) {
-                    localStorage.removeItem('token');
+                // 401 未认证或 403 无权限：跳转到登录页
+                if (response.status === 401 || response.status === 403) {
                     window.location.href = '/login';
                     return Promise.reject(error);
                 }
@@ -212,15 +194,20 @@ class UI {
     /**
      * 切换标签页
      */
-    static switchTab(tabId, tabsContainer = document) {
-        const tabs = tabsContainer.querySelectorAll('.tab');
-        const contents = tabsContainer.querySelectorAll('.tab-content');
+    static switchTab(tabId) {
+        // 查找所有 tab 按钮
+        const tabs = document.querySelectorAll('.tab');
+        // 查找所有 tab-content 区域
+        const contents = document.querySelectorAll('.tab-content');
 
+        // 移除所有激活状态
         tabs.forEach(tab => tab.classList.remove('active'));
         contents.forEach(content => content.classList.remove('active'));
 
-        const activeTab = tabsContainer.querySelector(`.tab[onclick*="'${tabId}'"]`);
-        const activeContent = tabsContainer.getElementById(tabId);
+        // 激活选中的 tab 按钮
+        const activeTab = Array.from(tabs).find(tab => tab.getAttribute('onclick')?.includes(tabId));
+        // 激活选中的内容区域
+        const activeContent = document.getElementById(tabId);
 
         if (activeTab) activeTab.classList.add('active');
         if (activeContent) activeContent.classList.add('active');

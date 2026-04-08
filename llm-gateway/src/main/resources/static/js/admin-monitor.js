@@ -1,63 +1,101 @@
 /**
  * LLM Gateway - Admin Monitor Page
+ * Session/Cookie 认证模式
  */
 (function() {
     'use strict';
 
-    var refreshTimer = null;
+    let refreshTimer = null;
+    let chartInstance = null;
 
-    document.addEventListener('DOMContentLoaded', function() {
-        if (!API.isAuthenticated()) {
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!(await API.isAuthenticated())) {
             window.location.href = '/login';
             return;
         }
-        var user = API.getCurrentUser();
+        const user = await API.getCurrentUser();
         if (!user || user.role !== 'ADMIN') {
             window.location.href = '/dashboard';
             return;
         }
 
-        var userInfo = document.getElementById('userInfo');
-        if (userInfo) {
-            userInfo.innerHTML =
-                '<span class="user-name">' + escapeHtml(user.username) + '</span>' +
-                '<a href="#" onclick="logout()" class="logout-btn">退出登录</a>';
-        }
-
+        initSidebarUserInfo(user);
         loadMonitor();
+        initChart();
         refreshTimer = setInterval(loadMonitor, 30000);
     });
 
+    function initSidebarUserInfo(user) {
+        const usernameEl = document.getElementById('sidebarUsername');
+        const avatarEl = document.getElementById('sidebarUserAvatar');
+        if (user && usernameEl) {
+            usernameEl.textContent = user.username;
+        }
+        if (user && avatarEl) {
+            avatarEl.textContent = user.username.substring(0, 1).toUpperCase();
+        }
+    }
+
     async function loadMonitor() {
         try {
-            var data = await API.get('/admin/monitor');
-            setText('totalRequests', UI.formatNumber(data.totalRequests || 0));
-            setText('totalTokens', UI.formatNumber(data.totalTokens || 0));
+            const data = await API.get('/admin/monitor');
+            setText('jvmMemory', formatMemory(data.jvmMemory));
+            setText('heapMemory', formatMemory(data.heapMemory));
+            setText('activeThreads', data.activeThreads || '--');
+            setText('requestQueue', data.requestQueueSize || 0);
+            setText('requestsPerSecond', (data.requestsPerSecond || 0).toFixed(1));
+            setText('avgResponseTime', Math.round(data.avgLatencyMs || 0) + 'ms');
             setText('errorRate', (data.errorRate || 0).toFixed(1) + '%');
-            setText('avgLatency', Math.round(data.avgLatencyMs || 0));
-            setText('totalUsers', data.totalUsers || 0);
-            setText('totalApiKeys', data.totalApiKeys || 0);
-            setText('successRequests', UI.formatNumber(data.successRequests || 0));
-            setText('failRequests', UI.formatNumber(data.failRequests || 0));
+            setText('activeConnections', data.activeConnections || 0);
         } catch (e) {
             console.error('加载监控数据失败', e);
         }
     }
 
+    function formatMemory(mem) {
+        if (!mem) return '--';
+        const parts = String(mem).split('/');
+        if (parts.length === 2) {
+            return parts[0].trim() + ' / ' + parts[1].trim();
+        }
+        return mem;
+    }
+
     function setText(id, value) {
-        var el = document.getElementById(id);
+        const el = document.getElementById(id);
         if (el) el.textContent = value;
+    }
+
+    function initChart() {
+        const chartDom = document.getElementById('requestTrendChart');
+        if (!chartDom) return;
+        chartInstance = echarts.init(chartDom);
+        const option = {
+            title: { text: '请求趋势', left: 'center' },
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: [] },
+            yAxis: { type: 'value', name: '请求数' },
+            series: [{ name: '请求数', type: 'line', data: [], smooth: true }]
+        };
+        chartInstance.setOption(option);
     }
 
     function escapeHtml(text) {
         if (!text) return '';
-        var div = document.createElement('div');
+        const div = document.createElement('div');
         div.textContent = String(text);
         return div.innerHTML;
     }
 
     window.logout = function() {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
+        fetch('/logout', { method: 'POST', credentials: 'same-origin' })
+            .then(() => window.location.href = '/login')
+            .catch(() => window.location.href = '/login');
     };
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (refreshTimer) clearInterval(refreshTimer);
+        if (chartInstance) chartInstance.dispose();
+    });
 })();

@@ -1,45 +1,50 @@
 /**
  * LLM Gateway - Admin Keys Page
+ * Session/Cookie 认证模式
  */
 (function() {
     'use strict';
 
-    var currentPage = 0;
+    let currentPage = 0;
 
-    document.addEventListener('DOMContentLoaded', function() {
-        if (!API.isAuthenticated()) {
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!(await API.isAuthenticated())) {
             window.location.href = '/login';
             return;
         }
-        var user = API.getCurrentUser();
+        const user = await API.getCurrentUser();
         if (!user || user.role !== 'ADMIN') {
             window.location.href = '/dashboard';
             return;
         }
 
-        var userInfo = document.getElementById('userInfo');
-        if (userInfo) {
-            userInfo.innerHTML =
-                '<span class="user-name">' + escapeHtml(user.username) + '</span>' +
-                '<a href="#" onclick="logout()" class="logout-btn">退出登录</a>';
-        }
-
+        initSidebarUserInfo(user);
         loadKeys(0);
     });
 
+    function initSidebarUserInfo(user) {
+        const usernameEl = document.getElementById('sidebarUsername');
+        const avatarEl = document.getElementById('sidebarUserAvatar');
+        if (user && usernameEl) {
+            usernameEl.textContent = user.username;
+        }
+        if (user && avatarEl) {
+            avatarEl.textContent = user.username.substring(0, 1).toUpperCase();
+        }
+    }
+
     async function loadKeys(page) {
         currentPage = page;
-        var loading = document.getElementById('keysLoading');
-        var content = document.getElementById('keysContent');
+        const loading = document.getElementById('keysLoading');
+        const container = document.getElementById('keysContainer');
         if (loading) loading.classList.remove('d-none');
-        if (content) content.classList.add('d-none');
+        if (container) container.classList.add('d-none');
 
         try {
-            var data = await API.get('/admin/apikeys?page=' + page + '&size=20');
-            // /admin/apikeys returns a list; handle both array and page
-            var keys = Array.isArray(data) ? data : (data.content || []);
+            const data = await API.get('/admin/apikeys?page=' + page + '&size=20');
+            const keys = Array.isArray(data) ? data : (data.content || []);
             renderTable(keys);
-            if (content) content.classList.remove('d-none');
+            if (container) container.classList.remove('d-none');
         } catch (e) {
             console.error('加载 Key 失败', e);
             UI.showErrorMessage('加载失败：' + e.message);
@@ -49,7 +54,7 @@
     }
 
     function renderTable(keys) {
-        var tbody = document.getElementById('keysTableBody');
+        const tbody = document.getElementById('keysTableBody');
         if (!tbody) return;
 
         if (keys.length === 0) {
@@ -58,10 +63,10 @@
         }
 
         tbody.innerHTML = keys.map(function(k) {
-            var statusBadge = k.enabled
+            const statusBadge = k.enabled
                 ? '<span class="badge-success">启用</span>'
                 : '<span class="badge-danger">禁用</span>';
-            var maskedKey = k.key ? (k.key.substring(0, 8) + '...' + k.key.substring(k.key.length - 4)) : '-';
+            const maskedKey = k.key ? (k.key.substring(0, 8) + '...' + k.key.substring(k.key.length - 4)) : '-';
             return '<tr>' +
                 '<td>' + escapeHtml(k.name) + '</td>' +
                 '<td title="' + escapeHtml(k.key || '') + '">' + maskedKey + '</td>' +
@@ -84,12 +89,12 @@
     }
 
     function escapeAttr(str) {
-        return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     }
 
     function escapeHtml(text) {
         if (!text) return '';
-        var div = document.createElement('div');
+        const div = document.createElement('div');
         div.textContent = String(text);
         return div.innerHTML;
     }
@@ -107,10 +112,10 @@
     };
 
     window.saveKeyEdit = async function() {
-        var id = document.getElementById('editKeyId').value;
-        var tokenLimit = document.getElementById('editTokenLimit').value;
-        var targetUrl = document.getElementById('editTargetUrl').value.trim();
-        var routingConfig = document.getElementById('editRoutingConfig').value.trim();
+        const id = document.getElementById('editKeyId').value;
+        const tokenLimit = document.getElementById('editTokenLimit').value;
+        const targetUrl = document.getElementById('editTargetUrl').value.trim();
+        const routingConfig = document.getElementById('editRoutingConfig').value.trim();
 
         try {
             await API.put('/admin/keys/' + id, {
@@ -138,17 +143,16 @@
     };
 
     window.logout = function() {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
+        fetch('/logout', { method: 'POST', credentials: 'same-origin' })
+            .then(() => window.location.href = '/login')
+            .catch(() => window.location.href = '/login');
     };
 
     // Close modal on overlay click
-    document.addEventListener('DOMContentLoaded', function() {
-        var overlay = document.getElementById('editModal');
-        if (overlay) {
-            overlay.addEventListener('click', function(e) {
-                if (e.target === overlay) closeModal();
-            });
-        }
-    });
+    const overlay = document.getElementById('editModal');
+    if (overlay) {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) closeModal();
+        });
+    }
 })();

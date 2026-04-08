@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<!-- 侧边栏组件 -->
+<th:block th:fragment="sidebar">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <span class="logo-icon">🚀</span>
+                <span>LLM Gateway</span>
+            </div>
+        </div>
+        <th:block th:replace="~{fragments/nav :: nav}"></th:block>
+        <div class="sidebar-footer">
+            <th:block th:replace="~{fragments/user-profile :: userProfile}"></th:block>
+        </div>
+    </aside>
+</th:block>
+
+</html>

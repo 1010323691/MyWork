@@ -1,12 +1,13 @@
 /**
  * LLM Gateway - Register Page JavaScript
+ * Session/Cookie 认证模式
  */
 (function() {
     'use strict';
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
         // 已登录则直接跳转
-        if (API.isAuthenticated()) {
+        if (await API.isAuthenticated()) {
             window.location.href = '/dashboard';
             return;
         }

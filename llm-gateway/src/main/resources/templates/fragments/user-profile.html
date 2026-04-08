@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<!-- 用户信息组件 -->
+<th:block th:fragment="userProfile">
+    <div class="user-profile">
+        <div class="user-avatar" id="sidebarUserAvatar">?</div>
+        <div class="user-name" id="sidebarUsername">未登录</div>
+        <button class="logout-btn" onclick="logout()" title="退出登录">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8.75 2a.75.75 0 00-1.5 0v2H7a1 1 0 00-1 1v8a1 1 0 001 1h2a1 1 0 001-1V5h-.25V2zm1.75-1A.75.75 0 009.75 1.75v2H7A.25.25 0 006.75 4h2.75a.25.25 0 00.25-.25v-2A.75.75 0 0010.5 1zM2 5a1 1 0 00-1 1v8a1 1 0 001 1h5.5a1 1 0 001-1V6a1 1 0 00-1-1H2zm5 9H3V6h4v8z"/>
+            </svg>
+        </button>
+    </div>
+</th:block>
+
+</html>

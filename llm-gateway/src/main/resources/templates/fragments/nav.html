@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<!-- 导航菜单组件（含权限控制） -->
+<th:block th:fragment="nav">
+    <nav class="sidebar-nav">
+        <a href="/dashboard" class="nav-item" th:classappend="${currentPage == 'dashboard'} ? 'active'">
+            <span class="nav-icon">📊</span>
+            <span>仪表盘</span>
+        </a>
+        <a href="/logs" class="nav-item" th:classappend="${currentPage == 'logs'} ? 'active'">
+            <span class="nav-icon">📝</span>
+            <span>请求日志</span>
+        </a>
+        <a href="/admin/users" class="nav-item admin-only"
+            th:classappend="${currentPage == 'admin/users'} ? 'active'"
+            th:if="${currentUserRole == 'ADMIN'}">
+            <span class="nav-icon">👥</span>
+            <span>用户管理</span>
+        </a>
+        <a href="/admin/keys" class="nav-item admin-only"
+            th:classappend="${currentPage == 'admin/keys'} ? 'active'"
+            th:if="${currentUserRole == 'ADMIN'}">
+            <span class="nav-icon">🔑</span>
+            <span>Key 管理</span>
+        </a>
+        <a href="/admin/monitor" class="nav-item admin-only"
+            th:classappend="${currentPage == 'admin/monitor'} ? 'active'"
+            th:if="${currentUserRole == 'ADMIN'}">
+            <span class="nav-icon">📈</span>
+            <span>系统监控</span>
+        </a>
+    </nav>
+</th:block>
+
+</html>

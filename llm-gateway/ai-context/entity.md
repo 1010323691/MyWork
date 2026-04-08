@@ -1,186 +1,282 @@
-# Entity 和 DTO 层 - 数据模型
+# Entity 层文档
 
-## 模块概览
-JPA 实体类和数据传输对象（DTO）。
+## 概述
+Entity 层定义数据模型，使用 JPA 注解映射数据库表。包含基础实体和关联关系。
 
----
+## 文件清单
 
-## Entity 实体类
-
-### 1. `User.java`
-**表**: `users`
-**实现接口**: `UserDetails` (Spring Security)
-
-| 字段 | 类型 | 说明 |
-|-----|------|-----|
-| id | Long | 主键 |
-| username | String | 用户名（唯一） |
-| password | String | 密码（BCrypt 加密） |
-| email | String | 邮箱（唯一） |
-| enabled | Boolean | 是否启用 |
-| userRole | String | 角色（USER/ADMIN，数据库列名 user_role） |
-| apiKeys | List<ApiKey> | 一对多关联 |
-| createdAt | LocalDateTime | 创建时间 |
-| updatedAt | LocalDateTime | 更新时间 |
-
-**关键方法**:
-- `getAuthorities()` - 返回角色权限
-- `getUsername()` / `getPassword()` - Spring Security 接口实现
+| 文件 | 路径 | 数据库表 | 职责 |
+|------|------|---------|------|
+| User | `src/main/java/com/nexusai/llm/gateway/entity/User.java` | `users` | 用户信息（同时实现 UserDetails） |
+| ApiKey | `src/main/java/com/nexusai/llm/gateway/entity/ApiKey.java` | `api_keys` | API Key 配置 |
+| RequestLog | `src/main/java/com/nexusai/llm/gateway/entity/RequestLog.java` | `request_logs` | 请求日志记录 |
+| BackendService | `src/main/java/com/nexusai/llm/gateway/entity/BackendService.java` | `backend_services` | 后端服务配置（预留） |
 
 ---
 
-### 2. `ApiKey.java`
-**表**: `api_keys`
+## User
+**文件**: `src/main/java/com/nexusai/llm/gateway/entity/User.java`
 
-| 字段 | 类型 | 说明 |
-|-----|------|-----|
-| id | Long | 主键 |
-| user | User | 多对一关联 |
-| apiKeyValue | String | API Key 值（唯一，格式 nkey_XXX，数据库列名 api_key） |
-| name | String | 名称 |
-| tokenLimit | Long | Token 配额（null=无限制） |
-| usedTokens | Long | 已使用 Token 数 |
-| enabled | Boolean | 是否启用 |
-| expiresAt | LocalDateTime | 过期时间（null=永不过期） |
-| createdAt | LocalDateTime | 创建时间 |
-| updatedAt | LocalDateTime | 更新时间 |
+### 数据库表：`users`
 
-**关键方法**:
-- `getRemainingTokens()` - 计算剩余 Token
-- `useTokens(count)` - 增加使用量
+### 字段定义
 
----
+| 字段 | 类型 | 约束 | 描述 |
+|------|------|------|------|
+| id | Long | PK, Auto | 主键 |
+| username | String | Unique, Not Null, Max 50 | 用户名 |
+| password | String | Not Null | 密码（BCrypt 加密） |
+| email | String | Not Null | 邮箱 |
+| enabled | Boolean | Not Null, Default true | 启用状态 |
+| user_role | String | Not Null, Max 20 | 角色（USER/ADMIN） |
+| created_at | LocalDateTime | - | 创建时间 |
+| updated_at | LocalDateTime | - | 更新时间 |
 
-### 3. `BackendService.java`
-**表**: `backend_services`
+### 关联关系
+- `@OneToMany(mappedBy = "user", cascade = ALL, orphanRemoval = true)` - 一对多关联 API Key
 
-| 字段 | 类型 | 说明 |
-|-----|------|-----|
-| id | Long | 主键 |
-| name | String | 服务名称 |
-| baseUrl | String | 后端服务 URL |
-| serviceType | ServiceType | 类型（OLLAMA/VLLM） |
-| enabled | Boolean | 是否启用 |
-| timeoutSeconds | Integer | 超时时间（秒） |
-| createdAt | LocalDateTime | 创建时间 |
-| updatedAt | LocalDateTime | 更新时间 |
+### 特殊实现
+- **实现 `UserDetails` 接口** - Spring Security 认证
+- `@PrePersist` / `@PreUpdate` - 自动设置时间戳
 
-**枚举**: `ServiceType { OLLAMA, VLLM }`
-
----
-
-## DTO 数据传输对象
-
-### 1. `AuthRequest.java`
-**用途**: 登录/注册请求
-
-| 字段 | 类型 | 说明 |
-|-----|------|-----|
-| username | String | 用户名 |
-| password | String | 密码 |
-
----
-
-### 2. `AuthResponse.java`
-**用途**: 登录响应（JWT Token）
-
-| 字段 | 类型 | 说明 |
-|-----|------|-----|
-| token | String | JWT Token |
-| username | String | 用户名 |
-| email | String | 邮箱 |
-| expiresIn | Long | 过期时间（秒） |
-
----
-
-### 3. `ApiKeyRequest.java`
-**用途**: 创建 API Key 请求
-
-| 字段 | 类型 | 说明 |
-|-----|------|-----|
-| name | String | API Key 名称 |
-| tokenLimit | Long | Token 配额 |
-| expiresAtDays | Long | 过期天数 |
-
----
-
-### 4. `ApiKeyResponse.java`
-**用途**: API Key 信息响应
-
-| 字段 | 类型 | 说明 |
-|-----|------|-----|
-| id | Long | ID |
-| key | String | API Key（实际字段名 apiKeyValue，JSON 序列化为 key） |
-| name | String | 名称 |
-| tokenLimit | Long | 配额 |
-| usedTokens | Long | 已使用 |
-| remainingTokens | Long | 剩余 |
-| enabled | Boolean | 启用状态 |
-| expiresAt | LocalDateTime | 过期时间 |
-| createdAt | LocalDateTime | 创建时间 |
-
----
-
-### 5. `TokenUsageResponse.java`
-**用途**: Token 余量查询响应
-
-| 字段 | 类型 | 说明 |
-|-----|------|-----|
-| totalTokens | Long | 总配额 |
-| usedTokens | Long | 已使用 |
-| remainingTokens | Long | 剩余 |
-| apiKeyName | String | API Key 名称 |
-| hasLimit | Boolean | 是否有配额限制 |
-
----
-
-### 6. `ChatRequest.java`
-**用途**: LLM 聊天请求
-
-| 字段 | 类型 | 说明 |
-|-----|------|-----|
-| model | String | 模型名称 |
-| messages | String | 消息 JSON 字符串 |
-| stream | Boolean | 是否流式 |
-| backendUrl | String | 后端服务 URL |
-
----
-
-## 数据流转
-
-```
-请求 → DTO (AuthRequest/ChatRequest)
-    ↓
-Controller 处理
-    ↓
-Service 业务逻辑
-    ↓
-Repository 数据库访问
-    ↓
-Entity (User/ApiKey)
-    ↓
-响应 → DTO (AuthResponse/ApiKeyResponse)
+### 实现 UserDetails 方法
+```java
+getAuthorities() → ["ROLE_" + userRole]
+getPassword() → password
+getUsername() → username
+isAccountNonExpired() → true
+isAccountNonLocked() → true
+isCredentialsNonExpired() → true
+isEnabled() → enabled
 ```
 
----
-
-## 修改影响
-
-| 修改文件 | 影响范围 |
-|---------|--------|
-| User | 用户登录、权限控制 |
-| ApiKey | 所有 API Key 相关功能 |
-| BackendService | 后端服务配置 |
-| AuthRequest/Response | 登录注册接口 |
-| ApiKeyRequest/Response | API Key 管理接口 |
-| ChatRequest | LLM 聊天请求 |
-| TokenUsageResponse | Token 查询接口 |
+### 使用场景
+- 注册新用户
+- 登录认证
+- 用户权限判断
+- 用户信息管理
 
 ---
 
-## 注意事项
+## ApiKey
+**文件**: `src/main/java/com/nexusai/llm/gateway/entity/ApiKey.java`
 
-1. **User 实现 UserDetails**: 直接用于 Spring Security 认证
-2. **Lombok 注解**: 所有 Entity 和 DTO 都使用 `@Data`、`@Builder` 等注解
-3. **实体关联**: User 和 ApiKey 是一对多关系，User 端有级联删除
-4. **时间自动更新**: 所有实体都有 `@PrePersist` 和 `@PreUpdate` 回调
+### 数据库表：`api_keys`
+
+### 字段定义
+
+| 字段 | 类型 | 约束 | 描述 |
+|------|------|------|------|
+| id | Long | PK, Auto | 主键 |
+| user_id | Long | FK, Not Null | 关联用户 ID |
+| api_key | String | Unique, Not Null | API Key 值（nkey_ 前缀） |
+| name | String | Not Null | Key 名称 |
+| token_limit | Long | - | Token 限额（null=无限） |
+| used_tokens | Long | Not Null, Default 0 | 已用 Token |
+| enabled | Boolean | Not Null, Default true | 启用状态 |
+| expires_at | LocalDateTime | - | 过期时间（null=永不过期） |
+| created_at | LocalDateTime | - | 创建时间 |
+| updated_at | LocalDateTime | - | 更新时间 |
+| target_url | String | - | 后端 URL 配置 |
+| routing_config | Text | - | 路由配置 JSON |
+| last_used_at | LocalDateTime | - | 最后使用时间 |
+
+### 关联关系
+- `@ManyToOne(fetch = LAZY)` - 多对一关联 User
+
+### 计算属性
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `getRemainingTokens()` | Long | 剩余 Token（null=无限） |
+| `useTokens(long count)` | void | 增加已用 Token |
+
+### 计算逻辑
+```java
+remainingTokens = tokenLimit == null ? null : Math.max(0, tokenLimit - usedTokens)
+```
+
+### 使用场景
+- 创建 API Key
+- API Key 认证
+- Token 配额检查
+- Token 扣减
+- Key 状态管理
+
+---
+
+## RequestLog
+**文件**: `src/main/java/com/nexusai/llm/gateway/entity/RequestLog.java`
+
+### 数据库表：`request_logs`
+
+### 字段定义
+
+| 字段 | 类型 | 约束 | 描述 |
+|------|------|------|------|
+| id | Long | PK, Auto | 主键 |
+| api_key_id | Long | FK, Not Null | 关联 API Key |
+| input_tokens | Long | - | 输入 Token 数 |
+| output_tokens | Long | - | 输出 Token 数 |
+| model_name | String | - | 使用的模型名称 |
+| latency_ms | Long | - | 响应时间（毫秒） |
+| status | String | Not Null, Max 10 | 状态（SUCCESS/FAIL） |
+| request_body | Text | - | 请求内容（截断 2000 字符） |
+| response_body | Text | - | 响应内容（截断 2000 字符） |
+| created_at | LocalDateTime | - | 创建时间 |
+
+### 关联关系
+- `@ManyToOne(fetch = LAZY)` - 多对一关联 ApiKey
+
+### 索引
+```java
+@Index(name = "idx_request_logs_api_key_id", columnList = "api_key_id")
+@Index(name = "idx_request_logs_created_at", columnList = "created_at")
+```
+
+### 枚举类型
+```java
+public enum RequestStatus {
+    SUCCESS,
+    FAIL
+}
+```
+
+### 使用场景
+- 记录每次请求
+- 日志查询
+- Token 消耗统计
+- 请求分析
+
+---
+
+## BackendService
+**文件**: `src/main/java/com/nexusai/llm/gateway/entity/BackendService.java`
+
+### 数据库表：`backend_services`
+
+### 状态
+- **预留实体** - 暂未使用
+- 未来用于管理多个后端服务配置
+
+---
+
+## 关系图
+
+```
+┌─────────────────┐       1:N        ┌──────────────────┐
+│     User        │ ───────────────► │      ApiKey      │
+│ (users 表)       │                  │ (api_keys 表)     │
+└─────────────────┘                  └────────┬─────────┘
+                                              │
+                                              │ 1:N
+                                              │
+                                    ┌─────────▼────────┐
+                                    │   RequestLog     │
+                                    │ (request_logs 表) │
+                                    └──────────────────┘
+```
+
+---
+
+## 修改数据库表
+
+### 添加新字段
+1. 在 Entity 类添加字段和 `@Column` 注解
+2. 更新 Lombok `@Data` / `@Builder`
+3. 运行 Flyway/Liquibase 迁移脚本（如果有）
+4. 或手动执行 `ALTER TABLE`
+
+### 修改关联关系
+```java
+// 一对一
+@OneToOne
+@JoinColumn(name = "xxx_id")
+
+// 一对多
+@OneToMany(mappedBy = "xxx", cascade = CascadeType.ALL, orphanRemoval = true)
+
+// 多对一
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "xxx_id")
+
+// 多对多
+@ManyToMany
+@JoinTable(...)
+```
+
+---
+
+## 生命周期注解
+
+### @PrePersist
+- 在首次插入前执行
+- 设置 `created_at`
+
+### @PreUpdate
+- 在更新前执行
+- 设置 `updated_at`
+
+### 示例
+```java
+@PrePersist
+protected void onCreate() {
+    createdAt = LocalDateTime.now();
+    updatedAt = LocalDateTime.now();
+}
+
+@PreUpdate
+protected void onUpdate() {
+    updatedAt = LocalDateTime.now();
+}
+```
+
+---
+
+## 常见操作
+
+### 创建用户
+```java
+User user = User.builder()
+    .username("test")
+    .password(BCrypt.encode("password"))
+    .email("test@example.com")
+    .userRole("USER")
+    .build();
+userRepository.save(user);
+```
+
+### 创建 API Key
+```java
+User user = new User();
+user.setId(userId);
+
+ApiKey key = ApiKey.builder()
+    .user(user)
+    .apiKeyValue("nkey_xxx")
+    .name("My Key")
+    .tokenLimit(1000000L)
+    .enabled(true)
+    .build();
+apiKeyRepository.save(key);
+```
+
+### 查询用户及其 Keys
+```java
+User user = userRepository.findById(id).orElse(null);
+if (user != null) {
+    List<ApiKey> keys = user.getApiKeys(); // 懒加载触发
+}
+```
+
+---
+
+## 修改定位指南
+
+| 问题类型 | 优先查看文件 | 原因 |
+|----------|-------------|-----|
+| 实体属性不对 | 检查 `@Column` 注解 | 字段名、类型、约束 |
+| 关联查询为空 | 检查 `@ManyToOne` / `@OneToMany` | 关联方向、懒加载 |
+| 时间戳不对 | 检查 `@PrePersist` / `@PreUpdate` | 自动更新时间 |
+| 保存失败 | 检查唯一约束、非空约束 | `Unique`、`Not Null` |
+| 添加新字段 | Entity + 数据库迁移 | 同步修改 |

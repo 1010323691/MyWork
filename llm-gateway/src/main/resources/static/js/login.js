@@ -1,105 +1,61 @@
 /**
- * LLM Gateway - Login Page JavaScript (纯 Token 认证)
+ * LLM Gateway - Login Page JavaScript
+ * Session/Cookie 认证模式
+ * 表单直接提交给 Spring Security 处理
  */
 
 (function() {
     'use strict';
 
-    // ============================================
-    // DOM 元素
-    // ============================================
-    const loginForm = document.getElementById('loginForm');
-    const usernameInput = document.getElementById('username');
-    const passwordInput = document.getElementById('password');
-    const successBox = document.getElementById('successBox');
-
-    // ============================================
-    // 初始化
-    // ============================================
-    document.addEventListener('DOMContentLoaded', function() {
-        initEventListeners();
-        checkExistingSession();
-    });
-
-    // ============================================
-    // 事件监听器
-    // ============================================
-    function initEventListeners() {
-        if (loginForm) {
-            loginForm.addEventListener('submit', handleLogin);
-        }
-    }
-
-    // ============================================
-    // 检查已有 Token（纯 Token 检查，无 session）
-    // ============================================
-    function checkExistingSession() {
-        if (API.isAuthenticated()) {
-            // Token 有效，跳转到 dashboard
+    document.addEventListener('DOMContentLoaded', async function() {
+        // 检查是否已登录，如果已登录则跳转到 dashboard
+        if (await API.isAuthenticated()) {
             window.location.href = '/dashboard';
         }
-    }
 
-    // ============================================
-    // 处理登录（纯 Token 响应）
-    // ============================================
-    async function handleLogin(e) {
-        e.preventDefault();
+        // 简单的客户端表单验证（不拦截提交，仅验证）
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', function(e) {
+                const username = document.getElementById('username')?.value.trim();
+                const password = document.getElementById('password')?.value;
 
-        const username = usernameInput?.value.trim();
-        const password = passwordInput?.value;
-
-        // 表单验证
-        const usernameError = FormValidation.required(username, '用户名');
-        if (usernameError) {
-            UI.showErrorMessage(usernameError);
-            return;
-        }
-
-        const passwordError = FormValidation.required(password, '密码');
-        if (passwordError) {
-            UI.showErrorMessage(passwordError);
-            return;
-        }
-
-        // 禁用提交按钮防止重复提交
-        const submitBtn = loginForm.querySelector('button[type="submit"]');
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.textContent = '登录中...';
-        }
-
-        try {
-            // 发送登录请求，只返回 token
-            const response = await API.post('/auth/login', { username, password });
-
-            if (response.token) {
-                // 只保存 token，所有用户信息从 token 解码
-                localStorage.setItem('token', response.token);
-
-                // 显示成功消息
-                if (successBox) {
-                    successBox.style.display = 'block';
+                // 基本验证
+                if (!username || username.length === 0) {
+                    e.preventDefault();
+                    showError('请输入用户名');
+                    return false;
                 }
 
-                // 延迟跳转到管理后台
-                setTimeout(() => {
-                    window.location.href = '/dashboard';
-                }, 500);
-            } else {
-                throw new Error(response.error || '登录失败');
-            }
+                if (!password || password.length === 0) {
+                    e.preventDefault();
+                    showError('请输入密码');
+                    return false;
+                }
 
-        } catch (error) {
-            console.error('登录失败:', error);
-            UI.showErrorMessage(error.message || '登录失败，请检查用户名和密码');
+                // 验证通过，隐藏之前的错误信息
+                hideError();
+                return true;
+            });
+        }
+    });
 
-        } finally {
-            // 恢复提交按钮
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.textContent = '登录';
-            }
+    function showError(message) {
+        let errorDiv = document.querySelector('.alert-error');
+        if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-error';
+            errorDiv.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;min-width:300px;max-width:90%;border-radius:8px;padding:15px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.1);';
+            document.body.insertBefore(errorDiv, document.body.firstChild);
+        }
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+    }
+
+    function hideError() {
+        const errorDiv = document.querySelector('.alert-error');
+        if (errorDiv) {
+            errorDiv.style.display = 'none';
         }
     }
 })();

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<!-- 表单组件 - 通用表单组 -->
+<th:block th:fragment="formGroup(labelText, inputId, inputType, placeholder, value)">
+    <div class="form-group">
+        <label th:for="${inputId}" th:text="${labelText}">标签</label>
+        <input type="text" th:id="${inputId}" th:type="${inputType}" th:placeholder="${placeholder}" th:value="${value}">
+    </div>
+</th:block>
+
+<!-- 表单组件 - 文本域 -->
+<th:block th:fragment="textarea(labelText, textareaId, placeholder, rows, value)">
+    <div class="form-group">
+        <label th:for="${textareaId}" th:text="${labelText}">标签</label>
+        <textarea th:id="${textareaId}" th:placeholder="${placeholder}" th:rows="${rows}" th:text="${value}"></textarea>
+    </div>
+</th:block>
+
+<!-- 表单组件 - 下拉选择框 -->
+<th:block th:fragment="select(labelText, selectId, options, selectedValue)">
+    <div class="form-group">
+        <label th:for="${selectId}" th:text="${labelText}">标签</label>
+        <select th:id="${selectId}" th:value="${selectedValue}">
+            <option th:each="option : ${options}"
+                th:value="${option.value}"
+                th:text="${option.label}">
+            </option>
+        </select>
+    </div>
+</th:block>
+
+</html>

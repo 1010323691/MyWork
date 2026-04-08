@@ -5,7 +5,7 @@
 <th:block th:fragment="head(title, extraCss)">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${title != null ? title : 'LLM Gateway'}">LLM Gateway</title>
+    <title th:text="${pageTitle != null ? pageTitle : 'LLM Gateway'}">LLM Gateway</title>
 
     <!-- 公共样式 -->
     <link rel="stylesheet" th:href="@{/css/common.css}">

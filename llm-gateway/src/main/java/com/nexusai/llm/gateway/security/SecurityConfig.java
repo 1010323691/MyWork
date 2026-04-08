@@ -28,16 +28,13 @@ import java.util.List;
 public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
 
     public SecurityConfig(
             UserDetailsService userDetailsService,
-            JwtAuthenticationFilter jwtAuthenticationFilter,
             ApiKeyAuthenticationFilter apiKeyAuthenticationFilter
     ) {
         this.userDetailsService = userDetailsService;
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.apiKeyAuthenticationFilter = apiKeyAuthenticationFilter;
 
         // Configure skip paths for API Key filter
@@ -64,17 +61,33 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.ignoringRequestMatchers(
-                        "/api/auth/**",
-                        "/api/admin/**",
-                        "/api/clients/**",
-                        "/api/llm/**",
-                        "/api/user/**"
-                ))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // CSRF: 禁用 CSRF 保护
+                // 原因：1) 登录表单不需要 CSRF token（攻击者无法知道用户密码）
+                //      2) API 调用使用 Session Cookie，传统 CSRF 防护不适用于 JSON API
+                .csrf(csrf -> csrf.disable())
+                // Session 管理：启用 Session 支持
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                // 表单登录配置：表单提交到/login，由 Spring Security 处理认证
+                .formLogin(form -> form
+                        .loginProcessingUrl("/login")
+                        .successHandler(successAuthenticationHandler())
+                        .failureUrl("/login?error")
+                        .usernameParameter("username")
+                        .passwordParameter("password")
+                        .permitAll())
+                // 退出登录配置
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/login?logout")
+                        .invalidateHttpSession(true)
+                        .deleteCookies("JSESSIONID"))
                 .authorizeHttpRequests(auth -> auth
                         // 公开路径（无需认证）
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/register").permitAll()
+                        // 需要认证的路径
+                        .requestMatchers("/api/auth/me").authenticated()
                         .requestMatchers("/v3/api-docs/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/swagger-resources/**").permitAll()
@@ -84,7 +97,6 @@ public class SecurityConfig {
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/login").permitAll()
                         .requestMatchers("/register").permitAll()
-                        .requestMatchers("/dashboard").permitAll()
                         // 静态资源
                         .requestMatchers("/static/**").permitAll()
                         .requestMatchers("/assets/**").permitAll()
@@ -92,20 +104,34 @@ public class SecurityConfig {
                         .requestMatchers("/js/**").permitAll()
                         .requestMatchers("/images/**").permitAll()
                         .requestMatchers("/fonts/**").permitAll()
-                        // 需要认证的路径（JWT 或 API Key）
-                        .requestMatchers("/api/admin/**").authenticated()
+                        // 需要认证的路径
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/user/**").authenticated()
                         .requestMatchers("/api/clients/**").authenticated()
                         .requestMatchers("/api/llm/**").authenticated()
                         .requestMatchers("/api/**").authenticated()
-                        // 其他请求允许（HTML 页面等）
+                        // 需要认证的路径（HTML 页面）
+                        .requestMatchers("/dashboard").authenticated()
+                        .requestMatchers("/logs").authenticated()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        // 其他请求
                         .anyRequest().permitAll()
                 )
                 .authenticationProvider(daoAuthenticationProvider())
-                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)  // API Key filter first
-                .addFilterBefore(jwtAuthenticationFilter, ApiKeyAuthenticationFilter.class);  // JWT filter after API Key filter
+                // API Key filter 保留，用于 API Key 认证
+                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * 登录成功处理器：处理登录成功后的重定向
+     */
+    private org.springframework.security.web.authentication.AuthenticationSuccessHandler successAuthenticationHandler() {
+        return (request, response, authentication) -> {
+            // 默认跳转到 dashboard
+            response.sendRedirect("/dashboard");
+        };
     }
 
     @Bean

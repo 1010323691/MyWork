@@ -1,5 +1,6 @@
 /**
- * LLM Gateway - Dashboard Page JavaScript (纯 Token 认证)
+ * LLM Gateway - Dashboard Page JavaScript
+ * Session/Cookie 认证模式
  */
 
 (function() {
@@ -11,80 +12,55 @@
     let apiKeys = [];
     let currentUser = null;
     let currentUserRole = 'USER';
-
-    // ===============================
-    // DOM 元素
-    // ===============================
+    let chartInstance = null;
     const elements = {};
 
     // ===============================
     // 初始化
     // ===============================
-    document.addEventListener('DOMContentLoaded', function() {
-        // 检查认证状态（纯 Token 检查）
-        if (!checkAuthentication()) {
+    document.addEventListener('DOMContentLoaded', async function() {
+        // 检查认证状态（Session 验证）
+        if (!await checkAuthentication()) {
             window.location.href = '/login';
             return;
         }
 
-        // 初始化用户信息（从 token 解码）
-        initUserInfo();
+        // 初始化用户信息（从 /api/auth/me 获取）
+        await initUserInfo();
 
         cacheElements();
         initUIBasedOnRole();
         initEventListeners();
         loadApiKeys();
+        loadUsageStats();
     });
 
     // ===============================
-    // 检查认证状态（纯 Token 验证）
+    // 检查认证状态（Session 验证）
     // ===============================
-    function checkAuthentication() {
-        if (!API.isAuthenticated()) {
-            console.log('无有效 Token');
+    async function checkAuthentication() {
+        const user = await API.getCurrentUser();
+        if (!user) {
             return false;
         }
-
-        // 获取用户信息
-        currentUser = API.getCurrentUser();
-        if (!currentUser) {
-            console.log('无法获取用户信息');
-            localStorage.removeItem('token');
-            return false;
-        }
-
+        currentUser = user;
+        currentUserRole = (user.role || 'USER').toUpperCase();
         return true;
     }
 
     // ===============================
-    // 初始化用户信息（从 Token 解码）
+    // 初始化用户信息显示
     // ===============================
-    function initUserInfo() {
-        currentUserRole = currentUser.role || 'USER';
+    async function initUserInfo() {
+        const usernameEl = document.getElementById('sidebarUsername');
+        const avatarEl = document.getElementById('sidebarUserAvatar');
 
-        // 显示用户信息到 header
-        const userInfo = document.getElementById('userInfo');
-        if (userInfo) {
-            userInfo.innerHTML = `
-                <span class="user-name">${escapeHtml(currentUser.username)}</span>
-                <a href="#" onclick="logout()" class="logout-btn">退出登录</a>
-            `;
+        // 用户信息从 /api/auth/me 获取
+        if (currentUser && currentUser.username && usernameEl) {
+            usernameEl.textContent = currentUser.username;
         }
-
-        // 显示角色提示
-        const userInfoAlert = document.getElementById('userInfoAlert');
-        const userRoleEl = document.getElementById('userRole');
-        const userRoleDesc = document.getElementById('userRoleDesc');
-
-        if (userInfoAlert && userRoleEl) {
-            userInfoAlert.style.display = 'block';
-            userRoleEl.textContent = currentUserRole;
-
-            if (currentUserRole === 'USER') {
-                userRoleDesc.textContent = ' - 您只能查看和管理自己的 API Key';
-            } else if (currentUserRole === 'ADMIN') {
-                userRoleDesc.textContent = ' - 管理员权限，可以管理所有用户的 API Key';
-            }
+        if (currentUser && currentUser.username && avatarEl) {
+            avatarEl.textContent = currentUser.username.substring(0, 1).toUpperCase();
         }
     }
 
@@ -95,177 +71,137 @@
         elements.apiKeyName = document.getElementById('apiKeyName');
         elements.tokenLimit = document.getElementById('tokenLimit');
         elements.expiresAtDays = document.getElementById('expiresAtDays');
-        elements.loading = document.getElementById('loading');
-        elements.apiKeyList = document.getElementById('apiKeyList');
         elements.apiKeyTableBody = document.getElementById('apiKeyTableBody');
-        elements.clientApiKey = document.getElementById('clientApiKey');
-        elements.tokenUsageResult = document.getElementById('tokenUsageResult');
+        elements.apiKeyLoading = document.getElementById('apiKeyLoading');
+        elements.apiKeyListContainer = document.getElementById('apiKeyListContainer');
         elements.apiKeyListSubtext = document.getElementById('apiKeyListSubtext');
-        elements.usageKeyName = document.getElementById('usageKeyName');
-        elements.usageTotal = document.getElementById('usageTotal');
-        elements.usageUsed = document.getElementById('usageUsed');
-        elements.usageRemaining = document.getElementById('usageRemaining');
+        elements.createApiKeyCard = document.getElementById('createApiKeyCard');
     }
 
     // ===============================
-    // 根据用户角色初始化 UI
+    // 初始化 UI（基于角色）
     // ===============================
     function initUIBasedOnRole() {
-        if (currentUserRole === 'USER') {
-            const createApiKeyCard = document.getElementById('createApiKeyCard');
-            if (createApiKeyCard) {
-                const cardTitle = createApiKeyCard.querySelector('.card-title');
-                if (cardTitle) {
-                    cardTitle.textContent = '创建我的 API Key';
-                }
-            }
-
+        if (currentUserRole === 'ADMIN') {
             if (elements.apiKeyListSubtext) {
-                elements.apiKeyListSubtext.textContent = '(仅显示您的 API Key)';
+                elements.apiKeyListSubtext.textContent = '(管理员可见所有 API Key)';
+            }
+        } else {
+            if (elements.createApiKeyCard) {
+                elements.createApiKeyCard.style.display = 'none';
+            }
+            if (elements.apiKeyListSubtext) {
+                elements.apiKeyListSubtext.textContent = '(仅显示自己的 API Key)';
             }
         }
     }
 
     // ===============================
-    // 事件监听器
+    // 初始化事件监听
     // ===============================
     function initEventListeners() {
-        // 退出登录按钮（已在 initUserInfo 中通过 onclick 绑定）
+        const createBtn = elements.createApiKeyCard?.querySelector('button[type="button"]');
+        if (createBtn) {
+            createBtn.addEventListener('click', createApiKey);
+        }
+
+        // Enter 键提交
+        if (elements.apiKeyName) {
+            elements.apiKeyName.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') createApiKey();
+            });
+        }
     }
 
     // ===============================
     // 加载 API Keys
     // ===============================
     async function loadApiKeys() {
+        if (elements.apiKeyLoading) elements.apiKeyLoading.classList.remove('d-none');
+        if (elements.apiKeyListContainer) elements.apiKeyListContainer.classList.add('d-none');
+
         try {
-            elements.loading?.classList.remove('d-none');
-            elements.apiKeyList?.classList.add('d-none');
-
-            const data = await API.get('/admin/apikeys');
-            apiKeys = Array.isArray(data) ? data : [];
-
-            renderApiKeyTable();
-            elements.apiKeyList?.classList.remove('d-none');
-
-        } catch (error) {
-            console.error('加载 API Keys 失败:', error);
-            if (error.status === 401 || error.status === 403) {
-                UI.showErrorMessage('请先登录');
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 2000);
-                return;
-            }
-            UI.showErrorMessage('加载失败：' + error.message);
+            const endpoint = '/admin/apikeys';
+            const keys = await API.get(endpoint);
+            apiKeys = Array.isArray(keys) ? keys : (keys.content || []);
+            renderApiKeys();
+            if (elements.apiKeyListContainer) elements.apiKeyListContainer.classList.remove('d-none');
+        } catch (e) {
+            console.error('加载 API Keys 失败', e);
+            UI.showErrorMessage('加载失败：' + e.message);
         } finally {
-            elements.loading?.classList.add('d-none');
+            if (elements.apiKeyLoading) elements.apiKeyLoading.classList.add('d-none');
         }
     }
 
     // ===============================
-    // 渲染 API Key 表格
+    // 渲染 API Keys 表格
     // ===============================
-    function renderApiKeyTable() {
+    function renderApiKeys() {
         if (!elements.apiKeyTableBody) return;
 
         if (apiKeys.length === 0) {
-            const isUser = currentUserRole === 'USER';
-            elements.apiKeyTableBody.innerHTML = `
-                <tr>
-                    <td colspan="${isUser ? '6' : '7'}">
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📋</div>
-                            <div class="empty-state-text">暂无 API Key</div>
-                            <div class="empty-state-text">${isUser ? '请在上方创建您的 API Key' : '请在上方创建新的 API Key'}</div>
-                        </div>
-                    </td>
-                </tr>
-            `;
+            elements.apiKeyTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:40px;">暂无 API Key</td></tr>';
             return;
         }
 
-        const renderActions = (key) => {
-            if (currentUserRole === 'USER') {
-                return `
-                    <button class="btn btn-sm btn-info" onclick="copyApiKey('${escapeHtml(key.key)}')">
-                        复制 Key
-                    </button>
-                `;
-            } else {
-                return `
-                    <button class="btn btn-sm btn-success" style="margin-right: 8px"
-                            onclick="toggleApiKey(${key.id})">
-                        ${key.enabled ? '禁用' : '启用'}
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteApiKey(${key.id})">
-                        删除
-                    </button>
-                `;
-            }
-        };
+        elements.apiKeyTableBody.innerHTML = apiKeys.map(function(k) {
+            const statusBadge = k.enabled
+                ? '<span class="badge-success">启用</span>'
+                : '<span class="badge-danger">禁用</span>';
+            const expiresText = k.expiresAt ? formatDate(k.expiresAt) : '永不过期';
+            const quotaText = k.tokenLimit != null ? UI.formatNumber(k.tokenLimit) : '无限';
 
-        elements.apiKeyTableBody.innerHTML = apiKeys.map(key => `
-            <tr>
-                <td>${escapeHtml(key.name)}</td>
-                <td>
-                    <div class="api-key-field">
-                        <input type="text" value="${escapeHtml(key.key)}" readonly
-                               onclick="copyApiKey('${escapeHtml(key.key)}')"
-                               title="点击复制">
-                    </div>
-                </td>
-                <td>${UI.formatNumber(key.tokenLimit)}</td>
-                <td>${UI.formatNumber(key.usedTokens || 0)}</td>
-                <td>
-                    <span class="badge ${key.enabled ? 'badge-success' : 'badge-danger'}">
-                        ${key.enabled ? '启用' : '禁用'}
-                    </span>
-                </td>
-                <td>${UI.formatDate(key.expiresAt)}</td>
-                <td>${renderActions(key)}</td>
-            </tr>
-        `).join('');
+            return '<tr>' +
+                '<td>' + escapeHtml(k.name) + '</td>' +
+                '<td title="' + escapeHtml(k.key || '') + '">' + maskKey(k.key) + '</td>' +
+                '<td>' + quotaText + '</td>' +
+                '<td>' + UI.formatNumber(k.usedTokens || 0) + '</td>' +
+                '<td>' + statusBadge + '</td>' +
+                '<td>' + expiresText + '</td>' +
+                '<td>' +
+                    '<button class="btn btn-sm btn-primary" onclick="copyApiKey(\'' + escapeAttr(k.key) + '\')">复制</button>' +
+                    (currentUserRole === 'USER' ? '<button class="btn btn-sm btn-danger" style="margin-left:6px;" onclick="deleteApiKey(' + k.id + ')">删除</button>' : '') +
+                '</td>' +
+                '</tr>';
+        }).join('');
     }
 
     // ===============================
     // 创建 API Key
     // ===============================
     async function createApiKey() {
-        const name = elements.apiKeyName?.value.trim();
-        const tokenLimit = elements.tokenLimit?.value;
-        const expiresAtDays = elements.expiresAtDays?.value;
+        const name = elements.apiKeyName ? elements.apiKeyName.value.trim() : '';
+        const tokenLimit = elements.tokenLimit ? elements.tokenLimit.value : '';
+        const expiresAtDays = elements.expiresAtDays ? elements.expiresAtDays.value : '';
 
-        const nameError = FormValidation.required(name, '名称');
-        if (nameError) {
-            UI.showErrorMessage(nameError);
+        if (!name) {
+            UI.showErrorMessage('请输入 API Key 名称');
+            if (elements.apiKeyName) elements.apiKeyName.focus();
             return;
         }
 
+        const payload = {
+            name: name
+        };
+
+        if (tokenLimit !== '' && parseInt(tokenLimit) > 0) {
+            payload.tokenLimit = parseInt(tokenLimit);
+        }
+
+        if (expiresAtDays !== '' && parseInt(expiresAtDays) > 0) {
+            payload.expiresAtDays = parseInt(expiresAtDays);
+        }
+
         try {
-            await API.post('/admin/apikeys', {
-                name,
-                tokenLimit: tokenLimit ? parseInt(tokenLimit) : null,
-                expiresAtDays: expiresAtDays ? parseInt(expiresAtDays) : null
-            });
-
-            UI.showSuccessMessage('创建成功！');
-
+            const res = await API.post('/admin/apikeys', payload);
+            UI.showSuccessMessage('创建成功！Key: ' + res.key);
             if (elements.apiKeyName) elements.apiKeyName.value = '';
             if (elements.tokenLimit) elements.tokenLimit.value = '';
             if (elements.expiresAtDays) elements.expiresAtDays.value = '';
-
-            await loadApiKeys();
-
-        } catch (error) {
-            console.error('创建 API Key 失败:', error);
-            if (error.status === 401 || error.status === 403) {
-                UI.showErrorMessage('请先登录');
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 2000);
-                return;
-            }
-            UI.showErrorMessage('创建失败：' + error.message);
+            loadApiKeys();
+        } catch (e) {
+            UI.showErrorMessage('创建失败：' + e.message);
         }
     }
 
@@ -273,37 +209,14 @@
     // 删除 API Key
     // ===============================
     async function deleteApiKey(id) {
-        if (!confirm('确定要删除这个 API Key 吗？此操作不可恢复。')) {
-            return;
-        }
+        if (!confirm('确定要删除该 API Key 吗？此操作不可恢复。')) return;
 
         try {
-            await API.delete(`/admin/apikeys/${id}`);
+            await API.delete('/admin/apikeys/' + id);
             UI.showSuccessMessage('删除成功');
-            await loadApiKeys();
-
-        } catch (error) {
-            console.error('删除 API Key 失败:', error);
-            UI.showErrorMessage('删除失败：' + error.message);
-        }
-    }
-
-    // ===============================
-    // 启用/禁用 API Key
-    // ===============================
-    async function toggleApiKey(id) {
-        try {
-            const data = await API.put(`/admin/apikeys/${id}/toggle`);
-
-            const index = apiKeys.findIndex(k => k.id === id);
-            if (index !== -1) {
-                apiKeys[index] = data;
-                renderApiKeyTable();
-            }
-
-        } catch (error) {
-            console.error('切换 API Key 状态失败:', error);
-            UI.showErrorMessage('操作失败：' + error.message);
+            loadApiKeys();
+        } catch (e) {
+            UI.showErrorMessage('删除失败：' + e.message);
         }
     }
 
@@ -311,128 +224,167 @@
     // 复制 API Key
     // ===============================
     function copyApiKey(key) {
-        UI.copyToClipboard(key);
+        if (!key) {
+            UI.showErrorMessage('Key 为空');
+            return;
+        }
+        navigator.clipboard.writeText(key)
+            .then(function() {
+                UI.showSuccessMessage('已复制到剪贴板');
+            })
+            .catch(function() {
+                UI.showErrorMessage('复制失败，请手动复制');
+            });
+    }
+
+    // ===============================
+    // 加载使用统计
+    // ===============================
+    async function loadUsageStats() {
+        try {
+            const stats = await API.get('/user/stats');
+            const today = stats.todayTokens || 0;
+            const month = stats.monthTokens || 0;
+            const totalRequests = stats.totalRequests || 0;
+            const successRate = stats.successRate || 0;
+            const totalApiKeys = stats.totalApiKeys || 0;
+            const activeApiKeys = stats.activeApiKeys || 0;
+
+            const todayEl = document.getElementById('todayTokens');
+            const monthEl = document.getElementById('monthTokens');
+            const totalReqEl = document.getElementById('totalRequests');
+            const successRateEl = document.getElementById('successRate');
+            const totalKeysEl = document.getElementById('totalApiKeys');
+            const activeKeysEl = document.getElementById('activeApiKeys');
+
+            if (todayEl) todayEl.textContent = UI.formatNumber(today);
+            if (monthEl) monthEl.textContent = UI.formatNumber(month);
+            if (totalReqEl) totalReqEl.textContent = UI.formatNumber(totalRequests);
+            if (successRateEl) successRateEl.textContent = successRate.toFixed(1) + '%';
+            if (totalKeysEl) totalKeysEl.textContent = totalApiKeys;
+            if (activeKeysEl) activeKeysEl.textContent = activeApiKeys;
+
+            initChart(stats);
+        } catch (e) {
+            console.error('加载统计失败', e);
+        }
+    }
+
+    // ===============================
+    // 初始化图表
+    // ===============================
+    function initChart(stats) {
+        const chartDom = document.getElementById('tokenTrendChart');
+        if (!chartDom) return;
+        chartInstance = echarts.init(chartDom);
+
+        const days = ['前 7 天', '前 6 天', '前 5 天', '前 4 天', '前 3 天', '前 2 天', '今天'];
+        const values = stats.tokenTrend || [0, 0, 0, 0, 0, 0, 0];
+
+        const option = {
+            title: { text: '近 7 日 Token 趋势', left: 'center' },
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: days },
+            yAxis: { type: 'value', name: 'Token' },
+            series: [{
+                name: 'Token 消耗',
+                type: 'line',
+                data: values,
+                smooth: true,
+                itemStyle: { color: '#1890ff' }
+            }]
+        };
+
+        chartInstance.setOption(option);
     }
 
     // ===============================
     // 切换标签页
     // ===============================
-    function switchTab(tabId) {
-        UI.switchTab(tabId);
+    window.switchTab = function(tabId) {
+        const tabs = document.querySelectorAll('.tab');
+        const contents = document.querySelectorAll('.tab-content');
 
-        if (tabId === 'usage') {
-            loadStats();
-        }
-    }
-
-    // ===============================
-    // 加载统计（调用后端 /api/user/stats）
-    // ===============================
-    async function loadStats() {
-        try {
-            const stats = await API.get('/user/stats');
-            document.getElementById('todayTokens').textContent = UI.formatNumber(stats.todayTokens || 0);
-            document.getElementById('monthTokens').textContent = UI.formatNumber(stats.monthTokens || 0);
-            document.getElementById('totalRequests').textContent = UI.formatNumber(stats.totalRequests || 0);
-            document.getElementById('successRate').textContent = ((stats.successRate || 0).toFixed(1)) + '%';
-            document.getElementById('totalApiKeys').textContent = stats.totalKeys || 0;
-            document.getElementById('activeApiKeys').textContent = stats.activeKeys || 0;
-            renderTokenTrendChart(stats.dailyTrend || []);
-        } catch (error) {
-            console.error('加载统计失败:', error);
-        }
-    }
-
-    function renderTokenTrendChart(dailyTrend) {
-        const el = document.getElementById('tokenTrendChart');
-        if (!el || typeof echarts === 'undefined') return;
-        const chart = echarts.init(el);
-        chart.setOption({
-            tooltip: { trigger: 'axis' },
-            xAxis: { type: 'category', data: dailyTrend.map(d => d.date), boundaryGap: false },
-            yAxis: { type: 'value', name: 'Tokens' },
-            series: [{
-                type: 'line',
-                data: dailyTrend.map(d => d.tokens),
-                smooth: true,
-                areaStyle: { opacity: 0.3 }
-            }],
-            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true }
+        tabs.forEach(function(t) {
+            t.classList.remove('active');
         });
-    }
+        contents.forEach(function(c) {
+            c.classList.remove('active');
+        });
+
+        const activeTab = document.querySelector('.tab[onclick*="' + tabId + '"]');
+        const activeContent = document.getElementById(tabId);
+
+        if (activeTab) activeTab.classList.add('active');
+        if (activeContent) activeContent.classList.add('active');
+    };
 
     // ===============================
-    // 查询 Token 余量
+    // 客户端工具：查询 Token 余量
     // ===============================
-    async function checkTokenUsage() {
-        const apiKey = elements.clientApiKey?.value.trim();
-
+    window.checkTokenUsage = async function() {
+        const apiKey = document.getElementById('clientApiKey')?.value.trim() || '';
         if (!apiKey) {
             UI.showErrorMessage('请输入 API Key');
             return;
         }
 
-        if (!apiKey.startsWith('nkey_')) {
-            UI.showErrorMessage('请输入有效的 API Key (以 nkey_ 开头)');
-            return;
-        }
-
         try {
-            const response = await fetch('/api/clients/token-usage', {
-                method: 'GET',
-                headers: {
-                    'X-API-Key': apiKey
-                }
-            });
+            const data = await API.get('/clients/token-usage', { headers: { 'X-Api-Key': apiKey } });
+            const resultDiv = document.getElementById('tokenUsageResult');
+            const nameEl = document.getElementById('usageKeyName');
+            const totalEl = document.getElementById('usageTotal');
+            const usedEl = document.getElementById('usageUsed');
+            const remainingEl = document.getElementById('usageRemaining');
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || '查询失败');
-            }
-
-            const data = await response.json();
-
-            if (elements.usageKeyName) elements.usageKeyName.textContent = data.apiKeyName || '-';
-            if (elements.usageTotal) elements.usageTotal.textContent = UI.formatNumber(data.totalTokens);
-            if (elements.usageUsed) elements.usageUsed.textContent = UI.formatNumber(data.usedTokens || 0);
-            if (elements.usageRemaining) elements.usageRemaining.textContent = UI.formatNumber(data.remainingTokens);
-
-            if (elements.tokenUsageResult) {
-                elements.tokenUsageResult.classList.remove('d-none');
-                elements.tokenUsageResult.style.display = 'block';
-            }
-
-        } catch (error) {
-            console.error('查询 Token 余量失败:', error);
-            UI.showErrorMessage('查询失败：' + error.message);
+            if (resultDiv) resultDiv.style.display = 'block';
+            if (nameEl) nameEl.textContent = data.name || '-';
+            if (totalEl) totalEl.textContent = data.tokenLimit != null ? UI.formatNumber(data.tokenLimit) : '无限';
+            if (usedEl) usedEl.textContent = UI.formatNumber(data.usedTokens || 0);
+            if (remainingEl) remainingEl.textContent = data.tokenLimit != null
+                ? UI.formatNumber(data.tokenLimit - (data.usedTokens || 0))
+                : '无限';
+        } catch (e) {
+            UI.showErrorMessage('查询失败：' + e.message);
+            const resultDiv = document.getElementById('tokenUsageResult');
+            if (resultDiv) resultDiv.style.display = 'none';
         }
-    }
+    };
 
     // ===============================
-    // 退出登录
+    // 工具函数
     // ===============================
-    function logout() {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
+    function maskKey(key) {
+        if (!key || key.length < 10) return key;
+        return key.substring(0, 8) + '...' + key.substring(key.length - 4);
     }
 
-    // ===============================
-    // HTML 转义
-    // ===============================
+    function formatDate(isoStr) {
+        if (!isoStr) return '-';
+        const d = new Date(isoStr);
+        return d.toLocaleDateString('zh-CN');
+    }
+
     function escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = String(text);
         return div.innerHTML;
     }
 
-    // ===============================
-    // 导出全局函数
-    // ===============================
-    window.createApiKey = createApiKey;
-    window.deleteApiKey = deleteApiKey;
-    window.toggleApiKey = toggleApiKey;
-    window.copyApiKey = copyApiKey;
-    window.switchTab = switchTab;
-    window.checkTokenUsage = checkTokenUsage;
-    window.logout = logout;
+    function escapeAttr(str) {
+        return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    window.logout = function() {
+        // 访问退出端点使 Session 失效
+        fetch('/logout', { method: 'POST', credentials: 'same-origin' })
+            .then(() => window.location.href = '/login')
+            .catch(() => window.location.href = '/login');
+    };
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (chartInstance) chartInstance.dispose();
+    });
 })();

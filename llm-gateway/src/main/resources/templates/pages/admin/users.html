@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - LLM Gateway</title>
+
+    <!-- 公共样式 -->
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+</head>
+<body>
+    <div class="layout-container">
+        <!-- 侧边栏 -->
+        <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <div class="page-content">
+                <!-- 提示消息 -->
+                <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
+
+                <!-- 页面内容区域 -->
+                <div class="page-content-wrapper">
+                    <div class="card">
+                        <div class="card-title">用户管理</div>
+
+                        <div id="usersLoading" class="spinner">加载中...</div>
+                        <div id="usersContainer" class="d-none">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>用户名</th>
+                                        <th>邮箱</th>
+                                        <th>角色</th>
+                                        <th>创建时间</th>
+                                        <th>API Keys 数量</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 公共脚本 -->
+    <script th:src="@{/js/common.js}"></script>
+    <script th:src="@{/js/admin-users.js}"></script>
+</body>
+</html>

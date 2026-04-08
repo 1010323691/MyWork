@@ -1,47 +1,54 @@
 /**
  * LLM Gateway - Admin Users Page
+ * Session/Cookie 认证模式
  */
 (function() {
     'use strict';
 
-    document.addEventListener('DOMContentLoaded', function() {
-        if (!API.isAuthenticated()) {
+    let currentSearch = '';
+    let currentPage = 0;
+
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!(await API.isAuthenticated())) {
             window.location.href = '/login';
             return;
         }
-        var user = API.getCurrentUser();
+        const user = await API.getCurrentUser();
         if (!user || user.role !== 'ADMIN') {
             window.location.href = '/dashboard';
             return;
         }
 
-        initUserInfo(user);
+        initSidebarUserInfo(user);
         loadUsers(0, '');
     });
 
-    function initUserInfo(user) {
-        var userInfo = document.getElementById('userInfo');
-        if (userInfo) {
-            userInfo.innerHTML =
-                '<span class="user-name">' + escapeHtml(user.username) + '</span>' +
-                '<a href="#" onclick="logout()" class="logout-btn">退出登录</a>';
+    function initSidebarUserInfo(user) {
+        const usernameEl = document.getElementById('sidebarUsername');
+        const avatarEl = document.getElementById('sidebarUserAvatar');
+        if (user && usernameEl) {
+            usernameEl.textContent = user.username;
+        }
+        if (user && avatarEl) {
+            avatarEl.textContent = user.username.substring(0, 1).toUpperCase();
         }
     }
 
     async function loadUsers(page, username) {
-        var loading = document.getElementById('usersLoading');
-        var content = document.getElementById('usersContent');
+        currentPage = page;
+        const loading = document.getElementById('usersLoading');
+        const container = document.getElementById('usersContainer');
         if (loading) loading.classList.remove('d-none');
-        if (content) content.classList.add('d-none');
+        if (container) container.classList.add('d-none');
 
-        var params = 'page=' + page + '&size=20';
+        const params = 'page=' + page + '&size=20';
         if (username) params += '&username=' + encodeURIComponent(username);
 
         try {
-            var data = await API.get('/admin/users?' + params);
+            const data = await API.get('/admin/users?' + params);
             renderTable(data.content || []);
-            renderPagination(data.number, data.totalPages, data.totalElements, username);
-            if (content) content.classList.remove('d-none');
+            renderPagination(data.number || 0, data.totalPages || 0, data.totalElements || 0, username);
+            if (container) container.classList.remove('d-none');
         } catch (e) {
             console.error('加载用户失败', e);
             UI.showErrorMessage('加载失败：' + e.message);
@@ -51,19 +58,19 @@
     }
 
     function renderTable(users) {
-        var tbody = document.getElementById('usersTableBody');
+        const tbody = document.getElementById('usersTableBody');
         if (!tbody) return;
 
         if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#999;padding:40px;">暂无用户</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:40px;">暂无用户</td></tr>';
             return;
         }
 
         tbody.innerHTML = users.map(function(u) {
-            var statusBadge = u.enabled
+            const statusBadge = u.enabled
                 ? '<span class="badge-success">正常</span>'
                 : '<span class="badge-danger">已禁用</span>';
-            var roleBadge = u.userRole === 'ADMIN'
+            const roleBadge = u.userRole === 'ADMIN'
                 ? '<span class="badge-secondary">ADMIN</span>'
                 : '<span>USER</span>';
             return '<tr>' +
@@ -73,10 +80,8 @@
                 '<td>' + roleBadge + '</td>' +
                 '<td>' + statusBadge + '</td>' +
                 '<td>' + (u.apiKeyCount || 0) + '</td>' +
-                '<td>' + UI.formatNumber(u.totalUsedTokens || 0) + '</td>' +
-                '<td>' + formatDate(u.createdAt) + '</td>' +
                 '<td>' +
-                    '<button class="btn btn-sm btn-success" style="margin-right:6px;" onclick="toggleUser(' + u.id + ')">' +
+                    '<button class="btn btn-sm btn-success" style="margin-right:6px;" onclick="toggleUser(' + u.id + ', ' + u.enabled + ')">' +
                         (u.enabled ? '禁用' : '启用') +
                     '</button>' +
                     '<button class="btn btn-sm btn-danger" onclick="deleteUser(' + u.id + ')">删除</button>' +
@@ -86,7 +91,7 @@
     }
 
     function renderPagination(page, total, totalElements, username) {
-        var el = document.getElementById('usersPagination');
+        const el = document.getElementById('usersPagination');
         if (!el) return;
 
         if (total <= 1) {
@@ -99,19 +104,12 @@
             '<button ' + (page >= total - 1 ? 'disabled' : '') + ' onclick="goPage(' + (page + 1) + ')">下一页</button>';
     }
 
-    function formatDate(isoStr) {
-        if (!isoStr) return '-';
-        return new Date(isoStr).toLocaleDateString('zh-CN');
-    }
-
     function escapeHtml(text) {
         if (!text) return '';
-        var div = document.createElement('div');
+        const div = document.createElement('div');
         div.textContent = String(text);
         return div.innerHTML;
     }
-
-    var currentSearch = '';
 
     window.searchUsers = function() {
         currentSearch = document.getElementById('usernameSearch').value.trim();
@@ -128,11 +126,11 @@
         loadUsers(page, currentSearch);
     };
 
-    window.toggleUser = async function(id) {
+    window.toggleUser = async function(id, currentEnabled) {
         try {
             await API.put('/admin/users/' + id + '/toggle');
             UI.showSuccessMessage('操作成功');
-            loadUsers(0, currentSearch);
+            loadUsers(currentPage, currentSearch);
         } catch (e) {
             UI.showErrorMessage('操作失败：' + e.message);
         }
@@ -143,14 +141,15 @@
         try {
             await API.delete('/admin/users/' + id);
             UI.showSuccessMessage('删除成功');
-            loadUsers(0, currentSearch);
+            loadUsers(currentPage, currentSearch);
         } catch (e) {
             UI.showErrorMessage('删除失败：' + e.message);
         }
     };
 
     window.logout = function() {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
+        fetch('/logout', { method: 'POST', credentials: 'same-origin' })
+            .then(() => window.location.href = '/login')
+            .catch(() => window.location.href = '/login');
     };
 })();

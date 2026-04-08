@@ -83,6 +83,22 @@
         <div id="usage" class="tab-content">
             <div class="stats">
                 <div class="stat-card">
+                    <div class="stat-value" id="todayTokens">0</div>
+                    <div class="stat-label">今日 Token</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="monthTokens">0</div>
+                    <div class="stat-label">本月 Token</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalRequests">0</div>
+                    <div class="stat-label">总请求数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="successRate">0%</div>
+                    <div class="stat-label">成功率</div>
+                </div>
+                <div class="stat-card">
                     <div class="stat-value" id="totalApiKeys">0</div>
                     <div class="stat-label">API Key 总数</div>
                 </div>
@@ -90,14 +106,10 @@
                     <div class="stat-value" id="activeApiKeys">0</div>
                     <div class="stat-label">启用中</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="totalTokens">0</div>
-                    <div class="stat-label">总配额</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="usedTokens">0</div>
-                    <div class="stat-label">已使用 Token</div>
-                </div>
+            </div>
+            <div class="card" style="margin-top: 20px;">
+                <div class="card-title">近7日 Token 趋势</div>
+                <div id="tokenTrendChart" style="height: 300px;"></div>
             </div>
         </div>
 
@@ -149,5 +161,6 @@
 
     <!-- 引入公共脚本和管理后台专用脚本 -->
     <th:block th:replace="~{fragments/scripts :: scripts('/js/dashboard.js')}"></th:block>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 </body>
 </html>

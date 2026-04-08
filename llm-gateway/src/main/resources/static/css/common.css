@@ -76,6 +76,25 @@ body {
     background: rgba(255, 255, 255, 0.25);
 }
 
+.header-nav {
+    display: flex;
+    gap: 4px;
+}
+
+.header-nav a {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.header-nav a:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+
 /* ============================================
    Cards
    ============================================ */
@@ -310,8 +329,8 @@ body {
    ============================================ */
 .stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 20px;
     margin-bottom: 30px;
 }
 

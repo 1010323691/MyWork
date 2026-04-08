@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/head :: head('用户管理', '/css/admin.css')}"></th:block>
+</head>
+<body>
+    <th:block th:replace="~{fragments/header :: header}"></th:block>
+
+    <div class="container">
+        <h2 style="margin-bottom: 20px;">用户管理</h2>
+
+        <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
+
+        <!-- 搜索栏 -->
+        <div class="card filter-bar">
+            <div class="filter-row">
+                <div class="filter-item">
+                    <label>用户名搜索</label>
+                    <input type="text" id="usernameSearch" placeholder="输入用户名...">
+                </div>
+                <div class="filter-item filter-btn">
+                    <button onclick="searchUsers()" class="btn btn-primary">搜索</button>
+                    <button onclick="resetSearch()" class="btn" style="margin-left: 8px;">重置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 用户表格 -->
+        <div class="card">
+            <div id="usersLoading" class="spinner">加载中...</div>
+            <div id="usersContent" class="d-none">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户名</th>
+                            <th>邮箱</th>
+                            <th>角色</th>
+                            <th>状态</th>
+                            <th>API Key 数</th>
+                            <th>已用 Token</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody"></tbody>
+                </table>
+                <div id="usersPagination" class="pagination"></div>
+            </div>
+        </div>
+    </div>
+
+    <th:block th:replace="~{fragments/scripts :: scripts('/js/admin-users.js')}"></th:block>
+</body>
+</html>

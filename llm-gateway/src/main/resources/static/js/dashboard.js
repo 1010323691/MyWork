@@ -326,18 +326,39 @@
     }
 
     // ===============================
-    // 加载统计
+    // 加载统计（调用后端 /api/user/stats）
     // ===============================
-    function loadStats() {
-        const totalApiKeys = apiKeys.length;
-        const activeApiKeys = apiKeys.filter(k => k.enabled).length;
-        const totalTokens = apiKeys.reduce((sum, k) => sum + (k.tokenLimit || 0), 0);
-        const usedTokens = apiKeys.reduce((sum, k) => sum + (k.usedTokens || 0), 0);
+    async function loadStats() {
+        try {
+            const stats = await API.get('/user/stats');
+            document.getElementById('todayTokens').textContent = UI.formatNumber(stats.todayTokens || 0);
+            document.getElementById('monthTokens').textContent = UI.formatNumber(stats.monthTokens || 0);
+            document.getElementById('totalRequests').textContent = UI.formatNumber(stats.totalRequests || 0);
+            document.getElementById('successRate').textContent = ((stats.successRate || 0).toFixed(1)) + '%';
+            document.getElementById('totalApiKeys').textContent = stats.totalKeys || 0;
+            document.getElementById('activeApiKeys').textContent = stats.activeKeys || 0;
+            renderTokenTrendChart(stats.dailyTrend || []);
+        } catch (error) {
+            console.error('加载统计失败:', error);
+        }
+    }
 
-        document.getElementById('totalApiKeys').textContent = totalApiKeys;
-        document.getElementById('activeApiKeys').textContent = activeApiKeys;
-        document.getElementById('totalTokens').textContent = UI.formatNumber(totalTokens);
-        document.getElementById('usedTokens').textContent = UI.formatNumber(usedTokens);
+    function renderTokenTrendChart(dailyTrend) {
+        const el = document.getElementById('tokenTrendChart');
+        if (!el || typeof echarts === 'undefined') return;
+        const chart = echarts.init(el);
+        chart.setOption({
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: dailyTrend.map(d => d.date), boundaryGap: false },
+            yAxis: { type: 'value', name: 'Tokens' },
+            series: [{
+                type: 'line',
+                data: dailyTrend.map(d => d.tokens),
+                smooth: true,
+                areaStyle: { opacity: 0.3 }
+            }],
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true }
+        });
     }
 
     // ===============================

@@ -46,6 +46,15 @@ public class ApiKey {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "target_url")
+    private String targetUrl;
+
+    @Column(name = "routing_config", columnDefinition = "TEXT")
+    private String routingConfig;
+
+    @Column(name = "last_used_at")
+    private LocalDateTime lastUsedAt;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

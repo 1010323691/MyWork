@@ -2,6 +2,7 @@ package com.nexusai.llm.gateway.controller;
 
 import com.nexusai.llm.gateway.dto.AuthRequest;
 import com.nexusai.llm.gateway.dto.AuthResponse;
+import com.nexusai.llm.gateway.dto.RegisterRequest;
 import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.UserRepository;
 import com.nexusai.llm.gateway.security.JwtService;
@@ -60,20 +61,25 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<Map<String, String>> register(@Valid @RequestBody User user) {
-        if (userRepository.existsByUsername(user.getUsername())) {
+    public ResponseEntity<Map<String, String>> register(@Valid @RequestBody RegisterRequest req) {
+        if (userRepository.existsByUsername(req.getUsername())) {
             return ResponseEntity.badRequest().body(Map.of("error", "用户名已存在"));
         }
 
-        if (userRepository.existsByEmail(user.getEmail())) {
+        if (userRepository.existsByEmail(req.getEmail())) {
             return ResponseEntity.badRequest().body(Map.of("error", "邮箱已存在"));
         }
 
-        // 密码加密
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setEnabled(true);
+        User user = User.builder()
+                .username(req.getUsername())
+                .password(passwordEncoder.encode(req.getPassword()))
+                .email(req.getEmail())
+                .enabled(true)
+                .userRole("USER")
+                .build();
         userRepository.save(user);
 
+        log.info("新用户注册 | 用户名：{}", req.getUsername());
         return ResponseEntity.ok(Map.of("message", "注册成功"));
     }
 }

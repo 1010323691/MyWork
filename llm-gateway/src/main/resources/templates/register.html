@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/head :: head('注册', '/css/login.css')}"></th:block>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-logo">LLM Gateway</div>
+            <div class="login-subtitle">创建新账号</div>
+
+            <div id="alertBox" class="alert alert-error"></div>
+            <div id="successBox" class="alert alert-success"></div>
+
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" required
+                           placeholder="3-50 位字符" autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">邮箱</label>
+                    <input type="email" id="email" name="email" required
+                           placeholder="请输入邮箱">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" required
+                           placeholder="至少 6 位">
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">确认密码</label>
+                    <input type="password" id="confirmPassword" required
+                           placeholder="再次输入密码">
+                </div>
+
+                <button type="submit" class="btn btn-primary">注册</button>
+            </form>
+
+            <div style="text-align:center; margin-top:20px; font-size:14px; color:#666;">
+                已有账号？<a href="/login" style="color:#007bff; text-decoration:none;">立即登录</a>
+            </div>
+        </div>
+    </div>
+
+    <th:block th:replace="~{fragments/scripts :: scripts('/js/register.js')}"></th:block>
+</body>
+</html>

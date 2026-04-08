@@ -79,7 +79,9 @@ public class ApiKeyController {
                 userId,
                 requestBody.getName(),
                 requestBody.getTokenLimit(),
-                requestBody.getExpiresAtDays()
+                requestBody.getExpiresAtDays(),
+                requestBody.getTargetUrl(),
+                requestBody.getRoutingConfig()
         );
 
         return ResponseEntity.ok(toResponse(apiKey));
@@ -171,6 +173,9 @@ public class ApiKeyController {
                 .enabled(apiKey.getEnabled())
                 .expiresAt(apiKey.getExpiresAt())
                 .createdAt(apiKey.getCreatedAt())
+                .lastUsedAt(apiKey.getLastUsedAt())
+                .targetUrl(apiKey.getTargetUrl())
+                .routingConfig(apiKey.getRoutingConfig())
                 .build();
     }
 }

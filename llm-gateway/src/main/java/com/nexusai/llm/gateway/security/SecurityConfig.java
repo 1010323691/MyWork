@@ -55,6 +55,7 @@ public class SecurityConfig {
                 "/images/**",
                 "/fonts/**",
                 "/login",
+                "/register",
                 "/"
         ));
     }
@@ -67,7 +68,8 @@ public class SecurityConfig {
                         "/api/auth/**",
                         "/api/admin/**",
                         "/api/clients/**",
-                        "/api/llm/**"
+                        "/api/llm/**",
+                        "/api/user/**"
                 ))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -81,6 +83,7 @@ public class SecurityConfig {
                         .requestMatchers("/favicon.ico").permitAll()
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/login").permitAll()
+                        .requestMatchers("/register").permitAll()
                         .requestMatchers("/dashboard").permitAll()
                         // 静态资源
                         .requestMatchers("/static/**").permitAll()
@@ -91,6 +94,7 @@ public class SecurityConfig {
                         .requestMatchers("/fonts/**").permitAll()
                         // 需要认证的路径（JWT 或 API Key）
                         .requestMatchers("/api/admin/**").authenticated()
+                        .requestMatchers("/api/user/**").authenticated()
                         .requestMatchers("/api/clients/**").authenticated()
                         .requestMatchers("/api/llm/**").authenticated()
                         .requestMatchers("/api/**").authenticated()

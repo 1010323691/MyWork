@@ -34,7 +34,8 @@ public class ApiKeyService {
     }
 
     @Transactional
-    public ApiKey createApiKey(Long userId, String name, Long tokenLimit, Long expiresAtDays) {
+    public ApiKey createApiKey(Long userId, String name, Long tokenLimit, Long expiresAtDays,
+                               String targetUrl, String routingConfig) {
         String key = generateKey();
         java.time.LocalDateTime expiresAt = null;
         if (expiresAtDays != null && expiresAtDays > 0) {
@@ -52,6 +53,8 @@ public class ApiKeyService {
                 .usedTokens(0L)
                 .expiresAt(expiresAt)
                 .enabled(true)
+                .targetUrl(targetUrl)
+                .routingConfig(routingConfig)
                 .build();
 
         return apiKeyRepository.save(apiKey);

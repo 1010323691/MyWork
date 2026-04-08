@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/head :: head('请求日志', '/css/logs.css')}"></th:block>
+</head>
+<body>
+    <th:block th:replace="~{fragments/header :: header}"></th:block>
+
+    <div class="container">
+        <h2 style="margin-bottom: 20px;">请求日志</h2>
+
+        <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
+
+        <!-- 筛选栏 -->
+        <div class="card filter-bar">
+            <div class="filter-row">
+                <div class="filter-item">
+                    <label>开始日期</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="filter-item">
+                    <label>结束日期</label>
+                    <input type="date" id="endDate">
+                </div>
+                <div class="filter-item">
+                    <label>API Key</label>
+                    <select id="apiKeyFilter">
+                        <option value="">全部</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>状态</label>
+                    <select id="statusFilter">
+                        <option value="">全部</option>
+                        <option value="SUCCESS">成功</option>
+                        <option value="FAIL">失败</option>
+                    </select>
+                </div>
+                <div class="filter-item filter-btn">
+                    <button onclick="queryLogs()" class="btn btn-primary">查询</button>
+                    <button onclick="resetFilters()" class="btn" style="margin-left: 8px;">重置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日志表格 -->
+        <div class="card">
+            <div id="logsLoading" class="spinner">加载中...</div>
+            <div id="logsContent" class="d-none">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>API Key</th>
+                            <th>模型</th>
+                            <th>输入 Token</th>
+                            <th>输出 Token</th>
+                            <th>延迟 (ms)</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody"></tbody>
+                </table>
+
+                <!-- 分页 -->
+                <div id="pagination" class="pagination"></div>
+            </div>
+        </div>
+    </div>
+
+    <th:block th:replace="~{fragments/scripts :: scripts('/js/logs.js')}"></th:block>
+</body>
+</html>

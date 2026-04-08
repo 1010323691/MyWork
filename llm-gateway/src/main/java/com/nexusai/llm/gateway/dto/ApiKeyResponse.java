@@ -24,4 +24,7 @@ public class ApiKeyResponse {
     private Boolean enabled;
     private LocalDateTime expiresAt;
     private LocalDateTime createdAt;
+    private LocalDateTime lastUsedAt;
+    private String targetUrl;
+    private String routingConfig;
 }

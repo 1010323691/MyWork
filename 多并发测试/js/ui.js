@@ -57,12 +57,20 @@ const UI = {
             const apiType = this.elements.apiTypeSelect.value;
             localStorage.setItem(Config.storageKeys.apiType, apiType);
 
-            // 更新默认地址
+            // 更新默认地址（移除末尾斜杠）
+            let defaultUrl;
             if (apiType === Config.apiTypes.VLLM) {
-                this.elements.apiUrl.value = Config.defaultVllmUrl;
+                defaultUrl = Config.defaultVllmUrl.replace(/\/$/, '');
+            } else if (apiType === Config.apiTypes.LM_STUDIO) {
+                defaultUrl = Config.defaultLmStudioUrl.replace(/\/$/, '');
             } else {
-                this.elements.apiUrl.value = Config.defaultApiUrl;
+                defaultUrl = Config.defaultApiUrl.replace(/\/$/, '');
             }
+
+            this.elements.apiUrl.value = defaultUrl;
+
+            // 同时更新 localStorage 中的 apiUrl，确保 API.getApiUrl() 能获取正确的值
+            localStorage.setItem(Config.storageKeys.apiUrl, defaultUrl);
 
             // 刷新模型列表
             this.setLoading(true);
@@ -71,7 +79,8 @@ const UI = {
 
         // API 地址变更
         this.elements.apiUrl.addEventListener('change', () => {
-            localStorage.setItem(Config.storageKeys.apiUrl, this.elements.apiUrl.value);
+            const url = this.elements.apiUrl.value.replace(/\/$/, '');
+            localStorage.setItem(Config.storageKeys.apiUrl, url);
         });
 
         // 模型选择变更
@@ -488,14 +497,22 @@ const UI = {
             this.elements.apiTypeSelect.value = savedApiType;
         }
 
-        // API 地址：根据 API 类型设置默认地址，不直接加载缓存
+        // API 地址：根据 API 类型设置默认地址
         const currentApiType = this.elements.apiTypeSelect?.value || Config.defaultApiType;
-        const defaultUrl = currentApiType === Config.apiTypes.VLLM
-            ? Config.defaultVllmUrl
-            : Config.defaultApiUrl;
+        let defaultUrl;
+
+        if (currentApiType === Config.apiTypes.VLLM) {
+            defaultUrl = Config.defaultVllmUrl.replace(/\/$/, '');
+        } else if (currentApiType === Config.apiTypes.LM_STUDIO) {
+            defaultUrl = Config.defaultLmStudioUrl.replace(/\/$/, '');
+        } else {
+            defaultUrl = Config.defaultApiUrl.replace(/\/$/, '');
+        }
 
         if (this.elements.apiUrl) {
             this.elements.apiUrl.value = defaultUrl;
+            // 同步到 localStorage，确保 API.getApiUrl() 获取正确的值
+            localStorage.setItem(Config.storageKeys.apiUrl, defaultUrl);
         }
 
         // 模型

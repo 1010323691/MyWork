@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网关转发管理 - LLM Gateway</title>
+
+    <!-- 公共样式 -->
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+</head>
+<body>
+    <div class="layout-container">
+        <!-- 侧边栏 -->
+        <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <div class="page-content">
+                <!-- 提示消息 -->
+                <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
+
+                <!-- 页面内容区域 -->
+                <div class="page-content-wrapper">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">上游提供商管理</div>
+                            <button class="btn btn-primary" onclick="showCreateModal()">
+                                + 新增提供商
+                            </button>
+                        </div>
+
+                        <div id="providersLoading" class="spinner">加载中...</div>
+                        <div id="providersContainer" class="d-none">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>名称</th>
+                                        <th>基础 URL</th>
+                                        <th>服务类型</th>
+                                        <th>输入卖出价</th>
+                                        <th>输出卖出价</th>
+                                        <th>失败次数</th>
+                                        <th>状态</th>
+                                        <th>熔断状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="providersTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 创建/编辑模态框 -->
+    <div id="providerModal" class="modal-overlay d-none" onclick="if(event.target === this) closeModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">新增提供商</h3>
+                <button class="modal-close" onclick="event.stopPropagation(); closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="providerForm" class="provider-form">
+                    <input type="hidden" id="providerId">
+
+                    <div class="form-group">
+                        <label for="name">提供商名称 *</label>
+                        <input type="text" id="name" required placeholder="如：OpenAI">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="baseUrl">基础 URL *</label>
+                        <input type="text" id="baseUrl" required placeholder="如：https://api.openai.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="serviceType">服务类型</label>
+                        <select id="serviceType">
+                            <option value="OLLAMA">Ollama</option>
+                            <option value="VLLM">vLLM</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="upstreamKey">上游 API Key（加密存储）</label>
+                        <input type="password" id="upstreamKey" placeholder="输入上游 API Key">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="timeoutSeconds">超时时间（秒）</label>
+                        <input type="number" id="timeoutSeconds" value="300">
+                    </div>
+
+                    <div class="form-group">
+                        <label>输入 Token 定价（元/百万 Token）</label>
+                        <div class="price-row">
+                            <input type="number" id="buyPriceInput" step="0.000001" placeholder="买入价">
+                            <input type="number" id="sellPriceInput" step="0.000001" placeholder="卖出价">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>输出 Token 定价（元/百万 Token）</label>
+                        <div class="price-row">
+                            <input type="number" id="buyPriceOutput" step="0.000001" placeholder="买入价">
+                            <input type="number" id="sellPriceOutput" step="0.000001" placeholder="卖出价">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enabled" checked> 启用
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveProvider()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 公共脚本 -->
+    <script th:src="@{/js/common.js}"></script>
+    <script th:src="@{/js/admin-providers.js}"></script>
+</body>
+</html>

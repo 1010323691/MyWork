@@ -63,6 +63,30 @@ public class ViewController {
         return "pages/admin/monitor";
     }
 
+    @GetMapping("/admin/providers")
+    public String adminProvidersPage(Model model, Authentication authentication) {
+        model.addAttribute("title", "网关转发管理");
+        model.addAttribute("currentPage", "admin/providers");
+        model.addAttribute("currentUserRole", extractUserRoleFromAuth(authentication));
+        return "pages/admin/providers";
+    }
+
+    @GetMapping("/admin/pricing")
+    public String adminPricingPage(Model model, Authentication authentication) {
+        model.addAttribute("title", "计费规则配置");
+        model.addAttribute("currentPage", "admin/pricing");
+        model.addAttribute("currentUserRole", extractUserRoleFromAuth(authentication));
+        return "pages/admin/pricing";
+    }
+
+    @GetMapping("/user/balance")
+    public String userBalancePage(Model model, Authentication authentication) {
+        model.addAttribute("title", "我的余额");
+        model.addAttribute("currentPage", "user/balance");
+        model.addAttribute("currentUserRole", extractUserRoleFromAuth(authentication));
+        return "pages/user/balance";
+    }
+
     @GetMapping("/")
     public String home() {
         return "redirect:/login";

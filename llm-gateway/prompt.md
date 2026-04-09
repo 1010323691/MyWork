@@ -94,15 +94,32 @@ path：D:\git\GitHub\MyWork\llm-gateway
     index.md               ← 全局索引
     - 本文件必须保持极度精简；
     - 说明工程根路径（如：D:\projectPath\MyWork\xxxx）；
+    - 写明各子模块职责与跳转指引，禁止编写任何详细实现内容；
     - 任务执行流程（必须严格按顺序执行）：
       1. 先阅读 index.md，确定涉及模块
       2. 在对应模块中查阅结构/修改对应代码文件(若无必要无需查阅无关文档)
       3. 如涉及结构、方法体或核心实现重大变更，则需要同步更新 /ai-context/ 对应模块说明
       4. **执行 git 提交**（若环境不支持 git：必须输出完整 commit 命令 + 提交说明，供人工执行）
-    - 写明各子模块职责与跳转指引，禁止编写任何详细实现内容；
 
-    其余模块根据项目类型不同进行对应生成
-    ### 1. 前端项目（Web / Vue / React / JS）
+    **其余模块根据项目类型不同进行对应生成**
+
+    ### 1. 全栈 / 混合项目
+
+    必须同时包含前后端两套体系：
+    前端：
+      ui/state/logic/api...
+
+    后端：
+      controller/service/repository/dto/config...
+
+    前后端接口要求：
+      - 前端 api 调用需与后端 controller 路由保持一一对应关系
+      - 前端需列出所有调用的 API Endpoint
+      - 后端 controller 中需明确定义所有路由配置
+
+    ---
+
+    ### 2. 前端项目（Web / Vue / React / JS）
 
     /ai-context/
       index.md
@@ -114,7 +131,7 @@ path：D:\git\GitHub\MyWork\llm-gateway
 
     ---
 
-    ### 2. Spring Boot / Java 后端项目
+    ### 3. Spring Boot / Java 后端项目
 
     /ai-context/
       index.md
@@ -127,7 +144,7 @@ path：D:\git\GitHub\MyWork\llm-gateway
 
     ---
 
-    ### 3. Python / AI / 脚本类项目
+    ### 4. Python / AI / 脚本类项目
 
     /ai-context/
       index.md
@@ -137,18 +154,6 @@ path：D:\git\GitHub\MyWork\llm-gateway
       utils.md
       api.md
       risk.md
-
-    ---
-
-    ### 4. 全栈 / 混合项目
-
-    必须同时包含前后端两套体系：
-
-    前端：
-      ui/state/logic/api
-
-    后端：
-      controller/service/repository/dto/config
 
 ======================
 

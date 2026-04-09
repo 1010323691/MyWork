@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计费规则配置 - LLM Gateway</title>
+
+    <!-- 公共样式 -->
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+</head>
+<body>
+    <div class="layout-container">
+        <!-- 侧边栏 -->
+        <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <div class="page-content">
+                <!-- 提示消息 -->
+                <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
+
+                <!-- 页面内容区域 -->
+                <div class="page-content-wrapper">
+                    <div class="card">
+                        <div class="card-title">计费规则配置</div>
+
+                        <!-- 计费说明 -->
+                        <div class="pricing-info">
+                            <h4>计费说明</h4>
+                            <ul>
+                                <li><strong>定价单位</strong>：元/百万 Token（每 100 万个 Token 的人民币价格）</li>
+                                <li><strong>买入价</strong>：从上游提供商获取 Token 的成本价格</li>
+                                <li><strong>卖出价</strong>：向最终用户收取的 Token 价格</li>
+                                <li><strong>利润</strong>：卖出价 - 买入价（每百万 Token 的利润）</li>
+                            </ul>
+                            <p><em>提示：计费规则在提供商详情中配置，此处仅展示汇总信息</em></p>
+                        </div>
+
+                        <div id="pricingLoading" class="spinner">加载中...</div>
+                        <div id="pricingContainer" class="d-none">
+                            <div id="pricingContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 公共脚本 -->
+    <script th:src="@{/js/common.js}"></script>
+    <script th:src="@{/js/admin-pricing.js}"></script>
+</body>
+</html>

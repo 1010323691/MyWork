@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 
-<!-- 模态框组件 -->
+<!-- 模态框组件 (ARIA 增强版) -->
 <th:block th:fragment="modal(id, title)">
-    <div id="${id}" class="modal-overlay" style="display:none;" th:onclick="${'if(event.target===this)closeModal(\'' + id + '\')'}">
+    <div id="${id}" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="${id}Title" th:onclick="${'if(event.target===this)closeModal(\'' + id + '\')}">
         <div class="modal-content" th:onclick="${'event.stopPropagation()'}">
             <div class="modal-header">
-                <h3 th:text="${title}">模态框标题</h3>
-                <button th:onclick="${'closeModal(\'' + id + '\')'}" class="modal-close">&times;</button>
+                <h3 id="${id}Title" th:text="${title}">模态框标题</h3>
+                <button th:onclick="${'closeModal(\'' + id + '\')'}" class="modal-close" aria-label="关闭对话框">&times;</button>
             </div>
             <div class="modal-body" id="${id} + 'Body'">
                 <!-- 内容由页面自定义 -->
             </div>
-            <div class="modal-footer" id="${id} + 'Footer'">
+            <div class="modal-footer" id="${id} + 'Footer'" role="toolbar" aria-label="对话框操作按钮">
                 <!-- 按钮由页面自定义 -->
             </div>
         </div>

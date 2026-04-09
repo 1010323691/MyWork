@@ -68,14 +68,8 @@ public class SecurityConfig {
                 // Session 管理：启用 Session 支持
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-                // 表单登录配置：表单提交到/login，由 Spring Security 处理认证
-                .formLogin(form -> form
-                        .loginProcessingUrl("/login")
-                        .successHandler(successAuthenticationHandler())
-                        .failureUrl("/login?error")
-                        .usernameParameter("username")
-                        .passwordParameter("password")
-                        .permitAll())
+                // 表单登录配置：禁用 formLogin 以避免默认登录页，但保留认证过滤器
+                .formLogin(form -> form.disable())
                 // 退出登录配置
                 .logout(logout -> logout
                         .logoutUrl("/logout")
@@ -83,6 +77,8 @@ public class SecurityConfig {
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID"))
                 .authorizeHttpRequests(auth -> auth
+                        // API 认证接口（无需预先认证）
+                        .requestMatchers("POST", "/api/auth/login").permitAll()
                         // 公开路径（无需认证）
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/register").permitAll()
@@ -124,16 +120,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * 登录成功处理器：处理登录成功后的重定向
-     */
-    private org.springframework.security.web.authentication.AuthenticationSuccessHandler successAuthenticationHandler() {
-        return (request, response, authentication) -> {
-            // 默认跳转到 dashboard
-            response.sendRedirect("/dashboard");
-        };
-    }
-
     @Bean
     public DaoAuthenticationProvider daoAuthenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
@@ -155,11 +141,13 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Collections.singletonList("*"));
+        // ✅ 修复：使用具体 origin 而非通配符，以配合 allowCredentials=true
+        configuration.setAllowedOrigins(List.of("http://localhost:8080", "http://127.0.0.1:8080"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-API-Key"));
         configuration.setExposedHeaders(Arrays.asList("X-Remaining-Tokens", "X-Total-Tokens"));
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

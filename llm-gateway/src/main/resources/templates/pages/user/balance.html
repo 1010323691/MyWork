@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的余额 - LLM Gateway</title>
+
+    <!-- 公共样式 -->
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+</head>
+<body>
+    <div class="layout-container">
+        <!-- 侧边栏 -->
+        <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <div class="page-content">
+                <!-- 提示消息 -->
+                <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
+
+                <!-- 页面内容区域 -->
+                <div class="page-content-wrapper">
+                    <!-- 余额卡片 -->
+                    <div class="balance-card">
+                        <div class="balance-label">当前余额</div>
+                        <div class="balance-amount" id="balanceAmount">¥ 0.00</div>
+                        <div class="balance-label">人民币</div>
+                    </div>
+
+                    <!-- 统计卡片 -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon svg-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 3v19M5 8l7-5 7 5"/>
+                                </svg>
+                            </div>
+                            <div class="stat-value" id="inputTokens">0</div>
+                            <div class="stat-label">输入 Token</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon svg-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 21V3M5 16l7 5 7-5"/>
+                                </svg>
+                            </div>
+                            <div class="stat-value" id="outputTokens">0</div>
+                            <div class="stat-label">输出 Token</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon svg-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="23,4 23,10 17,10"/>
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                </svg>
+                            </div>
+                            <div class="stat-value" id="totalRequests">0</div>
+                            <div class="stat-label">请求次数</div>
+                        </div>
+                    </div>
+
+                    <!-- 余额历史 -->
+                    <div class="card">
+                        <div class="card-title">余额变更记录</div>
+                        <div id="transactionsLoading" class="spinner">加载中...</div>
+                        <div id="transactionsContainer" class="d-none">
+                            <div id="transactionsList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 公共脚本 -->
+    <script th:src="@{/js/common.js}"></script>
+    <script>
+        // 加载余额信息
+        async function loadBalance() {
+            try {
+                const response = await fetch('/api/balance/current');
+                const data = await response.json();
+                document.getElementById('balanceAmount').textContent = '¥ ' + data.balance.toFixed(4);
+            } catch (error) {
+                console.error('加载余额失败:', error);
+                showAlert('加载余额失败：' + error.message, 'error');
+            }
+        }
+
+        // 加载统计信息
+        async function loadStats() {
+            // TODO: 实现统计 API
+            // 这里使用示例数据
+            document.getElementById('inputTokens').textContent = '12,345';
+            document.getElementById('outputTokens').textContent = '6,789';
+            document.getElementById('totalRequests').textContent = '23';
+        }
+
+        // 加载交易历史
+        async function loadTransactions() {
+            // TODO: 实现交易历史 API
+            const transactions = [
+                { type: '充值', amount: 100, time: '2024-01-15 10:30' },
+                { type: 'LLM 请求', amount: -0.0523, time: '2024-01-15 11:20' },
+                { type: 'LLM 请求', amount: -0.0234, time: '2024-01-15 12:45' },
+            ];
+
+            const html = transactions.map(t => `
+                <div class="transaction-item">
+                    <div>
+                        <div>${t.type}</div>
+                        <div style="font-size: 12px; color: #6c757d;">${t.time}</div>
+                    </div>
+                    <div class="transaction-amount ${t.amount >= 0 ? 'positive' : 'negative'}">
+                        ${t.amount >= 0 ? '+' : ''}¥ ${t.amount.toFixed(4)}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('transactionsList').innerHTML = html;
+            document.getElementById('transactionsLoading').classList.add('d-none');
+            document.getElementById('transactionsContainer').classList.remove('d-none');
+        }
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadBalance();
+            loadStats();
+            loadTransactions();
+        });
+    </script>
+</body>
+</html>

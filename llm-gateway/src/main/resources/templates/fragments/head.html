@@ -2,16 +2,30 @@
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 
 <!-- 页面头部片段 -->
-<th:block th:fragment="head(title, extraCss)">
+<th:block th:fragment="head(title)">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${pageTitle != null ? pageTitle : 'LLM Gateway'}">LLM Gateway</title>
+    <title th:text="${title != null ? title : 'LLM Gateway'}">LLM Gateway</title>
 
     <!-- 公共样式 -->
     <link rel="stylesheet" th:href="@{/css/common.css}">
 
-    <!-- 页面专用样式 -->
-    <link rel="stylesheet" th:if="${extraCss != null}" th:href="@{${extraCss}}">
+    <!-- Glassmorphism 装饰性背景元素 -->
+    <style>
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at center,
+                rgba(201, 168, 108, 0.08) 0%,
+                transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+    </style>
 </th:block>
 
 </html>

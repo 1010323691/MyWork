@@ -35,6 +35,12 @@ public class ApiKey {
     @Column(nullable = false)
     private Long usedTokens = 0L;
 
+    @Column(name = "input_tokens")
+    private Long inputTokens;  // 输入 Token 累计统计
+
+    @Column(name = "output_tokens")
+    private Long outputTokens;  // 输出 Token 累计统计
+
     @Builder.Default
     @Column(nullable = false)
     private Boolean enabled = true;

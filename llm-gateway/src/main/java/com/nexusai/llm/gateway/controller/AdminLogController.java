@@ -71,6 +71,17 @@ public class AdminLogController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * 获取指定日志详情（管理员端点）
+     */
+    @GetMapping("/{id}")
+    @Transactional(readOnly = true)
+    public ResponseEntity<RequestLogResponse> getLogDetail(@PathVariable Long id) {
+        RequestLog log = requestLogRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Log not found: " + id));
+        return ResponseEntity.ok(toResponse(log));
+    }
+
     private RequestLogResponse toResponse(RequestLog log) {
         return RequestLogResponse.builder()
                 .id(log.getId())

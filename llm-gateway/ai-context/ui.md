@@ -1,358 +1,157 @@
-# UI 层文档
+# UI 层文档（前端页面）
 
-## 概述
-UI 层负责前端页面渲染和交互，使用 Thymeleaf 模板引擎和 Vanilla JavaScript。前端采用 Session/Cookie 认证模式，通过 `/api` 端点与后端交互。
+## 模块职责
 
-## 文件清单
-
-### 模板文件
-| 文件 | 路径 | 描述 |
-|------|------|------|
-| base.html | `src/main/resources/templates/layout/base.html` | 基础布局模板 |
-| login.html | `src/main/resources/templates/pages/login.html` | 登录页面 |
-| register.html | `src/main/resources/templates/pages/register.html` | 注册页面 |
-| dashboard.html | `src/main/resources/templates/pages/dashboard/index.html` | 仪表盘页面 |
-| logs.html | `src/main/resources/templates/pages/logs/index.html` | 日志页面 |
-| admin-users.html | `src/main/resources/templates/pages/admin/users.html` | 用户管理页面 |
-| admin-keys.html | `src/main/resources/templates/pages/admin/keys.html` | API Key 管理页面 |
-| admin-monitor.html | `src/main/resources/templates/pages/admin/monitor.html` | 系统监控页面 |
-
-### 片段文件
-| 文件 | 路径 | 描述 |
-|------|------|------|
-| head.html | `src/main/resources/templates/fragments/head.html` | 页面头部 |
-| nav.html | `src/main/resources/templates/fragments/nav.html` | 导航栏 |
-| sidebar.html | `src/main/resources/templates/fragments/sidebar.html` | 侧边栏 |
-| alerts.html | `src/main/resources/templates/fragments/alerts.html` | 消息提示 |
-| modal.html | `src/main/resources/templates/fragments/modal.html` | 模态框 |
-| card.html | `src/main/resources/templates/fragments/card.html` | 卡片组件 |
-| form.html | `src/main/resources/templates/fragments/form.html` | 表单组件 |
-| scripts.html | `src/main/resources/templates/fragments/scripts.html` | 公共脚本 |
-| stats-card.html | `src/main/resources/templates/fragments/stats-card.html` | 统计卡片 |
-| user-profile.html | `src/main/resources/templates/fragments/user-profile.html` | 用户信息 |
-
-### JavaScript 文件
-| 文件 | 路径 | 描述 |
-|------|------|------|
-| common.js | `src/main/resources/static/js/common.js` | 公共工具类（API、UI） |
-| login.js | `src/main/resources/static/js/login.js` | 登录逻辑 |
-| register.js | `src/main/resources/static/js/register.js` | 注册逻辑 |
-| dashboard.js | `src/main/resources/static/js/dashboard.js` | 仪表盘逻辑 |
-| logs.js | `src/main/resources/static/js/logs.js` | 日志查询逻辑 |
-| admin-users.js | `src/main/resources/static/js/admin-users.js` | 用户管理逻辑 |
-| admin-keys.js | `src/main/resources/static/js/admin-keys.js` | API Key 管理逻辑 |
-| admin-monitor.js | `src/main/resources/static/js/admin-monitor.js` | 系统监控逻辑 |
+使用 Thymeleaf 模板引擎渲染 HTML 页面，配合原生 JavaScript + CSS 实现交互。项目采用模块化布局，通过 fragments 复用公共组件。
 
 ---
 
-## 页面结构
+## 目录结构
 
-### 登录页面 (login.html)
-**路径**: `/login`
-
-**功能**:
-- 用户名密码登录表单
-- 错误提示显示
-- 自动重定向到仪表盘
-
-**JavaScript**: `login.js`
-```javascript
-- 表单提交拦截
-- AJAX 调用 /api/auth/login
-- 错误处理
-- 登录成功跳转 /dashboard
 ```
-
-### 注册页面 (register.html)
-**路径**: `/register`
-
-**功能**:
-- 用户名、密码、邮箱注册
-- 表单验证
-- 错误提示
-
-**JavaScript**: `register.js`
-```javascript
-- 表单验证（FormValidation）
-- AJAX 调用 /api/auth/register
-- 注册成功跳转 /login
-```
-
-### 仪表盘页面 (dashboard/index.html)
-**路径**: `/dashboard`
-
-**功能**:
-- Token 使用统计（今日、本月）
-- 请求统计
-- API Key 列表
-- 创建 API Key
-- Token 使用趋势图表（ECharts）
-- 客户端 Token 查询工具
-
-**JavaScript**: `dashboard.js`
-```javascript
-- 认证检查（Session）
-- 加载 API Keys
-- 加载统计数据
-- 渲染图表
-- 创建/删除 API Key
-- 复制 API Key
-```
-
-**API 调用**:
-- `GET /api/admin/apikeys` - 获取 API Keys
-- `POST /api/admin/apikeys` - 创建 API Key
-- `DELETE /api/admin/apikeys/{id}` - 删除 API Key
-- `GET /api/user/stats` - 获取统计
-- `GET /api/clients/token-usage` - 查询 Token 余量
-
-### 日志页面 (logs/index.html)
-**路径**: `/logs`
-
-**功能**:
-- 分页查询请求日志
-- 关键字搜索
-- 状态过滤（成功/失败）
-- 详情查看
-
-**JavaScript**: `logs.js`
-```javascript
-- 分页加载日志
-- 搜索过滤
-- 详情弹窗
-```
-
-**API 调用**:
-- `GET /api/user/logs` - 分页查询日志
-- `GET /api/user/logs/{id}` - 查看日志详情
-
-### 用户管理页面 (admin/users.html)
-**路径**: `/admin/users`
-
-**权限**: 仅管理员可见
-
-**功能**:
-- 用户列表（分页）
-- 用户名搜索
-- 启用/禁用用户
-- 删除用户
-
-**JavaScript**: `admin-users.js`
-```javascript
-- 管理员权限检查
-- 分页加载用户
-- 搜索用户
-- 启用/禁用操作
-- 删除确认
-```
-
-**API 调用**:
-- `GET /api/admin/users` - 用户列表
-- `PUT /api/admin/users/{id}/toggle` - 启用/禁用
-- `DELETE /api/admin/users/{id}` - 删除用户
-
-### API Key 管理页面 (admin/keys.html)
-**路径**: `/admin/keys`
-
-**权限**: 仅管理员可见
-
-**功能**:
-- 所有用户的 API Key 列表
-- 更新 Key 配置
-- 重置使用量
-
-**JavaScript**: `admin-keys.js`
-
-**API 调用**:
-- `GET /api/admin/keys` - Key 列表
-- `PUT /api/admin/keys/{id}` - 更新配置
-- `POST /api/admin/keys/{id}/reset-usage` - 重置使用量
-
-### 系统监控页面 (admin/monitor.html)
-**路径**: `/admin/monitor`
-
-**权限**: 仅管理员可见
-
-**功能**:
-- 系统总请求数
-- 成功/失败统计
-- Token 消耗统计
-- 平均响应时间
-- 错误率
-
-**JavaScript**: `admin-monitor.js`
-
-**API 调用**:
-- `GET /api/admin/monitor` - 监控数据
-
----
-
-## JavaScript 工具类
-
-### API 类 (common.js)
-**职责**: 封装 HTTP 请求
-
-**方法**:
-```javascript
-API.isAuthenticated() - 检查 Session 是否有效
-API.getCurrentUser() - 获取当前用户信息
-API.get(endpoint) - GET 请求
-API.post(endpoint, data) - POST 请求
-API.put(endpoint, data) - PUT 请求
-API.delete(endpoint) - DELETE 请求
-```
-
-**认证**:
-- 自动携带 Session Cookie（credentials: 'same-origin'）
-- 支持自定义请求头（用于 API Key 认证）
-
-**错误处理**:
-- 401/403 → 跳转登录页
-- 超时 → 提示重试
-
-### UI 类 (common.js)
-**职责**: 封装 UI 操作
-
-**方法**:
-```javascript
-UI.showAlert(message, type) - 显示消息提示
-UI.showErrorMessage(message) - 显示错误
-UI.showSuccessMessage(message) - 显示成功
-UI.copyToClipboard(text) - 复制文本
-UI.formatNumber(num) - 数字格式化
-UI.formatDate(dateString) - 日期格式化
-UI.switchTab(tabId) - 切换标签页
-UI.confirm(message, callback) - 确认对话框
-```
-
-### FormValidation 类 (common.js)
-**职责**: 表单验证
-
-**方法**:
-```javascript
-FormValidation.required(value, fieldName) - 非空验证
-FormValidation.email(value) - 邮箱验证
-FormValidation.minLength(value, min, fieldName) - 最小长度
-FormValidation.number(value, fieldName) - 数字验证
-FormValidation.minValue(value, min, fieldName) - 最小值
+src/main/resources/
+├── static/
+│   ├── css/           # 样式文件
+│   │   ├── common.css    # 通用样式（栅格、按钮、表单）
+│   │   ├── login.css     # 登录页样式
+│   │   ├── dashboard.css # Dashboard 样式
+│   │   ├── logs.css      # 日志页样式
+│   │   └── admin.css     # 管理员页面样式
+│   └── js/            # JavaScript 文件
+│       ├── common.js       # 通用工具函数（API 请求封装）
+│       ├── login.js        # 登录逻辑
+│       ├── register.js     # 注册逻辑
+│       ├── dashboard.js    # Dashboard 交互
+│       ├── logs.js         # 日志查询
+│       └── admin-*.js      # 管理员页面脚本
+└── templates/
+    ├── layout/
+    │   └── base.html       # 基础布局模板（含导航、侧边栏）
+    ├── fragments/          # 可复用片段
+    │   ├── head.html       # <head> 区域
+    │   ├── nav.html        # 顶部导航栏
+    │   ├── sidebar.html    # 左侧菜单栏
+    │   ├── modal.html      # 弹窗组件
+    │   ├── scripts.html    # 公共脚本引入
+    │   └── alerts.html     # 提示消息区域
+    └── pages/             # 页面文件
+        ├── login.html      # 登录页
+        ├── register.html   # 注册页
+        ├── dashboard/
+        │   └── index.html  # Dashboard（API Key 管理 + 使用统计）
+        ├── logs/
+        │   └── index.html  # 请求日志查询
+        └── admin/          # 管理员页面
+            ├── users.html      # 用户管理
+            ├── keys.html       # API Keys 全局管理
+            ├── providers.html  # 后端服务配置
+            ├── pricing.html    # 定价设置
+            └── monitor.html    # 系统监控
 ```
 
 ---
 
-## Thymeleaf 模板
+## 页面列表
 
-### 基础布局 (base.html)
-```html
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <th:block th:include="fragments/head :: head" />
-</head>
-<body>
-    <th:block th:include="fragments/nav :: nav" />
-    <th:block th:include="fragments/sidebar :: sidebar" />
-    <main>
-        <th:block th:include="fragments/alerts :: alerts" />
-        <th:block th:replace="${content}" />
-    </main>
-    <th:block th:include="fragments/scripts :: scripts" />
-</body>
-</html>
-```
+### 1. 公开页面（无需认证）
 
-### 页面引用
-```html
-<th:block th:replace="pages/login.html" />
-<th:block th:replace="pages/dashboard/index.html" />
-```
-
-### 片段引用
-```html
-<th:block th:include="fragments/card :: card(title: '标题')" />
-<th:block th:include="fragments/form :: form" />
-```
+| 路径 | 文件 | 说明 | JS 依赖 |
+|------|------|------|--------|
+| `/login` | `pages/login.html` | 用户登录页 | login.js |
+| `/register` | `pages/register.html` | 新用户注册页 | register.js |
 
 ---
 
-## 前端认证流程
+### 2. 普通用户页面（需认证）
 
-### Session 认证
-1. 用户访问页面
-2. JavaScript 调用 `API.isAuthenticated()` 检查 Session
-3. 后端验证 JSESSIONID Cookie
-4. 返回用户信息
-5. 页面渲染用户信息
+| 路径 | 文件 | 说明 | JS 依赖 |
+|------|------|------|--------|
+| `/dashboard` | `pages/dashboard/index.html` | Dashboard：API Key 管理 + Token 统计 | dashboard.js |
+| `/logs` | `pages/logs/index.html` | 请求日志查询（分页、过滤） | logs.js |
 
-### 权限控制
+**Dashboard 标签页**:
+- **API Key 管理**: 创建/查看/删除 API Keys
+- **使用统计**: 今日/Month Token、总请求数、成功率图表
+- **客户端工具**: Token 余量查询入口
+
+---
+
+### 3. 管理员页面（需 ADMIN 角色）
+
+| 路径 | 文件 | 说明 | JS 依赖 |
+|------|------|------|--------|
+| `/admin/users` | `pages/admin/users.html` | 用户列表管理 | admin-users.js |
+| `/admin/keys` | `pages/admin/keys.html` | API Keys 全局查看 | admin-keys.js |
+| `/admin/providers` | `pages/admin/providers.html` | 后端服务配置 | admin-providers.js |
+| `/admin/pricing` | `pages/admin/pricing.html` | Token 定价设置 | admin-pricing.js |
+| `/admin/monitor` | `pages/admin/monitor.html` | 系统监控仪表板 | admin-monitor.js |
+
+---
+
+## 前端 API 调用映射
+
+### common.js 工具函数
+
 ```javascript
-// 管理员页面检查
-const user = await API.getCurrentUser();
-if (!user || user.role !== 'ADMIN') {
-    window.location.href = '/dashboard';
-    return;
+// 封装的 fetch wrapper，自动处理认证和错误
+async function api(url, options = {}) {
+    // 自动添加 Authorization header（Session Cookie）或 X-API-Key
+    // 统一错误处理，弹出提示框
 }
 ```
 
-### 错误处理
-```javascript
-// API 请求错误处理
-try {
-    const data = await API.get('/api/user/stats');
-    // 处理数据
-} catch (e) {
-    if (e.status === 401 || e.status === 403) {
-        window.location.href = '/login';
-    } else {
-        UI.showErrorMessage(e.message);
-    }
-}
-```
+### Dashboard API 调用 (`dashboard.js`)
+
+| JS 函数 | HTTP 端点 | 说明 |
+|--------|----------|------|
+| `loadApiKeys()` | GET /api/admin/apikeys | 获取用户 API Keys |
+| `createApiKey()` | POST /api/admin/apikeys | 创建新 Key |
+| `toggleApiKey(id)` | PUT /api/admin/apikeys/{id}/toggle | 启用/禁用 |
+| `deleteApiKey(id)` | DELETE /api/admin/apikeys/{id} | 删除 Key |
+| `loadUserStats()` | GET /api/user/stats | 获取统计数据 |
+| `checkTokenUsage()` | (客户端工具) | Token 余量查询 |
+
+### Logs API 调用 (`logs.js`)
+
+| JS 函数 | HTTP 端点 | 说明 |
+|--------|----------|------|
+| `loadLogs(filters)` | GET /api/user/logs?page=... | 分页查询日志 |
+| `viewLogDetail(id)` | GET /api/user/logs/{id} | 查看详情 |
 
 ---
 
-## 样式规范
+## 样式系统
 
-### Bootstrap 5
-- 使用 Bootstrap 5 栅格系统
-- 标准组件：btn, form-control, card, modal, alert
+### common.css（核心样式）
 
-### 自定义样式
+**颜色变量**:
 ```css
-.badge-success { background-color: #10b981; }
-.badge-danger { background-color: #ef4444; }
-.badge-secondary { background-color: #6b7280; }
+--primary-color: #C9A86C;    /* 金色主色调 */
+--bg-primary: #FDFBF7;       /* 米白背景 */
+--text-main: #1D2530;        /* 深灰文字 */
+--border-light: rgba(201, 168, 108, 0.3);
 ```
+
+**栅格系统**: `.row` + `.col`（类似 Bootstrap）  
+**按钮组件**: `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-danger`  
+**表单组件**: `.form-group`, `.input`, `.select`  
+**卡片组件**: `.card`, `.card-title`
 
 ---
 
-## 图表集成 (ECharts)
-```javascript
-const chart = echarts.init(document.getElementById('chartDiv'));
-chart.setOption({
-    title: { text: 'Token 趋势' },
-    xAxis: { type: 'category', data: ['...'] },
-    yAxis: { type: 'value' },
-    series: [{ type: 'line', data: [0, 100, 200] }]
-});
-```
+## 修改指引
+
+| 需求 | 操作方式 |
+|------|----------|
+| 新增页面 | `templates/pages/` 新建 html，继承 base.html |
+| 添加导航菜单 | `fragments/nav.html` + `fragments/sidebar.html` |
+| 新增 API 调用 | `common.js` 中添加 api() wrapper，或各页 JS 直接 fetch |
+| 修改样式主题 | `common.css` 中修改变量（--primary-color 等） |
+| 添加弹窗组件 | 引用 `fragments/modal.html` + JS 控制显示 |
 
 ---
 
-## 修改定位指南
+## 第三方依赖
 
-| 问题类型 | 优先查看文件 | 原因 |
-|----------|-------------|-----|
-| 页面布局不对 | base.html, 对应页面.html | 模板结构 |
-| 数据不加载 | 对应 .js 文件 | API 调用逻辑 |
-| 样式不对 | CSS 文件 | 样式定义 |
-| 交互不响应 | 对应 .js 文件 | 事件监听 |
-| 认证失效 | common.js, login.js | Session 检查 |
-| 图表不显示 | dashboard.js | ECharts 初始化 |
-| 添加新页面 | 新建 .html + .js | 完整页面结构 |
-
-### 添加新页面步骤
-1. 创建 HTML 模板（使用 base.html 布局）
-2. 创建 JavaScript 文件（使用 API 类）
-3. 在 ViewController 添加路由映射
-4. 在侧边栏添加导航链接
-5. 测试页面功能
+- **ECharts**: CDN 引入，用于 Dashboard Token 趋势图表
+- **Thymeleaf**: 模板引擎（后端集成）

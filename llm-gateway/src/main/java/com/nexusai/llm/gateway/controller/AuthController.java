@@ -4,6 +4,8 @@ import com.nexusai.llm.gateway.dto.AuthRequest;
 import com.nexusai.llm.gateway.dto.RegisterRequest;
 import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +15,9 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,26 +41,39 @@ public class AuthController {
 
     /**
      * API 登录端点（用于前端 AJAX 登录）
-     * Session 认证模式下，此方法仅用于验证凭据并触发 Session 创建
+     * Session 认证模式下，需要将认证对象设置到 SecurityContext 并保存到 Session
      */
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request) {
+    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+                    request.getUsername(), request.getPassword()
             );
+            // 执行认证并获取已认证的 token
+            Authentication authenticated = authenticationManager.authenticate(authenticationToken);
+
+            User user = userRepository.findByUsername(request.getUsername())
+                    .orElseThrow(() -> new BadCredentialsException("User not found"));
+
+            // ✅ 关键修复：使用 HttpSessionSecurityContextRepository 将 SecurityContext 保存到 Session
+            // 这样才能在后续请求中恢复认证状态
+            SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+            securityContext.setAuthentication(authenticated);
+            SecurityContextHolder.setContext(securityContext);
+
+            // 手动保存 SecurityContext 到 HttpSession（模拟 SecurityContextPersistenceFilter 的行为）
+            new HttpSessionSecurityContextRepository().saveContext(
+                securityContext,
+                httpRequest,
+                httpResponse
+            );
+
+            log.info("登录成功 | 用户名：{} | 权限：{}", user.getUsername(), user.getAuthorities());
+
+            return ResponseEntity.ok(Map.of("message", "登录成功"));
         } catch (BadCredentialsException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "用户名或密码错误"));
         }
-
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new BadCredentialsException("User not found"));
-
-        // 登录成功日志
-        log.info("登录成功 | 用户名：{} | 权限：{}", user.getUsername(), user.getAuthorities());
-
-        // Session 模式下不再返回 token
-        return ResponseEntity.ok(Map.of("message", "登录成功"));
     }
 
     /**

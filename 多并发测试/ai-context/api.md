@@ -4,7 +4,7 @@
 - `js/api.js` - API 对象
 
 ## 模块职责
-- 封装 Ollama 和 vLLM 两种 API 的调用
+- 封装 Ollama、vLLM 和 LM Studio 三种 API 的调用
 - 提供流式响应（SSE）解析
 - 处理连接检查与模型列表获取
 - 实现 Ollama 模型加载的重试机制
@@ -24,17 +24,17 @@
 
 ### 连接与模型
 - `checkConnection()` - 检查连接：
-  - vLLM: `GET /v1/models`
+  - vLLM/LM Studio: `GET /v1/models`
   - Ollama: `GET /api/tags`
   - 5 秒超时
 
 - `getModels()` - 获取模型列表：
-  - vLLM: 解析 `{ data: [{ id }] }` 格式
+  - vLLM/LM Studio: 解析 `{ data: [{ id }] }` 格式
   - Ollama: 解析 `{ models: [{ name }] }` 格式
 
 ### 聊天请求（核心）
 - `chat(prompt, model, temperature, controller)` - 发送聊天请求：
-  - vLLM: `POST /v1/chat/completions`（OpenAI 兼容）
+  - vLLM/LM Studio: `POST /v1/chat/completions`（OpenAI 兼容）
   - Ollama: `POST /api/chat`
   - 支持流式响应（`Accept: text/event-stream`）
   - Ollama 特有：模型加载时重试 5 次（每次间隔 1 秒）
@@ -42,16 +42,16 @@
 ### 流式响应解析（核心）
 - `parseStream(stream, onToken, onComplete)` - 解析流式响应：
   - 使用 `TextDecoder` 解码
-  - vLLM：解析 SSE 格式（`data: {...}`）
+  - vLLM/LM Studio：解析 SSE 格式（`data: {...}`）
   - Ollama：解析每行 JSON 格式
   - 实时回调 `onToken(content, tokens, type)`
   - 完成回调 `onComplete(stats)`
 
 ---
 
-## vLLM 与 Ollama 的差异
+## vLLM/LM Studio 与 Ollama 的差异
 
-### vLLM（OpenAI 兼容）
+### vLLM/LM Studio（OpenAI 兼容）
 | 项目 | 值 |
 |------|----|
 | 模型列表 | `/v1/models` → `{ data: [{ id }] }` |
@@ -101,3 +101,4 @@
 | 流式解析错误 | `parseStream()` 中的格式解析 |
 | 新增 API 类型 | `getApiType()`、`chat()`、`parseStream()` |
 | 重试机制调整 | `chat()` 中的 `maxRetries` |
+| LM Studio 配置 | `Config.defaultLmStudioUrl` |

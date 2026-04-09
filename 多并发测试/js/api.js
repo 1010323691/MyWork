@@ -22,6 +22,9 @@ const API = {
         if (apiType === Config.apiTypes.VLLM) {
             return Config.defaultVllmUrl.replace(/\/$/, '');
         }
+        if (apiType === Config.apiTypes.LM_STUDIO) {
+            return Config.defaultLmStudioUrl.replace(/\/$/, '');
+        }
         return Config.defaultApiUrl.replace(/\/$/, '');
     },
 
@@ -35,7 +38,7 @@ const API = {
             setTimeout(() => controller.abort(), 5000);
 
             let res;
-            if (apiType === Config.apiTypes.VLLM) {
+            if (apiType === Config.apiTypes.VLLM || apiType === Config.apiTypes.LM_STUDIO) {
                 res = await fetch(`${this.getApiUrl()}/v1/models`, {
                     method: 'GET',
                     headers: { 'Accept': 'application/json' },
@@ -68,7 +71,7 @@ const API = {
         const apiType = this.getApiType();
         try {
             let res;
-            if (apiType === Config.apiTypes.VLLM) {
+            if (apiType === Config.apiTypes.VLLM || apiType === Config.apiTypes.LM_STUDIO) {
                 res = await fetch(`${this.getApiUrl()}/v1/models`, {
                     method: 'GET',
                     headers: { 'Accept': 'application/json' }
@@ -82,8 +85,8 @@ const API = {
 
             if (res.ok) {
                 const data = await res.json();
-                if (apiType === Config.apiTypes.VLLM) {
-                    // vLLM 返回格式：{ data: [{ id: 'xxx', ... }] } (OpenAI 格式)
+                if (apiType === Config.apiTypes.VLLM || apiType === Config.apiTypes.LM_STUDIO) {
+                    // vLLM/LM Studio 返回格式：{ data: [{ id: 'xxx', ... }] } (OpenAI 格式)
                     return data.data?.map(m => m.id).filter(Boolean) || [];
                 } else {
                     // Ollama 返回格式：{ models: [{ name: 'xxx', ... }] }
@@ -116,8 +119,8 @@ const API = {
                 }
 
                 let response;
-                if (apiType === Config.apiTypes.VLLM) {
-                    // vLLM 使用 OpenAI 兼容的 API
+                if (apiType === Config.apiTypes.VLLM || apiType === Config.apiTypes.LM_STUDIO) {
+                    // vLLM/LM Studio 使用 OpenAI 兼容的 API
                     response = await fetch(`${this.getApiUrl()}/v1/chat/completions`, {
                         method: 'POST',
                         headers: {
@@ -205,8 +208,8 @@ const API = {
 
                 const chunk = decoder.decode(value, { stream: true });
 
-                if (apiType === Config.apiTypes.VLLM) {
-                    // vLLM 使用 OpenAI 格式的 SSE
+                if (apiType === Config.apiTypes.VLLM || apiType === Config.apiTypes.LM_STUDIO) {
+                    // vLLM/LM Studio 使用 OpenAI 格式的 SSE
                     const lines = chunk.split('\n');
 
                     for (const line of lines) {

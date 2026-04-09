@@ -2,12 +2,9 @@
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 
 <!-- 脚本片段 -->
-<th:block th:fragment="scripts(extraJs)">
+<th:block th:fragment="scripts">
     <!-- 公共脚本 -->
     <script th:src="@{/js/common.js}"></script>
-
-    <!-- 页面专用脚本 -->
-    <script th:if="${extraJs != null}" th:src="@{${extraJs}}"></script>
 </th:block>
 
 </html>

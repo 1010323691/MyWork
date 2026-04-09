@@ -23,24 +23,36 @@
                 <!-- 页面内容区域 -->
                 <div class="page-content-wrapper">
                     <div class="card">
-                        <div class="card-title">用户管理</div>
-
-                        <div id="usersLoading" class="spinner">加载中...</div>
-                        <div id="usersContainer" class="d-none">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>用户名</th>
-                                        <th>邮箱</th>
-                                        <th>角色</th>
-                                        <th>创建时间</th>
-                                        <th>API Keys 数量</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="usersTableBody"></tbody>
-                            </table>
+                        <div style="padding: 20px 0;">
+                            <div class="filter-bar">
+                                <div class="filter-row">
+                                    <div class="filter-item" style="flex: 1; min-width: 250px;">
+                                        <label>搜索用户名</label>
+                                        <input type="text" id="usernameSearch" placeholder="输入用户名搜索..." style="width: 100%; padding: 8px 12px; border: 1px solid rgba(232, 220, 196, 0.8); border-radius: 6px; background: rgba(255, 255, 255, 0.5);">
+                                    </div>
+                                    <div class="filter-item filter-btn">
+                                        <button class="btn btn-primary" onclick="searchUsers()">搜索</button>
+                                        <button class="btn btn-secondary" onclick="resetSearch()">重置</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="usersLoading" class="spinner">加载中...</div>
+                            <div id="usersContainer" class="d-none">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>用户名</th>
+                                            <th>邮箱</th>
+                                            <th>角色</th>
+                                            <th>创建时间</th>
+                                            <th>API Keys 数量</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="usersTableBody"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>

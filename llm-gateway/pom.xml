@@ -16,7 +16,6 @@
 
 	<properties>
 		<java.version>17</java.version>
-		<jjwt.version>0.12.3</jjwt.version>
 	</properties>
 
 	<dependencies>
@@ -64,22 +63,8 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- JWT 认证 -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-api</artifactId>
-			<version>${jjwt.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-impl</artifactId>
-			<version>${jjwt.version}</version>
-			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-jackson</artifactId>
-			<version>${jjwt.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 

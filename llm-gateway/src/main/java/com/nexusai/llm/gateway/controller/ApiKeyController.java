@@ -6,7 +6,6 @@ import com.nexusai.llm.gateway.entity.ApiKey;
 import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.ApiKeyRepository;
 import com.nexusai.llm.gateway.security.ApiKeyService;
-import com.nexusai.llm.gateway.security.JwtService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -27,13 +26,11 @@ public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
     private final ApiKeyRepository apiKeyRepository;
-    private final JwtService jwtService;
 
     @Autowired
-    public ApiKeyController(ApiKeyService apiKeyService, ApiKeyRepository apiKeyRepository, JwtService jwtService) {
+    public ApiKeyController(ApiKeyService apiKeyService, ApiKeyRepository apiKeyRepository) {
         this.apiKeyService = apiKeyService;
         this.apiKeyRepository = apiKeyRepository;
-        this.jwtService = jwtService;
     }
 
     /**

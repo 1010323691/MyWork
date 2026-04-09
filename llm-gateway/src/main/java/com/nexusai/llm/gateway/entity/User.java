@@ -6,6 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -40,6 +41,12 @@ public class User implements UserDetails {
     @Builder.Default
     @Column(name = "user_role", nullable = false, length = 20)
     private String userRole = "USER";  // USER or ADMIN
+
+    @Column(name = "balance", precision = 18, scale = 4)
+    private BigDecimal balance;  // 用户余额（人民币）
+
+    @Version
+    private Long version;  // 乐观锁版本号
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

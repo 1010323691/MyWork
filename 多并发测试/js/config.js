@@ -7,13 +7,15 @@ const Config = {
     // API 类型枚举
     apiTypes: {
         OLLAMA: 'ollama',
-        VLLM: 'vllm'
+        VLLM: 'vllm',
+        LM_STUDIO: 'lm_studio'
     },
 
     // API 默认配置
     defaultApiUrl: 'http://192.168.0.119:11434',
     defaultVllmUrl: 'http://127.0.0.1:8000',
-    defaultApiType: 'vllm',
+    defaultLmStudioUrl: 'http://192.168.0.119:1234',
+    defaultApiType: 'lm_studio',
     defaultTemperature: 0.7,
 
     // 并发测试默认配置

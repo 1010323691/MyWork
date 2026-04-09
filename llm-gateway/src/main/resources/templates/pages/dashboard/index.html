@@ -1,55 +1,208 @@
 <!DOCTYPE html>
-<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('仪表盘 - LLM Gateway', ~{::main-content}, '/css/dashboard.css')}">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>仪表盘 - LLM Gateway</title>
-
-    <!-- 公共样式 -->
-    <link rel="stylesheet" th:href="@{/css/common.css}">
-    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <title th:fragment="title">仪表盘 - LLM Gateway</title>
 </head>
+
 <body>
-    <div class="layout-container">
-        <!-- 侧边栏 -->
-        <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
+    <main th:fragment="main-content">
+        <!-- 标签页导航 -->
+        <div class="tabs" id="tabNav" role="tablist" aria-label="仪表盘选项卡">
+            <button class="tab active" onclick="switchTab('apikeys')" role="tab" aria-selected="true" id="tab-apikeys">API Key 管理</button>
+            <button class="tab" onclick="switchTab('usage')" role="tab" aria-selected="false" id="tab-usage">使用统计</button>
+            <button class="tab" onclick="switchTab('client')" role="tab" aria-selected="false" id="tab-client">客户端工具</button>
+        </div>
 
-        <!-- 主内容区域 -->
-        <main class="main-content">
-            <div class="page-content">
-                <!-- 提示消息 -->
-                <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
+        <!-- API Key 管理标签页 -->
+        <div id="apikeys" class="tab-content active" role="tabpanel" aria-labelledby="tab-apikeys">
 
-                <!-- 页面内容区域 -->
-                <div class="page-content-wrapper">
-                    <!-- 标签页导航 -->
-                    <div class="tabs" id="tabNav">
-                        <button class="tab active" onclick="switchTab('apikeys')">API Key 管理</button>
-                        <button class="tab" onclick="switchTab('usage')">使用统计</button>
-                        <button class="tab" onclick="switchTab('client')">客户端工具</button>
+        <!-- API Key 管理标签页 -->
+        <div id="apikeys" class="tab-content active">
+            <!-- 创建 API Key 卡片 -->
+            <div class="card" id="createApiKeyCard">
+                <div class="card-title">创建 API Key</div>
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label>名称</label>
+                            <input type="text" id="apiKeyName" placeholder="例如：Production Key">
+                        </div>
                     </div>
-
-                    <!-- API Key 管理标签页 -->
-                    <div id="apikeys" class="tab-content active">
-                        <th:block th:replace="~{pages/dashboard/_apikeys :: apikeysSection}"></th:block>
+                    <div class="col">
+                        <div class="form-group">
+                            <label>Token 配额 (可选)</label>
+                            <input type="number" id="tokenLimit" placeholder="留空表示无限制">
+                        </div>
                     </div>
-
-                    <!-- 使用统计标签页 -->
-                    <div id="usage" class="tab-content">
-                        <th:block th:replace="~{pages/dashboard/_usage :: usageSection}"></th:block>
+                    <div class="col">
+                        <div class="form-group">
+                            <label>过期天数 (可选)</label>
+                            <input type="number" id="expiresAtDays" placeholder="留空表示永不过期">
+                        </div>
                     </div>
+                </div>
+                <button onclick="createApiKey()" class="btn btn-primary">创建</button>
+            </div>
 
-                    <!-- 客户端工具标签页 -->
-                    <div id="client" class="tab-content">
-                        <th:block th:replace="~{pages/dashboard/_client :: clientSection}"></th:block>
+            <!-- API Key 列表卡片 -->
+            <div class="card">
+                <div class="card-title">
+                    API Key 列表
+                    <span id="apiKeyListSubtext" style="font-size: 14px; color: #666; font-weight: normal;"></span>
+                </div>
+                <div id="apiKeyLoading" class="spinner">加载中...</div>
+                <div id="apiKeyListContainer" class="d-none">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>名称</th>
+                                <th>Key</th>
+                                <th>配额</th>
+                                <th>已使用</th>
+                                <th>状态</th>
+                                <th>过期时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="apiKeyTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 使用统计标签页 -->
+        <div id="usage" class="tab-content" role="tabpanel" aria-labelledby="tab-usage">
+            <div class="stats-grid">
+                <!-- Today Tokens - Bar Chart Icon -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                    </div>
+                    <div class="stat-value" id="todayTokens">0</div>
+                    <div class="stat-label">今日 Token</div>
+                </div>
+
+                <!-- Month Tokens - Calendar Icon -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/>
+                            <line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                    </div>
+                    <div class="stat-value" id="monthTokens">0</div>
+                    <div class="stat-label">本月 Token</div>
+                </div>
+
+                <!-- Total Requests - Refresh Icon -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23,4 23,10 17,10"/>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                        </svg>
+                    </div>
+                    <div class="stat-value" id="totalRequests">0</div>
+                    <div class="stat-label">总请求数</div>
+                </div>
+
+                <!-- Success Rate - Check Circle Icon -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22,4 12,14.01 9,11.01"/>
+                        </svg>
+                    </div>
+                    <div class="stat-value" id="successRate">0%</div>
+                    <div class="stat-label">成功率</div>
+                </div>
+
+                <!-- Total API Keys - Lock Icon -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                    </div>
+                    <div class="stat-value" id="totalApiKeys">0</div>
+                    <div class="stat-label">API Key 总数</div>
+                </div>
+
+                <!-- Active API Keys - Circle Icon -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                        </svg>
+                    </div>
+                    <div class="stat-value" id="activeApiKeys">0</div>
+                    <div class="stat-label">启用中</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">近 7 日 Token 趋势</div>
+                <div id="tokenTrendChart" style="height: 300px;"></div>
+            </div>
+        </div>
+
+        <!-- 客户端工具标签页 -->
+        <div id="client" class="tab-content" role="tabpanel" aria-labelledby="tab-client">
+            <div class="card">
+                <div class="card-title">Token 余量查询</div>
+                <p style="color: #666; margin-bottom: 24px;">
+                    使用 API Key 查询剩余 Token 数量
+                </p>
+                <div class="form-group">
+                    <label for="clientApiKey">API Key</label>
+                    <input type="text" id="clientApiKey" placeholder="nkey_..." aria-describedby="apiKeyHelper">
+                    <small id="apiKeyHelper" style="color: var(--text-muted); font-size: 12px;">输入您的 API Key 以查询配额信息</small>
+                </div>
+                <button onclick="checkTokenUsage()" class="btn btn-primary">查询</button>
+
+                <!-- 查询结果 -->
+                <div id="tokenUsageResult" style="display: none; margin-top: 30px;">
+                    <div class="card" style="background: #f8f9fa;">
+                        <div class="form-group">
+                            <label>API Key 名称</label>
+                            <p id="usageKeyName" style="font-size: 16px; color: #333;"></p>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label>总配额</label>
+                                    <p id="usageTotal" style="font-size: 28px; color: #1890ff; font-weight: bold;"></p>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-group">
+                                    <label>已使用</label>
+                                    <p id="usageUsed" style="font-size: 28px; color: #666; font-weight: bold;"></p>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-group">
+                                    <label>剩余</label>
+                                    <p id="usageRemaining" style="font-size: 28px; color: #52c41a; font-weight: bold;"></p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </main>
-    </div>
+        </div>
+    </main>
 
-    <!-- 公共脚本 -->
-    <script th:src="@{/js/common.js}"></script>
+    <!-- 页面脚本 -->
     <script th:src="@{/js/dashboard.js}"></script>
     <!-- ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>

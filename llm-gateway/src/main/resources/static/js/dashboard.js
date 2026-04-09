@@ -123,7 +123,7 @@
         try {
             const endpoint = '/admin/apikeys';
             const keys = await API.get(endpoint);
-            apiKeys = Array.isArray(keys) ? keys : (keys.content || []);
+            apiKeys = Array.isArray(keys) ? keys : [];
             renderApiKeys();
             if (elements.apiKeyListContainer) elements.apiKeyListContainer.classList.remove('d-none');
         } catch (e) {
@@ -330,7 +330,7 @@
         }
 
         try {
-            const data = await API.get('/clients/token-usage', { headers: { 'X-Api-Key': apiKey } });
+            const data = await API.get('/clients/token-usage', { headers: { 'X-API-Key': apiKey } });
             const resultDiv = document.getElementById('tokenUsageResult');
             const nameEl = document.getElementById('usageKeyName');
             const totalEl = document.getElementById('usageTotal');

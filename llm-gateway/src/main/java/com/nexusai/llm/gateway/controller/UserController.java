@@ -109,6 +109,32 @@ public class UserController {
     }
 
     /**
+     * 获取指定日志详情
+     */
+    @GetMapping("/logs/{id}")
+    @Transactional(readOnly = true)
+    public ResponseEntity<RequestLogResponse> getLogDetail(
+            HttpServletRequest request,
+            Authentication authentication,
+            @PathVariable Long id) {
+
+        Long userId = getCurrentUserId(request, authentication);
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        RequestLog log = requestLogRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Log not found: " + id));
+
+        // 验证日志是否属于当前用户
+        if (!log.getApiKey().getUser().getId().equals(userId)) {
+            return ResponseEntity.status(403).build();
+        }
+
+        return ResponseEntity.ok(toResponse(log));
+    }
+
+    /**
      * 获取当前用户的统计数据
      */
     @GetMapping("/stats")

@@ -18,17 +18,15 @@ spring:
 
   web:
     resources:
-      static-locations: classpath:/static/,classpath:/public/
+      static-locations: classpath:/static/
+      cache:
+        period: 0  # 开发环境禁用缓存
 
   thymeleaf:
     mode: HTML
     prefix: classpath:/templates/
     suffix: .html
     cache: false
-
-jwt:
-  secret: your-256-bit-secret-key-for-jwt-generation-must-be-long-enough-change-in-production
-  expiration: 86400000
 
 logging:
   level:

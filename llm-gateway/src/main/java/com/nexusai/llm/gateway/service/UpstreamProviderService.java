@@ -11,11 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
+import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -34,14 +33,10 @@ public class UpstreamProviderService {
 
     private final BackendServiceRepository backendServiceRepository;
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient;
 
     public UpstreamProviderService(BackendServiceRepository backendServiceRepository, ObjectMapper objectMapper) {
         this.backendServiceRepository = backendServiceRepository;
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
     }
 
     public Optional<BackendService> findById(Long id) {
@@ -208,17 +203,14 @@ public class UpstreamProviderService {
 
         for (String url : attempts) {
             try {
-                // 连通性测试使用较短的超时时间，快速失败
-                HttpResponse<String> response = sendGet(url, provider.getUpstreamKey(), 5);
+                SimpleHttpResult response = sendGet(url, provider.getUpstreamKey(), 5);
                 traces.add("GET " + url + " -> " + response.statusCode());
 
-                // 成功状态码 (2xx) 表示连接正常
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
                     return new ConnectivityTestResult(true, response.statusCode(),
                             "Connected to " + serviceType + " endpoint: " + url, traces);
                 }
 
-                // 认证失败 (401/403) 也视为连通性正常，只是需要 Key
                 if (response.statusCode() == 401 || response.statusCode() == 403) {
                     return new ConnectivityTestResult(true, response.statusCode(),
                             "Server reachable but requires authentication: " + url, traces);
@@ -286,7 +278,7 @@ public class UpstreamProviderService {
 
     private void tryDiscovery(String url, String upstreamKey, List<String> traces, Set<String> modelIds) {
         try {
-            HttpResponse<String> response = sendGet(url, upstreamKey, 30);
+            SimpleHttpResult response = sendGet(url, upstreamKey, 30);
             traces.add("GET " + url + " -> " + response.statusCode());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 return;
@@ -326,18 +318,31 @@ public class UpstreamProviderService {
         }
     }
 
-    private HttpResponse<String> sendGet(String url, String upstreamKey, int timeoutSeconds) throws IOException, InterruptedException {
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(timeoutSeconds))
-                .header("Accept", "application/json")
-                .GET();
+    private SimpleHttpResult sendGet(String url, String upstreamKey, int timeoutSeconds) throws IOException {
+        HttpURLConnection conn = (HttpURLConnection) URI.create(url.trim()).toURL().openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(timeoutSeconds * 1000);
+        conn.setReadTimeout(timeoutSeconds * 1000);
+        conn.setRequestProperty("Accept", "application/json");
 
         if (upstreamKey != null && !upstreamKey.isBlank()) {
-            builder.header("Authorization", "Bearer " + upstreamKey);
+            conn.setRequestProperty("Authorization", "Bearer " + upstreamKey.trim());
         }
 
-        return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        int statusCode = conn.getResponseCode();
+        InputStream inputStream = (statusCode >= 200 && statusCode < 400)
+                ? conn.getInputStream()
+                : conn.getErrorStream();
+
+        String body = "";
+        if (inputStream != null) {
+            try (InputStream in = inputStream) {
+                body = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
+        }
+
+        conn.disconnect();
+        return new SimpleHttpResult(statusCode, body);
     }
 
     private List<String> buildDiscoveryUrls(String baseUrl) {
@@ -362,6 +367,24 @@ public class UpstreamProviderService {
             normalized = normalized.substring(0, normalized.length() - 1);
         }
         return normalized;
+    }
+
+    private static class SimpleHttpResult {
+        private final int statusCode;
+        private final String body;
+
+        private SimpleHttpResult(int statusCode, String body) {
+            this.statusCode = statusCode;
+            this.body = body;
+        }
+
+        public int statusCode() {
+            return statusCode;
+        }
+
+        public String body() {
+            return body;
+        }
     }
 
     public record ConnectivityTestResult(boolean success, int statusCode, String message, List<String> traces) {

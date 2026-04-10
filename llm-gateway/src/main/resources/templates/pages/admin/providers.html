@@ -3,24 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>网关转发管理 - LLM Gateway</title>
+    <title>上游提供商管理 - LLM Gateway</title>
 
-    <!-- 公共样式 -->
     <link rel="stylesheet" th:href="@{/css/common-tech-theme.css}">
     <link rel="stylesheet" th:href="@{/css/admin.css}">
 </head>
 <body>
     <div class="layout-container">
-        <!-- 侧边栏 -->
         <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
 
-        <!-- 主内容区域 -->
         <main class="main-content">
             <div class="page-content">
-                <!-- 提示消息 -->
                 <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
 
-                <!-- 页面内容区域 -->
                 <div class="page-content-wrapper">
                     <div class="card">
                         <div class="card-header">
@@ -38,6 +33,7 @@
                                         <th>ID</th>
                                         <th>名称</th>
                                         <th>基础 URL</th>
+                                        <th>模型名</th>
                                         <th>服务类型</th>
                                         <th>输入卖出价</th>
                                         <th>输出卖出价</th>
@@ -56,8 +52,7 @@
         </main>
     </div>
 
-    <!-- 创建/编辑模态框 -->
-    <div id="providerModal" class="modal-overlay d-none" onclick="if(event.target === this) closeModal()">
+    <div id="providerModal" class="modal-overlay d-none">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="modalTitle">新增提供商</h3>
@@ -69,12 +64,23 @@
 
                     <div class="form-group">
                         <label for="name">提供商名称 *</label>
-                        <input type="text" id="name" required placeholder="如：OpenAI">
+                        <input type="text" id="name" required placeholder="如：LM Studio 节点 01">
                     </div>
 
                     <div class="form-group">
                         <label for="baseUrl">基础 URL *</label>
-                        <input type="text" id="baseUrl" required placeholder="如：https://api.openai.com">
+                        <input type="text" id="baseUrl" required placeholder="如：http://192.168.0.119:1234">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="supportedModels">支持模型 *</label>
+                        <textarea id="supportedModels"
+                                  rows="5"
+                                  required
+                                  placeholder="每行一个模型，或用逗号分隔。例如：&#10;qwen2.5-7b-instruct&#10;qwen2.5-14b-instruct&#10;gpt-4o-*"></textarea>
+                        <small class="form-help">
+                            用于将客户端传入的 `model` 路由到这个算力中心。支持精确匹配和前缀通配，如 `qwen2.5-*`。
+                        </small>
                     </div>
 
                     <div class="form-group">
@@ -86,17 +92,25 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="upstreamKey">上游 API Key（加密存储）</label>
-                        <input type="password" id="upstreamKey" placeholder="输入上游 API Key">
+                        <label for="upstreamKey">上游 API Key</label>
+                        <input type="password" id="upstreamKey" placeholder="如上游服务需要鉴权则填写">
                     </div>
 
                     <div class="form-group">
                         <label for="timeoutSeconds">超时时间（秒）</label>
-                        <input type="number" id="timeoutSeconds" value="300">
+                        <input type="number" id="timeoutSeconds" value="300" min="1">
                     </div>
 
                     <div class="form-group">
-                        <label>输入 Token 定价（元/百万 Token）</label>
+                        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                            <button type="button" class="btn btn-secondary" onclick="testConnectivity()">测试连通性</button>
+                            <button type="button" class="btn btn-secondary" onclick="discoverModels()">拉取上游模型列表</button>
+                        </div>
+                        <div id="providerToolsResult" style="margin-top:12px;font-size:13px;line-height:1.5;color:#cbd5e1;"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>输入 Token 定价（元 / 百万 Token）</label>
                         <div class="price-row">
                             <input type="number" id="buyPriceInput" step="0.000001" placeholder="买入价">
                             <input type="number" id="sellPriceInput" step="0.000001" placeholder="卖出价">
@@ -104,7 +118,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label>输出 Token 定价（元/百万 Token）</label>
+                        <label>输出 Token 定价（元 / 百万 Token）</label>
                         <div class="price-row">
                             <input type="number" id="buyPriceOutput" step="0.000001" placeholder="买入价">
                             <input type="number" id="sellPriceOutput" step="0.000001" placeholder="卖出价">
@@ -125,7 +139,6 @@
         </div>
     </div>
 
-    <!-- 公共脚本 -->
     <script th:src="@{/js/common.js}"></script>
     <script th:src="@{/js/admin-providers.js}"></script>
 </body>

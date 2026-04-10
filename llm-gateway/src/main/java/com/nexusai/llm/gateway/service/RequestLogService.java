@@ -28,7 +28,8 @@ public class RequestLogService {
 
     @Async
     @Transactional
-    public void asyncLogRequest(Long apiKeyId, Long inputTokens, Long outputTokens,
+    public void asyncLogRequest(Long apiKeyId, Long userId, String requestId,
+                                Long inputTokens, Long outputTokens,
                                 String modelName, Long latencyMs,
                                 RequestLog.RequestStatus status,
                                 String requestBody, String responseBody) {
@@ -38,6 +39,8 @@ public class RequestLogService {
 
             RequestLog log = RequestLog.builder()
                     .apiKey(apiKeyRef)
+                    .userId(userId)
+                    .requestId(requestId)
                     .inputTokens(inputTokens)
                     .outputTokens(outputTokens)
                     .modelName(modelName)
@@ -50,6 +53,15 @@ public class RequestLogService {
         } catch (Exception e) {
             logger.error("Failed to save request log for apiKeyId={}: {}", apiKeyId, e.getMessage());
         }
+    }
+
+    @Async
+    @Transactional
+    public void asyncLogRequest(Long apiKeyId, Long inputTokens, Long outputTokens,
+                                String modelName, Long latencyMs,
+                                RequestLog.RequestStatus status,
+                                String requestBody, String responseBody) {
+        asyncLogRequest(apiKeyId, null, null, inputTokens, outputTokens, modelName, latencyMs, status, requestBody, responseBody);
     }
 
     @Async

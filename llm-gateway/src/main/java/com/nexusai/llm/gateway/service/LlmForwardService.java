@@ -2,37 +2,42 @@ package com.nexusai.llm.gateway.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nexusai.llm.gateway.entity.BackendService;
-import com.nexusai.llm.gateway.repository.BackendServiceRepository;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Optional;
 
 @Service
 public class LlmForwardService {
 
     private static final Logger logger = LoggerFactory.getLogger(LlmForwardService.class);
+    private static final int MAX_CAPTURED_BODY_LENGTH = 4000;
 
-    private final BackendServiceRepository backendServiceRepository;
     private final ObjectMapper objectMapper;
+    private final HttpClient httpClient;
     private final WebClient webClient;
 
     @Autowired
-    public LlmForwardService(BackendServiceRepository backendServiceRepository, ObjectMapper objectMapper) {
-        this.backendServiceRepository = backendServiceRepository;
+    public LlmForwardService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(30))
+                .build();
         this.webClient = WebClient.builder()
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
                 .build();

@@ -105,6 +105,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/**").authenticated()
                         .requestMatchers("/api/clients/**").authenticated()
                         .requestMatchers("/api/llm/**").authenticated()
+                        .requestMatchers("/v1/**").authenticated()
                         .requestMatchers("/api/**").authenticated()
                         // 需要认证的路径（HTML 页面）
                         .requestMatchers("/dashboard").authenticated()

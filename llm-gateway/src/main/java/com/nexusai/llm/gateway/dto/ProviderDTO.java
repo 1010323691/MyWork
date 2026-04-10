@@ -14,6 +14,7 @@ public class ProviderDTO {
     private Long id;
     private String name;
     private String baseUrl;
+    private String supportedModels;
     private BackendService.ServiceType serviceType;
     private Boolean enabled;
     private Integer timeoutSeconds;
@@ -33,6 +34,7 @@ public class ProviderDTO {
         this.id = provider.getId();
         this.name = provider.getName();
         this.baseUrl = provider.getBaseUrl();
+        this.supportedModels = provider.getSupportedModels();
         this.serviceType = provider.getServiceType();
         this.enabled = provider.getEnabled();
         this.timeoutSeconds = provider.getTimeoutSeconds();
@@ -56,6 +58,9 @@ public class ProviderDTO {
 
     public String getBaseUrl() { return baseUrl; }
     public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
+
+    public String getSupportedModels() { return supportedModels; }
+    public void setSupportedModels(String supportedModels) { this.supportedModels = supportedModels; }
 
     public BackendService.ServiceType getServiceType() { return serviceType; }
     public void setServiceType(BackendService.ServiceType serviceType) { this.serviceType = serviceType; }

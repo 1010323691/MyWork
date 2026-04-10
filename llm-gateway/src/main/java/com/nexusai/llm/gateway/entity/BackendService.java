@@ -24,6 +24,9 @@ public class BackendService {
     @Column(name = "base_url", nullable = false)
     private String baseUrl;
 
+    @Column(name = "supported_models", length = 1000)
+    private String supportedModels;
+
     @Column(name = "service_type")
     @Enumerated(EnumType.STRING)
     private ServiceType serviceType = ServiceType.OLLAMA;

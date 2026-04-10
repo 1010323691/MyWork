@@ -1,94 +1,87 @@
 package com.nexusai.llm.gateway.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexusai.llm.gateway.entity.BackendService;
 import com.nexusai.llm.gateway.repository.BackendServiceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
-/**
- * 上游提供商服务
- * 负责管理上游 LLM 提供商的配置、API Key、定价和熔断状态
- *
- * 注意：upstreamKey 在数据库中存储明文（因为需要可逆用于转发请求）
- * 但在 API 响应中不会返回该字段，确保安全
- */
 @Service
 public class UpstreamProviderService {
 
     private static final Logger logger = LoggerFactory.getLogger(UpstreamProviderService.class);
-
-    // 熔断阈值
-    private static final int CIRCUIT_FAILURE_THRESHOLD = 5; // 连续失败 5 次触发熔断
-    private static final Duration CIRCUIT_RESET_DURATION = Duration.ofMinutes(5); // 5 分钟后自动重置
+    private static final int CIRCUIT_FAILURE_THRESHOLD = 5;
+    private static final Duration CIRCUIT_RESET_DURATION = Duration.ofMinutes(5);
 
     private final BackendServiceRepository backendServiceRepository;
+    private final ObjectMapper objectMapper;
+    private final HttpClient httpClient;
 
-    public UpstreamProviderService(BackendServiceRepository backendServiceRepository) {
+    public UpstreamProviderService(BackendServiceRepository backendServiceRepository, ObjectMapper objectMapper) {
         this.backendServiceRepository = backendServiceRepository;
+        this.objectMapper = objectMapper;
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
     }
 
-    /**
-     * 根据 ID 获取上游提供商
-     */
     public Optional<BackendService> findById(Long id) {
         return backendServiceRepository.findById(id);
     }
 
-    /**
-     * 根据模型名称获取上游提供商
-     */
     public Optional<BackendService> findByModelName(String modelName) {
         return backendServiceRepository.findAll()
                 .stream()
                 .filter(BackendService::getEnabled)
-                .filter(bs -> matchesModel(bs, modelName))
+                .filter(provider -> matchesModel(provider, modelName))
                 .findFirst();
     }
 
-    /**
-     * 获取所有启用的上游提供商
-     */
     public List<BackendService> findAllEnabled() {
         return backendServiceRepository.findByEnabled(true);
     }
 
-    /**
-     * 获取所有上游提供商（包括禁用的）
-     */
     public List<BackendService> findAll() {
         return backendServiceRepository.findAll();
     }
 
-    /**
-     * 创建上游提供商
-     */
     @Transactional
     public BackendService create(BackendService provider) {
         return backendServiceRepository.save(provider);
     }
 
-    /**
-     * 更新上游提供商
-     */
     @Transactional
     public BackendService update(Long id, BackendService updateData) {
         BackendService existing = backendServiceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Provider not found: " + id));
 
-        // 更新字段
         if (updateData.getName() != null) {
             existing.setName(updateData.getName());
         }
         if (updateData.getBaseUrl() != null) {
             existing.setBaseUrl(updateData.getBaseUrl());
+        }
+        if (updateData.getSupportedModels() != null) {
+            existing.setSupportedModels(updateData.getSupportedModels());
         }
         if (updateData.getServiceType() != null) {
             existing.setServiceType(updateData.getServiceType());
@@ -99,13 +92,9 @@ public class UpstreamProviderService {
         if (updateData.getTimeoutSeconds() != null) {
             existing.setTimeoutSeconds(updateData.getTimeoutSeconds());
         }
-
-        // 更新上游 Key
         if (updateData.getUpstreamKey() != null) {
             existing.setUpstreamKey(updateData.getUpstreamKey().isBlank() ? null : updateData.getUpstreamKey());
         }
-
-        // 更新定价字段
         if (updateData.getBuyPriceInput() != null) {
             existing.setBuyPriceInput(updateData.getBuyPriceInput());
         }
@@ -122,63 +111,41 @@ public class UpstreamProviderService {
         return backendServiceRepository.save(existing);
     }
 
-    /**
-     * 删除上游提供商
-     */
     @Transactional
     public void delete(Long id) {
         backendServiceRepository.deleteById(id);
     }
 
-    /**
-     * 获取上游 API Key（仅用于内部转发请求）
-     * 注意：此方法不应在 API 控制器中直接暴露
-     */
     public String getUpstreamKey(Long providerId) {
         BackendService provider = backendServiceRepository.findById(providerId)
                 .orElseThrow(() -> new RuntimeException("Provider not found: " + providerId));
         return provider.getUpstreamKey();
     }
 
-    /**
-     * 获取输入 Token 卖出价（用户支付的价格）
-     */
     public BigDecimal getSellPriceInput(Long providerId) {
         BackendService provider = backendServiceRepository.findById(providerId)
                 .orElseThrow(() -> new RuntimeException("Provider not found: " + providerId));
         return provider.getSellPriceInput() != null ? provider.getSellPriceInput() : BigDecimal.ZERO;
     }
 
-    /**
-     * 获取输出 Token 卖出价（用户支付的价格）
-     */
     public BigDecimal getSellPriceOutput(Long providerId) {
         BackendService provider = backendServiceRepository.findById(providerId)
                 .orElseThrow(() -> new RuntimeException("Provider not found: " + providerId));
         return provider.getSellPriceOutput() != null ? provider.getSellPriceOutput() : BigDecimal.ZERO;
     }
 
-    /**
-     * 获取买入价（用于计算成本）
-     */
     public BigDecimal getBuyPriceInput(Long providerId) {
         BackendService provider = backendServiceRepository.findById(providerId)
                 .orElseThrow(() -> new RuntimeException("Provider not found: " + providerId));
         return provider.getBuyPriceInput() != null ? provider.getBuyPriceInput() : BigDecimal.ZERO;
     }
 
-    /**
-     * 获取买入价（用于计算成本）
-     */
     public BigDecimal getBuyPriceOutput(Long providerId) {
         BackendService provider = backendServiceRepository.findById(providerId)
                 .orElseThrow(() -> new RuntimeException("Provider not found: " + providerId));
         return provider.getBuyPriceOutput() != null ? provider.getBuyPriceOutput() : BigDecimal.ZERO;
     }
 
-    /**
-     * 记录一次失败，用于熔断控制
-     */
     @Transactional
     public void recordFailure(Long providerId) {
         BackendService provider = backendServiceRepository.findById(providerId)
@@ -188,7 +155,6 @@ public class UpstreamProviderService {
         provider.setFailureCount(newFailureCount);
         provider.setLastFailureAt(LocalDateTime.now());
 
-        // 如果超过阈值，自动禁用
         if (newFailureCount >= CIRCUIT_FAILURE_THRESHOLD) {
             logger.warn("Circuit breaker triggered for provider {}: {} failures", providerId, newFailureCount);
             provider.setEnabled(false);
@@ -197,9 +163,6 @@ public class UpstreamProviderService {
         backendServiceRepository.save(provider);
     }
 
-    /**
-     * 检查熔断是否打开
-     */
     public boolean isCircuitOpen(Long providerId) {
         BackendService provider = backendServiceRepository.findById(providerId)
                 .orElseThrow(() -> new RuntimeException("Provider not found: " + providerId));
@@ -217,17 +180,13 @@ public class UpstreamProviderService {
             Duration sinceLastFailure = Duration.between(provider.getLastFailureAt(), LocalDateTime.now());
             if (sinceLastFailure.compareTo(CIRCUIT_RESET_DURATION) < 0) {
                 return failureCount >= CIRCUIT_FAILURE_THRESHOLD;
-            } else {
-                resetFailureCount(providerId);
             }
+            resetFailureCount(providerId);
         }
 
         return false;
     }
 
-    /**
-     * 重置失败计数
-     */
     @Transactional
     public void resetFailureCount(Long providerId) {
         BackendService provider = backendServiceRepository.findById(providerId)
@@ -237,18 +196,177 @@ public class UpstreamProviderService {
         backendServiceRepository.save(provider);
     }
 
-    /**
-     * 记录成功请求，重置失败计数
-     */
     @Transactional
     public void recordSuccess(Long providerId) {
         resetFailureCount(providerId);
     }
 
-    /**
-     * 匹配模型名称
-     */
+    public ConnectivityTestResult testConnectivity(BackendService provider) {
+        List<String> attempts = buildDiscoveryUrls(provider.getBaseUrl());
+        List<String> traces = new ArrayList<>();
+        String serviceType = provider.getServiceType() != null ? provider.getServiceType().name() : "UNKNOWN";
+
+        for (String url : attempts) {
+            try {
+                // 连通性测试使用较短的超时时间，快速失败
+                HttpResponse<String> response = sendGet(url, provider.getUpstreamKey(), 5);
+                traces.add("GET " + url + " -> " + response.statusCode());
+
+                // 成功状态码 (2xx) 表示连接正常
+                if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                    return new ConnectivityTestResult(true, response.statusCode(),
+                            "Connected to " + serviceType + " endpoint: " + url, traces);
+                }
+
+                // 认证失败 (401/403) 也视为连通性正常，只是需要 Key
+                if (response.statusCode() == 401 || response.statusCode() == 403) {
+                    return new ConnectivityTestResult(true, response.statusCode(),
+                            "Server reachable but requires authentication: " + url, traces);
+                }
+            } catch (Exception e) {
+                traces.add("GET " + url + " -> FAILED: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            }
+        }
+
+        return new ConnectivityTestResult(false, HttpStatus.BAD_GATEWAY.value(),
+                "Unable to connect to provider at " + provider.getBaseUrl(), traces);
+    }
+
+    public ModelDiscoveryResult discoverModels(BackendService provider) {
+        List<String> traces = new ArrayList<>();
+        Set<String> modelIds = new LinkedHashSet<>();
+
+        tryDiscovery(appendPath(provider.getBaseUrl(), "/v1/models"), provider.getUpstreamKey(), traces, modelIds);
+        if (modelIds.isEmpty()) {
+            tryDiscovery(appendPath(provider.getBaseUrl(), "/api/tags"), provider.getUpstreamKey(), traces, modelIds);
+        }
+
+        if (modelIds.isEmpty()) {
+            return new ModelDiscoveryResult(false, List.of(),
+                    "No models discovered from " + provider.getBaseUrl(), traces);
+        }
+
+        return new ModelDiscoveryResult(true, new ArrayList<>(modelIds),
+                "Discovered " + modelIds.size() + " model(s)", traces);
+    }
+
     private boolean matchesModel(BackendService service, String modelName) {
-        return true;
+        if (modelName == null || modelName.isBlank()) {
+            return false;
+        }
+
+        String configuredModels = service.getSupportedModels();
+        if (configuredModels == null || configuredModels.isBlank()) {
+            return false;
+        }
+
+        String normalizedModel = modelName.trim().toLowerCase();
+        String[] patterns = configuredModels.split("[,\\r\\n]+");
+        for (String rawPattern : patterns) {
+            String pattern = rawPattern.trim().toLowerCase();
+            if (pattern.isBlank()) {
+                continue;
+            }
+            if ("*".equals(pattern)) {
+                return true;
+            }
+            if (pattern.endsWith("*")) {
+                String prefix = pattern.substring(0, pattern.length() - 1);
+                if (!prefix.isBlank() && normalizedModel.startsWith(prefix)) {
+                    return true;
+                }
+                continue;
+            }
+            if (normalizedModel.equals(pattern)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void tryDiscovery(String url, String upstreamKey, List<String> traces, Set<String> modelIds) {
+        try {
+            HttpResponse<String> response = sendGet(url, upstreamKey, 30);
+            traces.add("GET " + url + " -> " + response.statusCode());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                return;
+            }
+
+            JsonNode root = objectMapper.readTree(response.body());
+            collectOpenAiModels(root, modelIds);
+            collectOllamaModels(root, modelIds);
+        } catch (Exception e) {
+            traces.add("GET " + url + " -> " + e.getMessage());
+        }
+    }
+
+    private void collectOpenAiModels(JsonNode root, Set<String> modelIds) {
+        JsonNode data = root.path("data");
+        if (!data.isArray()) {
+            return;
+        }
+        for (JsonNode node : data) {
+            String id = node.path("id").asText(null);
+            if (id != null && !id.isBlank()) {
+                modelIds.add(id.trim());
+            }
+        }
+    }
+
+    private void collectOllamaModels(JsonNode root, Set<String> modelIds) {
+        JsonNode models = root.path("models");
+        if (!models.isArray()) {
+            return;
+        }
+        for (JsonNode node : models) {
+            String name = node.path("name").asText(null);
+            if (name != null && !name.isBlank()) {
+                modelIds.add(name.trim());
+            }
+        }
+    }
+
+    private HttpResponse<String> sendGet(String url, String upstreamKey, int timeoutSeconds) throws IOException, InterruptedException {
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .header("Accept", "application/json")
+                .GET();
+
+        if (upstreamKey != null && !upstreamKey.isBlank()) {
+            builder.header("Authorization", "Bearer " + upstreamKey);
+        }
+
+        return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
+
+    private List<String> buildDiscoveryUrls(String baseUrl) {
+        String normalized = normalizeBaseUrl(baseUrl);
+        List<String> urls = new ArrayList<>();
+        urls.add(appendPath(normalized, "/v1/models"));
+        urls.add(appendPath(normalized, "/api/tags"));
+        return urls;
+    }
+
+    private String appendPath(String baseUrl, String suffix) {
+        String normalized = normalizeBaseUrl(baseUrl);
+        if (normalized.endsWith(suffix)) {
+            return normalized;
+        }
+        return normalized + suffix;
+    }
+
+    private String normalizeBaseUrl(String baseUrl) {
+        String normalized = Optional.ofNullable(baseUrl).orElse("").trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    public record ConnectivityTestResult(boolean success, int statusCode, String message, List<String> traces) {
+    }
+
+    public record ModelDiscoveryResult(boolean success, List<String> models, String message, List<String> traces) {
     }
 }

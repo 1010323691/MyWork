@@ -47,10 +47,10 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String apiKey = request.getHeader("X-API-Key");
+        String apiKey = extractApiKey(request);
 
         // 如果没有提供 API Key，跳过认证，让 JWT filter 处理
-        if (apiKey == null || !apiKey.startsWith("nkey_")) {
+        if (apiKey == null || apiKey.isBlank()) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -98,6 +98,25 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 "status", status
         );
         response.getWriter().write(objectMapper.writeValueAsString(error));
+    }
+
+    private String extractApiKey(HttpServletRequest request) {
+        String apiKey = request.getHeader("X-API-Key");
+        if (apiKey != null && !apiKey.isBlank()) {
+            return apiKey.trim();
+        }
+
+        String authorization = request.getHeader("Authorization");
+        if (authorization == null || authorization.isBlank()) {
+            return null;
+        }
+
+        if (authorization.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            String bearerToken = authorization.substring(7).trim();
+            return bearerToken.isBlank() ? null : bearerToken;
+        }
+
+        return null;
     }
 
     private boolean shouldSkip(HttpServletRequest request) {

@@ -58,6 +58,16 @@ public class AdminProviderController {
         return ResponseEntity.ok(new ProviderDTO(created));
     }
 
+    @PostMapping("/test-connectivity")
+    public ResponseEntity<UpstreamProviderService.ConnectivityTestResult> testConnectivity(@RequestBody BackendService provider) {
+        return ResponseEntity.ok(providerService.testConnectivity(provider));
+    }
+
+    @PostMapping("/discover-models")
+    public ResponseEntity<UpstreamProviderService.ModelDiscoveryResult> discoverModels(@RequestBody BackendService provider) {
+        return ResponseEntity.ok(providerService.discoverModels(provider));
+    }
+
     /**
      * 更新上游提供商
      */

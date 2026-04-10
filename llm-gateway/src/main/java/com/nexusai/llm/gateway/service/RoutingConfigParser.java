@@ -41,6 +41,14 @@ public class RoutingConfigParser {
      * 优先顺序：routingConfig.targetUrl > apiKey.targetUrl > 默认值。
      */
     public String resolveTargetUrl(String routingConfig, String apiKeyTargetUrl) {
+        String configuredTarget = resolveConfiguredTargetUrl(routingConfig, apiKeyTargetUrl);
+        if (configuredTarget != null && !configuredTarget.isBlank()) {
+            return configuredTarget;
+        }
+        return DEFAULT_BACKEND_URL;
+    }
+
+    public String resolveConfiguredTargetUrl(String routingConfig, String apiKeyTargetUrl) {
         if (routingConfig != null && !routingConfig.isBlank()) {
             try {
                 JsonNode root = objectMapper.readTree(routingConfig);
@@ -55,6 +63,6 @@ public class RoutingConfigParser {
         if (apiKeyTargetUrl != null && !apiKeyTargetUrl.isBlank()) {
             return apiKeyTargetUrl;
         }
-        return DEFAULT_BACKEND_URL;
+        return null;
     }
 }

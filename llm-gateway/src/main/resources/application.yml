@@ -27,6 +27,9 @@ spring:
     prefix: classpath:/templates/
     suffix: .html
     cache: false
+  mvc:
+    async:
+      request-timeout: 300000
 
 logging:
   level:

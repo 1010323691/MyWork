@@ -15,6 +15,8 @@ import java.time.LocalDateTime;
 public class ApiKeyResponse {
 
     private Long id;
+    private Long userId;
+    private String username;
     @JsonProperty("key")
     private String apiKeyValue;
     private String name;

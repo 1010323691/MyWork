@@ -79,8 +79,6 @@ Entity 层定义 JPA 实体类，映射数据库表结构。使用 Lombok 简化
 | latencyMs | Long | 响应延迟（毫秒） |
 | costAmount | BigDecimal(18,4) | 消耗金额（人民币） |
 | status | RequestStatus | 请求状态：SUCCESS / FAIL |
-| requestBody | TEXT | 请求体内容（截断至 2000 字符） |
-| responseBody | TEXT | 响应体内容（截断至 2000 字符） |
 | createdAt | LocalDateTime | 创建时间 |
 
 **索引**:
@@ -90,6 +88,11 @@ Entity 层定义 JPA 实体类，映射数据库表结构。使用 Lombok 简化
 - idx_request_log_request_id (request_id)
 
 **枚举类型**: `RequestStatus { SUCCESS, FAIL }`
+
+**日志策略补充**:
+- 不再持久化请求体和响应体，避免大文本长期占用存储空间。
+- `userId` 以 API Key 实际绑定的用户为准写入冗余字段。
+- OpenAI 兼容流式响应优先读取上游 `usage.completion_tokens` 作为 `outputTokens`，只有缺失时才回退为内容估算。
 
 ---
 

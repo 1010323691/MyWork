@@ -62,6 +62,10 @@ Controller 层负责接收 HTTP 请求，进行参数校验、认证授权后调
 4. 转发请求到上游 Provider
 5. 异步记录日志与扣减 Token
 
+### OpenAI 兼容流式接口补充
+- `/v1/chat/completions` 使用 `StreamingResponseBody` 返回上游 SSE 流。
+- 该接口依赖 MVC 异步请求支持；项目已显式配置更长的 async timeout 与专用线程池，避免长响应在 30 秒默认超时后被 Spring 提前关闭。
+
 ---
 
 ### 4. ApiKeyController

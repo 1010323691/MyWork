@@ -95,10 +95,22 @@ public class AdminController {
         ApiKey key = apiKeyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("API Key not found: " + id));
 
-        if (req.getTokenLimit() != null) key.setTokenLimit(req.getTokenLimit());
+        if (Boolean.TRUE.equals(req.getClearTokenLimit())) {
+            key.setTokenLimit(null);
+        } else if (req.getTokenLimit() != null) {
+            key.setTokenLimit(req.getTokenLimit());
+        }
         if (req.getUsedTokens() != null) key.setUsedTokens(req.getUsedTokens());
-        if (req.getTargetUrl() != null) key.setTargetUrl(req.getTargetUrl());
-        if (req.getRoutingConfig() != null) key.setRoutingConfig(req.getRoutingConfig());
+        if (Boolean.TRUE.equals(req.getClearTargetUrl())) {
+            key.setTargetUrl(null);
+        } else if (req.getTargetUrl() != null) {
+            key.setTargetUrl(req.getTargetUrl());
+        }
+        if (Boolean.TRUE.equals(req.getClearRoutingConfig())) {
+            key.setRoutingConfig(null);
+        } else if (req.getRoutingConfig() != null) {
+            key.setRoutingConfig(req.getRoutingConfig());
+        }
         if (req.getEnabled() != null) key.setEnabled(req.getEnabled());
 
         apiKeyRepository.save(key);
@@ -189,6 +201,8 @@ public class AdminController {
     private ApiKeyResponse toKeyResponse(ApiKey key) {
         return ApiKeyResponse.builder()
                 .id(key.getId())
+                .userId(key.getUser() != null ? key.getUser().getId() : null)
+                .username(key.getUser() != null ? key.getUser().getUsername() : null)
                 .apiKeyValue(key.getApiKeyValue())
                 .name(key.getName())
                 .tokenLimit(key.getTokenLimit())

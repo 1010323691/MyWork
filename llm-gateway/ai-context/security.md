@@ -32,11 +32,19 @@ Security 层基于 Spring Security 构建，支持两种认证模式：Session/C
 
 #### CORS 配置
 ```java
-allowedOrigins: ["http://localhost:8080", "http://127.0.0.1:8080"]
-allowedMethods: [GET, POST, PUT, DELETE, OPTIONS]
-allowedHeaders: [Authorization, Content-Type, X-API-Key]
+allowedOriginPatterns: [
+  "http://localhost:*",
+  "http://127.0.0.1:*",
+  "http://192.168.*:*",
+  "http://10.*:*",
+  "http://172.16.*:*" ~ "http://172.31.*:*"
+]
+allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+allowedHeaders: [Authorization, Content-Type, X-API-Key, X-Requested-With]
 allowCredentials: true
 ```
+
+- 所有预检请求 `OPTIONS /**` 显式放行，便于本地前端在不同端口或局域网 IP 下调试。
 
 ---
 

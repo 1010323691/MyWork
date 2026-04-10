@@ -11,13 +11,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 public class RequestLogService {
 
     private static final Logger logger = LoggerFactory.getLogger(RequestLogService.class);
-    private static final int MAX_BODY_LENGTH = 2000;
-
     private final RequestLogRepository requestLogRepository;
     private final ApiKeyRepository apiKeyRepository;
 
@@ -34,24 +33,28 @@ public class RequestLogService {
                                 RequestLog.RequestStatus status,
                                 String requestBody, String responseBody) {
         try {
-            ApiKey apiKeyRef = new ApiKey();
-            apiKeyRef.setId(apiKeyId);
+            Optional<ApiKey> apiKeyOptional = apiKeyRepository.findWithUserById(apiKeyId);
+            if (apiKeyOptional.isEmpty()) {
+                logger.warn("Skip request log because apiKeyId={} was not found", apiKeyId);
+                return;
+            }
+
+            ApiKey apiKey = apiKeyOptional.get();
+            Long resolvedUserId = apiKey.getUser() != null ? apiKey.getUser().getId() : userId;
 
             RequestLog log = RequestLog.builder()
-                    .apiKey(apiKeyRef)
-                    .userId(userId)
+                    .apiKey(apiKey)
+                    .userId(resolvedUserId)
                     .requestId(requestId)
-                    .inputTokens(inputTokens)
-                    .outputTokens(outputTokens)
+                    .inputTokens(defaultLong(inputTokens))
+                    .outputTokens(defaultLong(outputTokens))
                     .modelName(modelName)
                     .latencyMs(latencyMs)
                     .status(status)
-                    .requestBody(truncate(requestBody))
-                    .responseBody(truncate(responseBody))
                     .build();
             requestLogRepository.save(log);
         } catch (Exception e) {
-            logger.error("Failed to save request log for apiKeyId={}: {}", apiKeyId, e.getMessage());
+            logger.error("Failed to save request log for apiKeyId={}: {}", apiKeyId, e.getMessage(), e);
         }
     }
 
@@ -74,8 +77,7 @@ public class RequestLogService {
         }
     }
 
-    private String truncate(String s) {
-        if (s == null) return null;
-        return s.length() <= MAX_BODY_LENGTH ? s : s.substring(0, MAX_BODY_LENGTH);
+    private long defaultLong(Long value) {
+        return value != null ? value : 0L;
     }
 }

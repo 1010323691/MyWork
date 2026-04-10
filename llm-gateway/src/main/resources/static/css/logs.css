@@ -1,220 +1,194 @@
 /* ============================================
-   LLM Gateway - Logs Page Styles
-   米白色玻璃拟态风格 | Cream Glassmorphism
+   Logs Page
    ============================================ */
 
-/* Filter bar for logs page */
-.filter-bar {
+.logs-stats {
     margin-bottom: 24px;
 }
 
-.filter-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    align-items: flex-end;
-}
-
 .filter-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    min-width: 160px;
 }
 
 .filter-item label {
-    font-size: 13px;
-    font-weight: 500;
-    color: #8B7D6C;
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    letter-spacing: 0.3px;
 }
 
-.filter-item input[type="date"],
-.filter-item select,
-.filter-item input[type="text"] {
-    padding: 8px 12px;
-    border: 1px solid rgba(232, 220, 196, 0.5);   /* Was 0.8 → more subtle */
-    border-radius: 6px;
-    font-size: 14px;
-    color: #3D3934;
-    background: rgba(255, 255, 255, 0.2);       /* Was 0.5 → more transparent */
-    backdrop-filter: blur(16px);                /* Was 10px → stronger glass effect */
+.filter-item input,
+.filter-item select {
+    width: 100%;
+    padding: 10px 14px;
+    min-height: 44px;
+    color: var(--text-primary);
+    background: rgba(15, 20, 60, 0.68);
+    border: 1px solid rgba(0, 212, 255, 0.16);
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    min-width: 150px;
-    transition: all 0.3s ease;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
 }
 
-.filter-item input[type="date"]:focus,
-.filter-item select:focus,
-.filter-item input[type="text"]:focus {
+.filter-item input::placeholder {
+    color: var(--text-muted);
+}
+
+.filter-item input:hover,
+.filter-item select:hover {
+    border-color: rgba(0, 212, 255, 0.28);
+}
+
+.filter-item input:focus,
+.filter-item select:focus {
     outline: none;
-    border-color: #C9A86C;
-    box-shadow: 0 0 0 3px rgba(201, 168, 108, 0.15);
+    border-color: var(--accent-cyan);
+    background: rgba(15, 20, 60, 0.82);
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.16), 0 0 18px rgba(0, 212, 255, 0.14);
 }
 
-.filter-btn {
-    flex-direction: row;
+.filter-item.filter-btn {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex: 2;
+}
+
+.logs-toolbar {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    padding-top: 24px;
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
-/* Log Table Enhancements */
+.logs-meta {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
 .log-table-container {
     overflow-x: auto;
 }
 
-.table.logs-table th {
-    background: rgba(255, 253, 247, 0.18);       /* Was 0.9 → more transparent */
-    backdrop-filter: blur(16px);                 /* Stronger glass effect */
-    -webkit-backdrop-filter: blur(16px);
+.logs-table {
+    min-width: 960px;
 }
 
-.table.logs-table .status-column {
+.logs-table th,
+.logs-table td {
+    vertical-align: middle;
+}
+
+.tokens-column,
+.duration-column,
+.status-column {
+    width: 110px;
+}
+
+.table-empty {
     text-align: center;
-    width: 100px;
+    color: var(--text-muted);
+    padding: 40px 16px;
 }
 
-.table.logs-table .duration-column {
-    text-align: right;
-    width: 100px;
-}
-
-.table.logs-table .tokens-column {
-    text-align: right;
-    width: 120px;
-}
-
-/* Log Detail Modal */
-.log-detail-modal .modal-content {
-    max-width: 700px;
-}
-
-.log-request,
-.log-response {
-    background: rgba(61, 57, 52, 0.08);          /* Slightly more visible */
-    backdrop-filter: blur(16px);                 /* Was 5px → stronger glass effect */
-    -webkit-backdrop-filter: blur(16px);
-    border-radius: 8px;
-    padding: 16px;
-    margin-top: 12px;
-    max-height: 300px;
-    overflow-y: auto;
-    border: 1px solid rgba(232, 220, 196, 0.35); /* Added subtle border for definition */
-}
-
-.log-request h5,
-.log-response h5 {
-    font-size: 14px;
-    color: #8B7D6C;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.log-json-content {
-    font-family: 'Monaco', 'Menlo', monospace;
+.request-id {
+    font-family: Consolas, 'Courier New', monospace;
     font-size: 12px;
-    color: #3D3934;
-    white-space: pre-wrap;
-    word-break: break-all;
+    color: var(--text-secondary);
 }
 
-/* Log metadata display */
-.log-meta-row {
-    display: flex;
-    gap: 24px;
-    margin-bottom: 16px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid rgba(232, 220, 196, 0.4);
+.log-detail-modal {
+    max-width: 860px;
+}
+
+.log-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
 }
 
 .log-meta-item {
-    flex: 1;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(232, 220, 196, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .log-meta-label {
     font-size: 12px;
-    color: #8B7D6C;
-    margin-bottom: 4px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
 }
 
 .log-meta-value {
+    color: var(--text-primary);
     font-size: 14px;
-    color: #3D3934;
-    font-weight: 500;
+    font-weight: 600;
+    word-break: break-word;
 }
 
-/* Search box for logs */
-.logs-search-box {
-    flex: 1;
-    min-width: 200px;
+.detail-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
 }
 
-.logs-search-box input {
-    width: 100%;
+.metric-card {
+    padding: 16px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(255, 253, 247, 0.52), rgba(255, 253, 247, 0.28));
+    border: 1px solid rgba(232, 220, 196, 0.45);
 }
 
-/* Timeline visualization placeholder */
-.log-timeline {
-    height: 4px;
-    background: rgba(232, 220, 196, 0.5);
-    border-radius: 2px;
-    margin-top: 8px;
-    position: relative;
+.metric-label {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 8px;
 }
 
-.log-timeline .duration-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #C9A86C, #E8DCC4);
-    border-radius: 2px;
-    min-width: 2px;
+.metric-value {
+    color: var(--text-primary);
+    font-size: 20px;
+    font-weight: 700;
 }
 
-/* Page info */
-.pagination .page-info {
-    font-size: 14px;
-    color: #8B7D6C;
-}
-
-/* Refresh button with auto-refresh indicator */
-.refresh-btn-container {
-    display: flex;
+.pagination {
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
 }
 
-.auto-refresh-indicator {
-    width: 8px;
-    height: 8px;
-    background: #2D7A3C;
-    border-radius: 50%;
-    animation: pulse 2s infinite;
+.pagination .page-info {
+    color: var(--text-secondary);
+    font-size: 14px;
 }
 
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-
-/* Responsive */
 @media (max-width: 768px) {
-    .filter-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .filter-item {
+    .filter-item,
+    .filter-item.filter-btn {
         width: 100%;
+        min-width: 100%;
     }
 
-    .table.logs-table {
-        font-size: 12px;
+    .filter-item.filter-btn {
+        flex-wrap: wrap;
     }
 
-    .log-meta-row {
+    .logs-toolbar {
         flex-direction: column;
-        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .log-meta-grid,
+    .detail-metrics {
+        grid-template-columns: 1fr;
     }
 }

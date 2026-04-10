@@ -89,7 +89,17 @@ class API {
                 throw error;
             }
 
-            return await response.json();
+            if (response.status === 204) {
+                return null;
+            }
+
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                return null;
+            }
+
+            const text = await response.text();
+            return text ? JSON.parse(text) : null;
         } catch (error) {
             if (error.name === 'AbortError') {
                 throw new Error('请求超时，请重试');

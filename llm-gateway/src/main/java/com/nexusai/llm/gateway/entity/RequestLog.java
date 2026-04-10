@@ -52,12 +52,6 @@ public class RequestLog {
     @Column(name = "status", nullable = false, length = 10)
     private RequestStatus status;
 
-    @Column(name = "request_body", columnDefinition = "TEXT")
-    private String requestBody;
-
-    @Column(name = "response_body", columnDefinition = "TEXT")
-    private String responseBody;
-
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

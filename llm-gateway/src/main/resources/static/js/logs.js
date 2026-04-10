@@ -6,8 +6,8 @@
     'use strict';
 
     let currentPage = 0;
+    let currentPageSize = 20;
     let currentUserRole = '';
-    let selectedApiKey = '';
 
     document.addEventListener('DOMContentLoaded', async function() {
         if (!(await API.isAuthenticated())) {
@@ -21,227 +21,353 @@
             return;
         }
 
-        currentUserRole = user.role; // 'USER' 或 'ADMIN'
+        currentUserRole = user.role || '';
         initSidebarUserInfo(user);
+        initFilters(user);
+        bindEvents();
         await loadApiKeyDropdown();
-        loadLogs(0);
+        await loadLogs(0);
     });
 
     function initSidebarUserInfo(user) {
         const usernameEl = document.getElementById('sidebarUsername');
         const avatarEl = document.getElementById('sidebarUserAvatar');
-        if (user && usernameEl) {
-            usernameEl.textContent = user.username;
+
+        if (usernameEl) {
+            usernameEl.textContent = user.username || '-';
         }
-        if (user && avatarEl) {
-            avatarEl.textContent = user.username.substring(0, 1).toUpperCase();
+        if (avatarEl) {
+            avatarEl.textContent = (user.username || 'U').substring(0, 1).toUpperCase();
         }
     }
 
-    /**
-     * 加载 API Keys 到筛选下拉框
-     * - 用户：只能看到自己的 keys
-     * - 管理员：可以看到所有 keys
-     */
+    function initFilters(user) {
+        const userIdGroup = document.getElementById('userIdFilterGroup');
+        const userIdInput = document.getElementById('filterUserId');
+
+        if (currentUserRole === 'ADMIN') {
+            if (userIdGroup) {
+                userIdGroup.classList.remove('d-none');
+            }
+        } else {
+            if (userIdGroup) {
+                userIdGroup.classList.add('d-none');
+            }
+            if (userIdInput && user && user.id) {
+                userIdInput.value = String(user.id);
+            }
+        }
+    }
+
+    function bindEvents() {
+        document.getElementById('searchLogsBtn')?.addEventListener('click', function() {
+            loadLogs(0);
+        });
+        document.getElementById('refreshLogsBtn')?.addEventListener('click', function() {
+            loadLogs(currentPage);
+        });
+        document.getElementById('resetLogsBtn')?.addEventListener('click', resetFilters);
+        document.getElementById('closeLogDetailBtn')?.addEventListener('click', closeModal);
+        document.getElementById('confirmCloseLogDetailBtn')?.addEventListener('click', closeModal);
+
+        ['filterApiKey', 'filterStatus', 'filterPageSize', 'filterStartDate', 'filterEndDate'].forEach(function(id) {
+            document.getElementById(id)?.addEventListener('change', function() {
+                loadLogs(0);
+            });
+        });
+
+        document.getElementById('filterUserId')?.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                loadLogs(0);
+            }
+        });
+
+        const modal = document.getElementById('logDetailModal');
+        if (modal) {
+            modal.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+        }
+    }
+
     async function loadApiKeyDropdown() {
         const select = document.getElementById('filterApiKey');
         if (!select) return;
 
         try {
-            let keys = [];
+            const endpoint = currentUserRole === 'ADMIN' ? '/admin/apikeys' : '/user/apikeys';
+            const keys = await API.get(endpoint) || [];
 
-            // 根据角色选择端点
-            const endpoint = currentUserRole === 'ADMIN' ? '/api/admin/apikeys' : '/api/user/apikeys';
-
-            try {
-                const response = await fetch(endpoint, {
-                    credentials: 'same-origin'
-                });
-                if (response.ok) {
-                    keys = await response.json();
-                }
-            } catch (e) {
-                console.error('加载 API Keys 失败:', e);
-            }
-
-            // 构建选项
             let options = '<option value="">全部 API Keys</option>';
             keys.forEach(function(key) {
-                options += '<option value="' + key.id + '">' + escapeHtml(key.name) + '</option>';
+                options += '<option value="' + key.id + '">' + escapeHtml(key.name || ('Key #' + key.id)) + '</option>';
             });
             select.innerHTML = options;
-
-            // 如果有多个 key，显示下拉框；否则隐藏
-            select.style.display = keys.length > 1 ? 'inline-block' : 'none';
-        } catch (e) {
-            console.error('加载 API Keys 失败:', e);
-            select.style.display = 'none';
+        } catch (error) {
+            console.error('加载 API Key 列表失败:', error);
+            UI.showErrorMessage('加载 API Key 列表失败: ' + error.message);
         }
     }
 
-    /**
-     * 加载日志列表（支持分页 + 筛选）
-     */
     async function loadLogs(page) {
         currentPage = page || 0;
-        selectedApiKey = document.getElementById('filterApiKey').value || '';
-        const status = document.getElementById('filterStatus').value || '';
+        currentPageSize = Number(document.getElementById('filterPageSize')?.value || 20);
 
         const loading = document.getElementById('logsLoading');
         const container = document.getElementById('logsContainer');
         if (loading) loading.classList.remove('d-none');
         if (container) container.classList.add('d-none');
 
-        // 构建查询参数
-        let params = 'page=' + page + '&size=20';
-        if (selectedApiKey) params += '&apiKeyId=' + selectedApiKey;
-        if (status) params += '&status=' + status;
-
-        // 根据角色选择端点
-        const endpoint = currentUserRole === 'ADMIN'
-            ? '/api/admin/logs'
-            : '/api/user/logs';
-
         try {
-            const response = await fetch(endpoint + '?' + params, {
-                credentials: 'same-origin'
-            });
+            const endpoint = currentUserRole === 'ADMIN' ? '/admin/logs' : '/user/logs';
+            const data = await API.get(endpoint + '?' + buildQueryParams(currentPage).toString());
+            const logs = data?.content || [];
 
-            if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
-            }
-
-            const data = await response.json();
-            renderLogsTable(data.content || []);
-            renderPagination(data.number || 0, data.totalPages || 0, data.totalElements || 0);
+            renderLogsTable(logs);
+            renderMeta(data, logs);
+            renderSummary(data, logs);
+            renderPagination(data?.number || 0, data?.totalPages || 0, data?.totalElements || 0);
 
             if (container) container.classList.remove('d-none');
-        } catch (e) {
-            console.error('加载日志失败:', e);
-            UI.showErrorMessage('加载日志失败：' + e.message);
+        } catch (error) {
+            console.error('加载日志失败:', error);
+            UI.showErrorMessage('加载日志失败: ' + error.message);
         } finally {
             if (loading) loading.classList.add('d-none');
         }
     }
 
-    /**
-     * 渲染日志表格
-     */
+    function buildQueryParams(page) {
+        const params = new URLSearchParams();
+        const apiKeyId = document.getElementById('filterApiKey')?.value || '';
+        const status = document.getElementById('filterStatus')?.value || '';
+        const startDate = document.getElementById('filterStartDate')?.value || '';
+        const endDate = document.getElementById('filterEndDate')?.value || '';
+        const userId = document.getElementById('filterUserId')?.value || '';
+
+        params.set('page', String(page));
+        params.set('size', String(currentPageSize));
+        if (userId) params.set('userId', userId);
+        if (apiKeyId) params.set('apiKeyId', apiKeyId);
+        if (status) params.set('status', status);
+        if (startDate) params.set('startDate', startDate);
+        if (endDate) params.set('endDate', endDate);
+
+        return params;
+    }
+
     function renderLogsTable(logs) {
         const tbody = document.getElementById('logsTableBody');
         if (!tbody) return;
 
-        if (logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:40px;">暂无日志</td></tr>';
+        if (!logs.length) {
+            tbody.innerHTML = '<tr><td colspan="11" class="table-empty">当前条件下没有日志</td></tr>';
             return;
         }
 
         tbody.innerHTML = logs.map(function(log) {
-            const statusBadge = log.status === 'SUCCESS'
-                ? '<span class="badge-success">成功</span>'
-                : '<span class="badge-danger">失败</span>';
-
-            const totalTokens = (log.inputTokens || 0) + (log.outputTokens || 0);
-            const tokenDisplay = (log.inputTokens || 0) + ' / ' + (log.outputTokens || 0) + ' (' + UI.formatNumber(totalTokens) + ')';
+            const inputTokens = numberOrZero(log.inputTokens);
+            const outputTokens = numberOrZero(log.outputTokens);
+            const totalTokens = inputTokens + outputTokens;
 
             return '<tr>' +
-                '<td>' + formatDate(log.createdAt) + '</td>' +
+                '<td>' + formatDateTime(log.createdAt) + '</td>' +
+                '<td><span class="request-id" title="' + escapeHtml(log.requestId || '-') + '">' + escapeHtml(shortRequestId(log.requestId)) + '</span></td>' +
+                '<td>' + escapeHtml(stringValue(log.userId)) + '</td>' +
                 '<td>' + escapeHtml(log.apiKeyName || '-') + '</td>' +
                 '<td>' + escapeHtml(log.modelName || '-') + '</td>' +
-                '<td>' + tokenDisplay + '</td>' +
-                '<td>' + (log.latencyMs || 0) + 'ms</td>' +
-                '<td>' + statusBadge + '</td>' +
-                '<td>' +
-                    '<button class="btn btn-sm btn-primary" onclick="viewLogDetails(' + log.id + ')">详情</button>' +
-                '</td>' +
+                '<td class="text-right">' + UI.formatNumber(inputTokens) + '</td>' +
+                '<td class="text-right">' + UI.formatNumber(outputTokens) + '</td>' +
+                '<td class="text-right">' + UI.formatNumber(totalTokens) + '</td>' +
+                '<td class="text-right">' + formatLatency(log.latencyMs) + '</td>' +
+                '<td class="text-center">' + renderStatusBadge(log.status) + '</td>' +
+                '<td><button class="btn btn-sm btn-primary" onclick="viewLogDetails(' + log.id + ')">详情</button></td>' +
                 '</tr>';
         }).join('');
     }
 
-    /**
-     * 渲染分页
-     */
-    function renderPagination(page, total, totalElements) {
-        const el = document.getElementById('logsPagination');
-        if (!el) return;
+    function renderMeta(pageData, logs) {
+        const meta = document.getElementById('logsMeta');
+        if (!meta) return;
 
-        if (total <= 1) {
-            el.innerHTML = '<span class="page-info">共 ' + totalElements + ' 条</span>';
+        const current = pageData?.numberOfElements ?? logs.length;
+        const total = pageData?.totalElements ?? logs.length;
+        meta.textContent = '当前显示 ' + current + ' 条，共匹配 ' + total + ' 条';
+    }
+
+    function renderSummary(pageData, logs) {
+        const totals = logs.reduce(function(accumulator, log) {
+            accumulator.success += log.status === 'SUCCESS' ? 1 : 0;
+            accumulator.tokens += numberOrZero(log.inputTokens) + numberOrZero(log.outputTokens);
+            accumulator.latency += numberOrZero(log.latencyMs);
+            return accumulator;
+        }, { success: 0, tokens: 0, latency: 0 });
+
+        const avgLatency = logs.length ? Math.round(totals.latency / logs.length) : 0;
+
+        setText('statTotalRequests', UI.formatNumber(pageData?.totalElements || 0));
+        setText('statSuccessRequests', UI.formatNumber(totals.success));
+        setText('statTotalTokens', UI.formatNumber(totals.tokens));
+        setText('statAvgLatency', formatLatency(avgLatency));
+    }
+
+    function renderPagination(page, totalPages, totalElements) {
+        const container = document.getElementById('logsPagination');
+        if (!container) return;
+
+        if (totalPages <= 1) {
+            container.innerHTML = '<span class="page-info">共 ' + totalElements + ' 条</span>';
             return;
         }
 
-        el.innerHTML =
-            '<button ' + (page === 0 ? 'disabled' : '') + ' onclick="goPage(' + (page - 1) + ')">上一页</button>' +
-            '<span class="page-info">第 ' + (page + 1) + ' / ' + total + ' 页，共 ' + totalElements + ' 条</span>' +
-            '<button ' + (page >= total - 1 ? 'disabled' : '') + ' onclick="goPage(' + (page + 1) + ')">下一页</button>';
+        const startPage = Math.max(0, page - 2);
+        const endPage = Math.min(totalPages, startPage + 5);
+        let html = '';
+
+        html += '<button class="btn btn-sm btn-secondary" ' +
+            (page === 0 ? 'disabled' : '') +
+            ' onclick="goPage(' + (page - 1) + ')">上一页</button>';
+
+        for (let index = startPage; index < endPage; index += 1) {
+            html += '<button class="btn btn-sm ' + (index === page ? 'btn-primary active' : 'btn-secondary') +
+                '" onclick="goPage(' + index + ')">' + (index + 1) + '</button>';
+        }
+
+        html += '<button class="btn btn-sm btn-secondary" ' +
+            (page >= totalPages - 1 ? 'disabled' : '') +
+            ' onclick="goPage(' + (page + 1) + ')">下一页</button>';
+        html += '<span class="page-info">第 ' + (page + 1) + ' / ' + totalPages + ' 页，共 ' + totalElements + ' 条</span>';
+
+        container.innerHTML = html;
     }
 
-    /**
-     * 查看详情
-     */
     async function viewLogDetails(id) {
-        const endpoint = currentUserRole === 'ADMIN'
-            ? '/api/admin/logs/' + id
-            : '/api/user/logs/' + id;
-
         try {
-            const response = await fetch(endpoint, {
-                credentials: 'same-origin'
-            });
-
-            if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
-            }
-
-            const log = await response.json();
+            const endpoint = currentUserRole === 'ADMIN' ? '/admin/logs/' + id : '/user/logs/' + id;
+            const log = await API.get(endpoint);
             fillLogDetails(log);
-            document.getElementById('logDetailModal').style.display = 'flex';
-        } catch (e) {
-            console.error('加载详情失败:', e);
-            UI.showErrorMessage('加载详情失败：' + e.message);
+            document.getElementById('logDetailModal')?.classList.add('show');
+        } catch (error) {
+            console.error('加载日志详情失败:', error);
+            UI.showErrorMessage('加载日志详情失败: ' + error.message);
         }
     }
 
-    /**
-     * 填充详情模态框
-     */
     function fillLogDetails(log) {
-        document.getElementById('detailTime').textContent = formatDate(log.createdAt);
-        document.getElementById('detailApiKey').textContent = log.apiKeyName || '-';
-        document.getElementById('detailModel').textContent = log.modelName || '-';
-        document.getElementById('detailInput').textContent = UI.formatNumber(log.inputTokens || 0);
-        document.getElementById('detailOutput').textContent = UI.formatNumber(log.outputTokens || 0);
+        const inputTokens = numberOrZero(log.inputTokens);
+        const outputTokens = numberOrZero(log.outputTokens);
 
-        const totalTokens = (log.inputTokens || 0) + (log.outputTokens || 0);
-        document.getElementById('detailTotal').textContent = UI.formatNumber(totalTokens);
-        document.getElementById('detailLatency').textContent = (log.latencyMs || 0) + 'ms';
+        setText('detailTime', formatDateTime(log.createdAt));
+        setText('detailRequestId', stringValue(log.requestId));
+        setText('detailUserId', stringValue(log.userId));
+        setText('detailApiKey', stringValue(log.apiKeyName));
+        setText('detailModel', stringValue(log.modelName));
+        setText('detailInput', UI.formatNumber(inputTokens));
+        setText('detailOutput', UI.formatNumber(outputTokens));
+        setText('detailTotal', UI.formatNumber(inputTokens + outputTokens));
+        setText('detailLatency', formatLatency(log.latencyMs));
+        setText('detailCost', formatCost(log.costAmount));
 
         const statusEl = document.getElementById('detailStatus');
-        if (log.status === 'SUCCESS') {
-            statusEl.innerHTML = '<span class="badge-success">成功</span>';
-        } else {
-            statusEl.innerHTML = '<span class="badge-danger">失败</span>';
+        if (statusEl) {
+            statusEl.innerHTML = renderStatusBadge(log.status);
         }
     }
 
-    /**
-     * 格式化日期
-     */
-    function formatDate(timestamp) {
-        if (!timestamp) return '-';
-        const date = new Date(timestamp);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        return year + '-' + month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
+    function closeModal() {
+        document.getElementById('logDetailModal')?.classList.remove('show');
     }
 
-    /**
-     * HTML 转义
-     */
+    function resetFilters() {
+        setValue('filterApiKey', '');
+        setValue('filterStatus', '');
+        setValue('filterStartDate', '');
+        setValue('filterEndDate', '');
+        setValue('filterPageSize', '20');
+        if (currentUserRole === 'ADMIN') {
+            setValue('filterUserId', '');
+        }
+        currentPageSize = 20;
+        loadLogs(0);
+    }
+
+    function formatDateTime(timestamp) {
+        if (!timestamp) return '-';
+
+        const normalized = String(timestamp).includes('T')
+            ? String(timestamp)
+            : String(timestamp).replace(' ', 'T');
+        const date = new Date(normalized);
+
+        if (Number.isNaN(date.getTime())) {
+            return String(timestamp).replace('T', ' ');
+        }
+
+        return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+    }
+
+    function formatLatency(latencyMs) {
+        return numberOrZero(latencyMs) + ' ms';
+    }
+
+    function formatCost(costAmount) {
+        if (costAmount === null || costAmount === undefined || costAmount === '') {
+            return '-';
+        }
+        return String(costAmount);
+    }
+
+    function renderStatusBadge(status) {
+        if (status === 'SUCCESS') {
+            return '<span class="badge badge-success">成功</span>';
+        }
+        if (status === 'FAIL') {
+            return '<span class="badge badge-danger">失败</span>';
+        }
+        return '<span class="badge badge-default">' + escapeHtml(stringValue(status)) + '</span>';
+    }
+
+    function shortRequestId(requestId) {
+        if (!requestId) return '-';
+        return requestId.length > 12 ? requestId.substring(0, 12) + '...' : requestId;
+    }
+
+    function numberOrZero(value) {
+        return Number(value || 0);
+    }
+
+    function stringValue(value) {
+        if (value === null || value === undefined || value === '') {
+            return '-';
+        }
+        return String(value);
+    }
+
+    function setText(id, value) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
+        }
+    }
+
+    function setValue(id, value) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.value = value;
+        }
+    }
+
     function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -249,41 +375,19 @@
         return div.innerHTML;
     }
 
-    /**
-     * 关闭模态框
-     */
-    window.closeModal = function() {
-        document.getElementById('logDetailModal').style.display = 'none';
-    };
-
-    /**
-     * 分页跳转
-     */
     window.goPage = function(page) {
         loadLogs(page);
     };
 
-    /**
-     * 搜索（触发重新加载）
-     */
-    window.loadLogs = function() {
-        loadLogs(0);
-    };
+    window.viewLogDetails = viewLogDetails;
 
-    /**
-     * 退出登录
-     */
     window.logout = function() {
         fetch('/logout', { method: 'POST', credentials: 'same-origin' })
-            .then(function() { window.location.href = '/login'; })
-            .catch(function() { window.location.href = '/login'; });
+            .then(function() {
+                window.location.href = '/login';
+            })
+            .catch(function() {
+                window.location.href = '/login';
+            });
     };
-
-    // 关闭模态框（点击遮罩层）
-    const modal = document.getElementById('logDetailModal');
-    if (modal) {
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) closeModal();
-        });
-    }
 })();

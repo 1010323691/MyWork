@@ -11,12 +11,9 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.Optional;
 
 @Service
@@ -24,60 +21,75 @@ public class OpenAiForwardService {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenAiForwardService.class);
     private static final int MAX_CAPTURED_BODY_LENGTH = 4000;
+    private static final int CONNECT_TIMEOUT_MS = 30_000;
+    private static final int READ_TIMEOUT_MS = 300_000;
 
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient;
 
     public OpenAiForwardService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(30))
-                .build();
     }
 
     public ForwardedResponse forwardChatRequest(String backendUrl, JsonNode requestBody, String upstreamApiKey) {
+        HttpURLConnection connection = null;
         try {
-            HttpRequest request = buildJsonRequest(buildChatCompletionsUrl(backendUrl), requestBody, upstreamApiKey);
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            return new ForwardedResponse(
-                    response.statusCode(),
-                    response.headers().firstValue("Content-Type").orElse(MediaType.APPLICATION_JSON_VALUE),
-                    response.body()
-            );
-        } catch (IOException | InterruptedException e) {
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-            logger.error("Forward request failed: {}", e.getMessage());
+            String requestUrl = buildChatCompletionsUrl(backendUrl);
+            logger.info("Sending non-stream request to upstream: url={}, upstreamKeyPresent={}",
+                    requestUrl, upstreamApiKey != null && !upstreamApiKey.isBlank());
+
+            connection = openPostConnection(requestUrl, requestBody, upstreamApiKey);
+            int statusCode = connection.getResponseCode();
+            String contentType = Optional.ofNullable(connection.getContentType()).orElse(MediaType.APPLICATION_JSON_VALUE);
+            String responseBody = readResponseBody(connection, statusCode);
+
+            logger.info("Received non-stream response from upstream: url={}, status={}", requestUrl, statusCode);
+            return new ForwardedResponse(statusCode, contentType, responseBody);
+        } catch (IOException e) {
+            logger.error("Forward request failed: {}", e.getMessage(), e);
             throw new RuntimeException("Backend service error: " + e.getMessage(), e);
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 
     public PreparedStreamingResponse openStreamingChatRequest(String backendUrl, JsonNode requestBody, String upstreamApiKey) {
         try {
-            HttpRequest request = buildJsonRequest(buildChatCompletionsUrl(backendUrl), requestBody, upstreamApiKey);
-            HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
-            return new PreparedStreamingResponse(
-                    response.statusCode(),
-                    response.headers().firstValue("Content-Type").orElse(MediaType.TEXT_EVENT_STREAM_VALUE),
-                    response.body()
-            );
-        } catch (IOException | InterruptedException e) {
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
+            String requestUrl = buildChatCompletionsUrl(backendUrl);
+            logger.info("Opening stream request to upstream: url={}, upstreamKeyPresent={}",
+                    requestUrl, upstreamApiKey != null && !upstreamApiKey.isBlank());
+
+            HttpURLConnection connection = openPostConnection(requestUrl, requestBody, upstreamApiKey);
+            int statusCode = connection.getResponseCode();
+            String contentType = Optional.ofNullable(connection.getContentType()).orElse(MediaType.TEXT_EVENT_STREAM_VALUE);
+            InputStream inputStream = statusCode >= 400 ? connection.getErrorStream() : connection.getInputStream();
+
+            if (inputStream == null) {
+                connection.disconnect();
+                throw new IOException("Upstream returned no response body");
             }
-            logger.error("Open streaming request failed: {}", e.getMessage());
+
+            logger.info("Upstream stream headers received: url={}, status={}", requestUrl, statusCode);
+            return new PreparedStreamingResponse(statusCode, contentType, connection, inputStream);
+        } catch (IOException e) {
+            logger.error("Open streaming request failed: {}", e.getMessage(), e);
             throw new RuntimeException("Backend service error: " + e.getMessage(), e);
         }
     }
 
-    public StreamSummary relayStream(InputStream inputStream, OutputStream outputStream) throws IOException {
+    public StreamSummary relayStream(HttpURLConnection connection, InputStream inputStream, OutputStream outputStream) throws IOException {
         StringBuilder captured = new StringBuilder();
+        StringBuilder visibleContent = new StringBuilder();
+        StringBuilder eventBuffer = new StringBuilder();
         byte[] buffer = new byte[8192];
+        long totalBytes = 0L;
+        long outputTokens = 0L;
 
         try (InputStream upstream = inputStream) {
             int read;
             while ((read = upstream.read(buffer)) != -1) {
+                totalBytes += read;
                 outputStream.write(buffer, 0, read);
                 outputStream.flush();
 
@@ -85,10 +97,31 @@ public class OpenAiForwardService {
                     int remaining = MAX_CAPTURED_BODY_LENGTH - captured.length();
                     captured.append(new String(buffer, 0, Math.min(read, remaining), StandardCharsets.UTF_8));
                 }
+
+                String chunkText = new String(buffer, 0, read, StandardCharsets.UTF_8);
+                eventBuffer.append(chunkText);
+                ParsedStreamStats parsedStats = parseStreamingStats(eventBuffer.toString());
+                eventBuffer.setLength(0);
+                eventBuffer.append(parsedStats.remainingBuffer());
+                if (parsedStats.outputTokens() > 0) {
+                    outputTokens = parsedStats.outputTokens();
+                }
+                if (!parsedStats.deltaContent().isEmpty()) {
+                    visibleContent.append(parsedStats.deltaContent());
+                }
+            }
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
             }
         }
 
-        return new StreamSummary(captured.toString());
+        logger.info("Completed stream relay from upstream: bytes={}, capturedChars={}", totalBytes, captured.length());
+        return new StreamSummary(
+                captured.toString(),
+                visibleContent.toString(),
+                outputTokens
+        );
     }
 
     public ObjectNode rewriteRequestModel(JsonNode originalRequest, String model) {
@@ -125,19 +158,41 @@ public class OpenAiForwardService {
         return (long) Math.ceil((englishChars / 4.0) + (chineseChars / 1.5) + (otherChars / 4.0));
     }
 
-    private HttpRequest buildJsonRequest(String url, JsonNode requestBody, String upstreamApiKey) throws IOException {
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(300))
-                .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
-                .header("Accept", MediaType.ALL_VALUE)
-                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody), StandardCharsets.UTF_8));
+    private HttpURLConnection openPostConnection(String url, JsonNode requestBody, String upstreamApiKey) throws IOException {
+        byte[] requestBytes = objectMapper.writeValueAsString(requestBody).getBytes(StandardCharsets.UTF_8);
+
+        HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
+        connection.setRequestMethod("POST");
+        connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        connection.setReadTimeout(READ_TIMEOUT_MS);
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+        connection.setRequestProperty("Accept", MediaType.ALL_VALUE);
+        connection.setRequestProperty("Charset", StandardCharsets.UTF_8.name());
+        connection.setRequestProperty("Content-Length", String.valueOf(requestBytes.length));
+        connection.setRequestProperty("Connection", "keep-alive");
 
         if (upstreamApiKey != null && !upstreamApiKey.isBlank()) {
-            builder.header("Authorization", "Bearer " + upstreamApiKey);
+            connection.setRequestProperty("Authorization", "Bearer " + upstreamApiKey);
         }
 
-        return builder.build();
+        try (OutputStream outputStream = connection.getOutputStream()) {
+            outputStream.write(requestBytes);
+            outputStream.flush();
+        }
+
+        return connection;
+    }
+
+    private String readResponseBody(HttpURLConnection connection, int statusCode) throws IOException {
+        InputStream stream = statusCode >= 400 ? connection.getErrorStream() : connection.getInputStream();
+        if (stream == null) {
+            return "";
+        }
+
+        try (InputStream inputStream = stream) {
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 
     private String buildChatCompletionsUrl(String backendUrl) {
@@ -164,9 +219,56 @@ public class OpenAiForwardService {
     public record ForwardedResponse(int statusCode, String contentType, String body) {
     }
 
-    public record PreparedStreamingResponse(int statusCode, String contentType, InputStream inputStream) {
+    public record PreparedStreamingResponse(int statusCode, String contentType, HttpURLConnection connection, InputStream inputStream) {
     }
 
-    public record StreamSummary(String capturedBody) {
+    private ParsedStreamStats parseStreamingStats(String buffer) {
+        StringBuilder remaining = new StringBuilder();
+        StringBuilder deltaContent = new StringBuilder();
+        long outputTokens = 0L;
+
+        String[] lines = buffer.split("\\r?\\n");
+        boolean endsWithNewline = buffer.endsWith("\n") || buffer.endsWith("\r");
+
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            boolean lastLine = i == lines.length - 1;
+            if (lastLine && !endsWithNewline) {
+                remaining.append(line);
+                continue;
+            }
+
+            if (!line.startsWith("data: ")) {
+                continue;
+            }
+
+            String payload = line.substring(6).trim();
+            if (payload.isEmpty() || "[DONE]".equals(payload)) {
+                continue;
+            }
+
+            try {
+                JsonNode root = objectMapper.readTree(payload);
+                JsonNode usage = root.path("usage");
+                if (usage.has("completion_tokens")) {
+                    outputTokens = usage.path("completion_tokens").asLong(outputTokens);
+                }
+
+                JsonNode contentNode = root.path("choices").path(0).path("delta").path("content");
+                if (!contentNode.isMissingNode() && !contentNode.isNull()) {
+                    deltaContent.append(contentNode.asText(""));
+                }
+            } catch (Exception ignored) {
+                remaining.append(line);
+            }
+        }
+
+        return new ParsedStreamStats(remaining.toString(), deltaContent.toString(), outputTokens);
+    }
+
+    private record ParsedStreamStats(String remainingBuffer, String deltaContent, long outputTokens) {
+    }
+
+    public record StreamSummary(String capturedBody, String visibleContent, long outputTokens) {
     }
 }

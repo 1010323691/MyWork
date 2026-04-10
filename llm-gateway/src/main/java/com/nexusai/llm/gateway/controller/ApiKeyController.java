@@ -5,6 +5,7 @@ import com.nexusai.llm.gateway.dto.ApiKeyResponse;
 import com.nexusai.llm.gateway.entity.ApiKey;
 import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.ApiKeyRepository;
+import com.nexusai.llm.gateway.repository.UserRepository;
 import com.nexusai.llm.gateway.security.ApiKeyService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,11 +27,15 @@ public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
     private final ApiKeyRepository apiKeyRepository;
+    private final UserRepository userRepository;
 
     @Autowired
-    public ApiKeyController(ApiKeyService apiKeyService, ApiKeyRepository apiKeyRepository) {
+    public ApiKeyController(ApiKeyService apiKeyService,
+                            ApiKeyRepository apiKeyRepository,
+                            UserRepository userRepository) {
         this.apiKeyService = apiKeyService;
         this.apiKeyRepository = apiKeyRepository;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -48,14 +53,14 @@ public class ApiKeyController {
         boolean isAdmin = isAdmin(userDetails);
 
         // 检查是否是 ADMIN，如果是 ADMIN 且指定了 userId，则查询指定用户的 API Keys
-        Long targetUserId = null;
-        if (isAdmin && userId != null) {
-            targetUserId = userId;
+        List<ApiKey> apiKeys;
+        if (isAdmin) {
+            apiKeys = userId != null
+                    ? apiKeyRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                    : apiKeyRepository.findAllByOrderByCreatedAtDesc();
         } else {
-            targetUserId = currentUserId;
+            apiKeys = apiKeyRepository.findByUserIdOrderByCreatedAtDesc(currentUserId);
         }
-
-        List<ApiKey> apiKeys = apiKeyRepository.findByUserId(targetUserId);
 
         List<ApiKeyResponse> response = apiKeys.stream().map(this::toResponse).collect(Collectors.toList());
         return ResponseEntity.ok(response);
@@ -68,12 +73,19 @@ public class ApiKeyController {
     public ResponseEntity<ApiKeyResponse> createApiKey(
             HttpServletRequest request,
             @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam(required = false) Long userId,
             @Valid @RequestBody ApiKeyRequest requestBody) {
 
-        Long userId = getCurrentUserId(userDetails, request);
+        Long currentUserId = getCurrentUserId(userDetails, request);
+        boolean isAdmin = isAdmin(userDetails);
+        Long targetUserId = (isAdmin && userId != null) ? userId : currentUserId;
+
+        if (targetUserId == null || !userRepository.existsById(targetUserId)) {
+            throw new RuntimeException("User not found: " + targetUserId);
+        }
 
         ApiKey apiKey = apiKeyService.createApiKey(
-                userId,
+                targetUserId,
                 requestBody.getName(),
                 requestBody.getTokenLimit(),
                 requestBody.getExpiresAtDays(),
@@ -166,6 +178,8 @@ public class ApiKeyController {
     private ApiKeyResponse toResponse(ApiKey apiKey) {
         return ApiKeyResponse.builder()
                 .id(apiKey.getId())
+                .userId(apiKey.getUser() != null ? apiKey.getUser().getId() : null)
+                .username(apiKey.getUser() != null ? apiKey.getUser().getUsername() : null)
                 .apiKeyValue(apiKey.getApiKeyValue())
                 .name(apiKey.getName())
                 .tokenLimit(apiKey.getTokenLimit())

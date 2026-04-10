@@ -68,6 +68,7 @@ public class UserController {
             Authentication authentication,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(name = "userId", required = false) Long filterUserId,
             @RequestParam(required = false) Long apiKeyId,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
@@ -83,6 +84,9 @@ public class UserController {
         Specification<RequestLog> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("apiKey").get("user").get("id"), userId));
+            if (filterUserId != null) {
+                predicates.add(cb.equal(root.get("userId"), filterUserId));
+            }
 
             if (apiKeyId != null) {
                 predicates.add(cb.equal(root.get("apiKey").get("id"), apiKeyId));
@@ -217,12 +221,15 @@ public class UserController {
     private RequestLogResponse toResponse(RequestLog log) {
         return RequestLogResponse.builder()
                 .id(log.getId())
+                .requestId(log.getRequestId())
+                .userId(log.getUserId())
                 .apiKeyId(log.getApiKey().getId())
                 .apiKeyName(log.getApiKey().getName())
                 .inputTokens(log.getInputTokens())
                 .outputTokens(log.getOutputTokens())
                 .modelName(log.getModelName())
                 .latencyMs(log.getLatencyMs())
+                .costAmount(log.getCostAmount())
                 .status(log.getStatus() != null ? log.getStatus().name() : null)
                 .createdAt(log.getCreatedAt())
                 .build();

@@ -1,6 +1,7 @@
 package com.nexusai.llm.gateway.repository;
 
 import com.nexusai.llm.gateway.entity.ApiKey;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,9 +15,18 @@ import java.util.Optional;
 
 @Repository
 public interface ApiKeyRepository extends JpaRepository<ApiKey, Long> {
+    @EntityGraph(attributePaths = {"user"})
     Optional<ApiKey> findByApiKeyValue(String apiKeyValue);
+    @EntityGraph(attributePaths = {"user"})
     List<ApiKey> findByUserId(Long userId);
+    @EntityGraph(attributePaths = {"user"})
+    List<ApiKey> findAllByOrderByCreatedAtDesc();
+    @EntityGraph(attributePaths = {"user"})
+    List<ApiKey> findByUserIdOrderByCreatedAtDesc(Long userId);
+    @EntityGraph(attributePaths = {"user"})
     List<ApiKey> findByEnabled(Boolean enabled);
+    @EntityGraph(attributePaths = {"user"})
+    Optional<ApiKey> findWithUserById(Long id);
     boolean existsByApiKeyValue(String apiKeyValue);
 
     Long countByUserId(Long userId);

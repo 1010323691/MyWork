@@ -37,13 +37,13 @@ Service 层是项目的核心业务逻辑处理层，负责协调数据访问、
 |------|------|
 | asyncLogRequest | 异步保存请求日志到数据库 |
 | asyncRecordUsage | 异步更新 API Key 的已用 Token 数 |
-| truncate | 截断请求/响应体至最大长度（防止大文本占用空间） |
 
 **依赖**: `RequestLogRepository`, `ApiKeyRepository`  
 **关键特性**:
 - 使用 `@Async` 实现非阻塞日志写入
-- 请求体/响应体截断为 MAX_BODY_LENGTH（2000 字符）
-- 通过 JPA 的实体关联自动建立 RequestLog → ApiKey 关系
+- 不再持久化请求体/响应体，减少数据库体积
+- `userId` 从数据库中的 ApiKey → User 关联重新解析，避免控制器层传值不准
+- 流式输出 Token 优先使用上游 SSE `usage.completion_tokens`
 
 ---
 

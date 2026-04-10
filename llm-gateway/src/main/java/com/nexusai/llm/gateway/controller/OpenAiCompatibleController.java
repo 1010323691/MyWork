@@ -12,6 +12,8 @@ import com.nexusai.llm.gateway.service.RequestLogService;
 import com.nexusai.llm.gateway.service.RoutingConfigParser;
 import com.nexusai.llm.gateway.service.UpstreamProviderService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +32,8 @@ import java.util.UUID;
 
 @RestController
 public class OpenAiCompatibleController {
+
+    private static final Logger logger = LoggerFactory.getLogger(OpenAiCompatibleController.class);
 
     private final OpenAiForwardService openAiForwardService;
     private final ApiKeyService apiKeyService;
@@ -53,18 +57,21 @@ public class OpenAiCompatibleController {
     }
 
     @PostMapping("/v1/chat/completions")
-    public ResponseEntity<?> chatCompletions(HttpServletRequest httpRequest, @RequestBody JsonNode requestBody) {
+    public ResponseEntity<StreamingResponseBody> chatCompletions(HttpServletRequest httpRequest, @RequestBody JsonNode requestBody) {
         ApiKey key = (ApiKey) httpRequest.getAttribute("apiKey");
         if (key == null) {
-            return ResponseEntity.status(401).body(Map.of("error", Map.of("message", "API key required", "type", "authentication_error")));
+            return jsonResponse(401, Map.of("error", Map.of("message", "API key required", "type", "authentication_error")));
         }
 
         String requestedModel = requestBody.path("model").asText(null);
         if (requestedModel == null || requestedModel.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", Map.of("message", "model is required", "type", "invalid_request_error")));
+            return jsonResponse(400, Map.of("error", Map.of("message", "model is required", "type", "invalid_request_error")));
         }
 
         String requestId = UUID.randomUUID().toString();
+        logger.info("OpenAI request received: requestId={}, apiKeyId={}, requestedModel={}",
+                requestId, key.getId(), requestedModel);
+
         String resolvedModel = routingConfigParser.resolveModel(key.getRoutingConfig(), requestedModel);
         Optional<BackendService> providerOptional = upstreamProviderService.findByModelName(resolvedModel);
         String configuredTargetUrl = routingConfigParser.resolveConfiguredTargetUrl(key.getRoutingConfig(), key.getTargetUrl());
@@ -72,28 +79,41 @@ public class OpenAiCompatibleController {
                 ? configuredTargetUrl
                 : providerOptional.map(BackendService::getBaseUrl).orElse(null);
 
+        logger.info("OpenAI route resolved: requestId={}, resolvedModel={}, providerId={}, providerName={}, configuredTargetUrl={}, finalTargetUrl={}",
+                requestId,
+                resolvedModel,
+                providerOptional.map(BackendService::getId).orElse(null),
+                providerOptional.map(BackendService::getName).orElse(null),
+                configuredTargetUrl,
+                targetUrl);
+
         if (targetUrl == null || targetUrl.isBlank()) {
-            return ResponseEntity.status(502).body(Map.of("error", Map.of("message", "No backend mapped for model: " + resolvedModel, "type", "routing_error")));
+            logger.warn("OpenAI request routing failed: requestId={}, resolvedModel={}", requestId, resolvedModel);
+            return jsonResponse(502, Map.of("error", Map.of("message", "No backend mapped for model: " + resolvedModel, "type", "routing_error")));
         }
 
         String upstreamApiKey = providerOptional.map(BackendService::getUpstreamKey).orElse(null);
         ObjectNode rewrittenRequest = openAiForwardService.rewriteRequestModel(requestBody, resolvedModel);
-        String requestBodyText = rewrittenRequest.toString();
         long estimatedInput = openAiForwardService.estimateTokenUsage(openAiForwardService.extractMessagesText(rewrittenRequest));
 
         if (!apiKeyService.hasEnoughTokens(key, estimatedInput)) {
-            return ResponseEntity.status(429).body(Map.of("error", Map.of("message", "Token quota exceeded", "type", "insufficient_quota")));
+            logger.warn("OpenAI request quota rejected: requestId={}, apiKeyId={}, estimatedInput={}",
+                    requestId, key.getId(), estimatedInput);
+            return jsonResponse(429, Map.of("error", Map.of("message", "Token quota exceeded", "type", "insufficient_quota")));
         }
 
         boolean stream = rewrittenRequest.path("stream").asBoolean(false);
         long startMs = System.currentTimeMillis();
         Long userId = key.getUser() != null ? key.getUser().getId() : null;
 
+        logger.info("OpenAI request forwarding: requestId={}, stream={}, targetUrl={}, upstreamKeyPresent={}, estimatedInput={}",
+                requestId, stream, targetUrl, upstreamApiKey != null && !upstreamApiKey.isBlank(), estimatedInput);
+
         if (stream) {
-            return handleStreamingRequest(key, userId, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, requestBodyText, estimatedInput, startMs);
+            return handleStreamingRequest(key, userId, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, estimatedInput, startMs);
         }
 
-        return handleNonStreamingRequest(key, userId, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, requestBodyText, estimatedInput, startMs);
+        return handleNonStreamingRequest(key, userId, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, estimatedInput, startMs);
     }
 
     @GetMapping("/v1/models")
@@ -130,24 +150,28 @@ public class OpenAiCompatibleController {
         return ResponseEntity.ok(Map.of("object", "list", "data", data));
     }
 
-    private ResponseEntity<?> handleNonStreamingRequest(ApiKey key,
-                                                        Long userId,
-                                                        String requestId,
-                                                        String resolvedModel,
-                                                        String targetUrl,
-                                                        String upstreamApiKey,
-                                                        JsonNode rewrittenRequest,
-                                                        String requestBodyText,
-                                                        long estimatedInput,
-                                                        long startMs) {
+    private ResponseEntity<StreamingResponseBody> handleNonStreamingRequest(ApiKey key,
+                                                                            Long userId,
+                                                                            String requestId,
+                                                                            String resolvedModel,
+                                                                            String targetUrl,
+                                                                            String upstreamApiKey,
+                                                                            JsonNode rewrittenRequest,
+                                                                            long estimatedInput,
+                                                                            long startMs) {
         OpenAiForwardService.ForwardedResponse response;
         try {
+            logger.info("OpenAI non-stream upstream send: requestId={}, targetUrl={}", requestId, targetUrl);
             response = openAiForwardService.forwardChatRequest(targetUrl, rewrittenRequest, upstreamApiKey);
+            logger.info("OpenAI non-stream upstream response: requestId={}, status={}, contentType={}",
+                    requestId, response.statusCode(), response.contentType());
         } catch (Exception e) {
             long latency = System.currentTimeMillis() - startMs;
+            logger.error("OpenAI non-stream upstream failed: requestId={}, latencyMs={}, error={}",
+                    requestId, latency, e.getMessage(), e);
             requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, 0L,
-                    resolvedModel, latency, RequestLog.RequestStatus.FAIL, requestBodyText, e.getMessage());
-            return ResponseEntity.status(502).body(Map.of("error", Map.of("message", e.getMessage(), "type", "upstream_error")));
+                    resolvedModel, latency, RequestLog.RequestStatus.FAIL, null, null);
+            return jsonResponse(502, Map.of("error", Map.of("message", e.getMessage(), "type", "upstream_error")));
         }
 
         long latencyMs = System.currentTimeMillis() - startMs;
@@ -158,11 +182,14 @@ public class OpenAiCompatibleController {
             requestLogService.asyncRecordUsage(key.getId(), estimatedInput + outputTokens);
         }
         requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, outputTokens,
-                resolvedModel, latencyMs, status, requestBodyText, response.body());
+                resolvedModel, latencyMs, status, null, null);
+
+        StreamingResponseBody responseBody = outputStream ->
+                outputStream.write(response.body().getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         return ResponseEntity.status(response.statusCode())
                 .contentType(parseMediaType(response.contentType(), MediaType.APPLICATION_JSON))
-                .body(response.body());
+                .body(responseBody);
     }
 
     private ResponseEntity<StreamingResponseBody> handleStreamingRequest(ApiKey key,
@@ -172,41 +199,56 @@ public class OpenAiCompatibleController {
                                                                          String targetUrl,
                                                                          String upstreamApiKey,
                                                                          JsonNode rewrittenRequest,
-                                                                         String requestBodyText,
                                                                          long estimatedInput,
                                                                          long startMs) {
         OpenAiForwardService.PreparedStreamingResponse response;
         try {
+            logger.info("OpenAI stream upstream open: requestId={}, targetUrl={}", requestId, targetUrl);
             response = openAiForwardService.openStreamingChatRequest(targetUrl, rewrittenRequest, upstreamApiKey);
+            logger.info("OpenAI stream upstream opened: requestId={}, status={}, contentType={}",
+                    requestId, response.statusCode(), response.contentType());
         } catch (Exception e) {
             long latency = System.currentTimeMillis() - startMs;
+            logger.error("OpenAI stream upstream open failed: requestId={}, latencyMs={}, error={}",
+                    requestId, latency, e.getMessage(), e);
             requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, 0L,
-                    resolvedModel, latency, RequestLog.RequestStatus.FAIL, requestBodyText, e.getMessage());
-            StreamingResponseBody errorBody = outputStream -> outputStream.write(objectMapper.writeValueAsBytes(
-                    Map.of("error", Map.of("message", e.getMessage(), "type", "upstream_error"))
-            ));
-            return ResponseEntity.status(502).contentType(MediaType.APPLICATION_JSON).body(errorBody);
+                    resolvedModel, latency, RequestLog.RequestStatus.FAIL, null, null);
+            return jsonResponse(502, Map.of("error", Map.of("message", e.getMessage(), "type", "upstream_error")));
         }
 
         RequestLog.RequestStatus initialStatus = response.statusCode() >= 400 ? RequestLog.RequestStatus.FAIL : RequestLog.RequestStatus.SUCCESS;
         StreamingResponseBody responseBody = outputStream -> {
             RequestLog.RequestStatus finalStatus = initialStatus;
             String capturedBody = "";
+            String visibleContent = "";
+            long outputTokens = 0L;
             try {
-                OpenAiForwardService.StreamSummary summary = openAiForwardService.relayStream(response.inputStream(), outputStream);
+                logger.info("OpenAI stream relay start: requestId={}", requestId);
+                OpenAiForwardService.StreamSummary summary = openAiForwardService.relayStream(
+                        response.connection(),
+                        response.inputStream(),
+                        outputStream
+                );
                 capturedBody = summary.capturedBody();
+                visibleContent = summary.visibleContent();
+                outputTokens = summary.outputTokens();
+                logger.info("OpenAI stream relay completed: requestId={}, capturedChars={}",
+                        requestId, capturedBody.length());
             } catch (Exception e) {
                 finalStatus = RequestLog.RequestStatus.FAIL;
                 capturedBody = e.getMessage();
+                logger.error("OpenAI stream relay failed: requestId={}, error={}", requestId, e.getMessage(), e);
                 throw e;
             } finally {
                 long latencyMs = System.currentTimeMillis() - startMs;
-                long outputTokens = openAiForwardService.estimateTokenUsage(capturedBody);
+                if (outputTokens <= 0 && visibleContent != null && !visibleContent.isBlank()) {
+                    outputTokens = openAiForwardService.estimateTokenUsage(visibleContent);
+                }
                 if (finalStatus == RequestLog.RequestStatus.SUCCESS) {
                     requestLogService.asyncRecordUsage(key.getId(), estimatedInput + outputTokens);
                 }
                 requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, outputTokens,
-                        resolvedModel, latencyMs, finalStatus, requestBodyText, capturedBody);
+                        resolvedModel, latencyMs, finalStatus, null, null);
             }
         };
 
@@ -221,5 +263,12 @@ public class OpenAiCompatibleController {
         } catch (Exception ignored) {
             return fallback;
         }
+    }
+
+    private ResponseEntity<StreamingResponseBody> jsonResponse(int status, Object body) {
+        StreamingResponseBody responseBody = outputStream -> outputStream.write(objectMapper.writeValueAsBytes(body));
+        return ResponseEntity.status(status)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(responseBody);
     }
 }

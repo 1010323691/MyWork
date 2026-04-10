@@ -35,6 +35,7 @@ public class AdminLogController {
     public ResponseEntity<Page<RequestLogResponse>> getLogs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long apiKeyId,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
@@ -45,6 +46,9 @@ public class AdminLogController {
         Specification<RequestLog> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            if (userId != null) {
+                predicates.add(cb.equal(root.get("userId"), userId));
+            }
             if (apiKeyId != null) {
                 predicates.add(cb.equal(root.get("apiKey").get("id"), apiKeyId));
             }
@@ -85,12 +89,15 @@ public class AdminLogController {
     private RequestLogResponse toResponse(RequestLog log) {
         return RequestLogResponse.builder()
                 .id(log.getId())
+                .requestId(log.getRequestId())
+                .userId(log.getUserId())
                 .apiKeyId(log.getApiKey().getId())
                 .apiKeyName(log.getApiKey().getName())
                 .inputTokens(log.getInputTokens())
                 .outputTokens(log.getOutputTokens())
                 .modelName(log.getModelName())
                 .latencyMs(log.getLatencyMs())
+                .costAmount(log.getCostAmount())
                 .status(log.getStatus() != null ? log.getStatus().name() : null)
                 .createdAt(log.getCreatedAt())
                 .build();

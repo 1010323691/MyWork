@@ -85,7 +85,7 @@
                 document.getElementById('balanceAmount').textContent = '¥ ' + data.balance.toFixed(4);
             } catch (error) {
                 console.error('加载余额失败:', error);
-                showAlert('加载余额失败：' + error.message, 'error');
+                UI.showAlert('加载余额失败：' + error.message, 'error');
             }
         }
 

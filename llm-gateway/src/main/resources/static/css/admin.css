@@ -190,15 +190,187 @@
 }
 
 /* Modal enhancements for admin pages */
+.modal-content,
 .modal-content.admin-modal {
-    max-width: 700px;
+    display: flex;
+    flex-direction: column;
+    width: min(860px, calc(100vw - 48px));
+    max-width: 860px;
+    max-height: min(88vh, 960px);
+    border-radius: 22px;
+    border: 1px solid rgba(0, 212, 255, 0.22);
+    background:
+        linear-gradient(180deg, rgba(18, 26, 68, 0.98), rgba(11, 17, 48, 0.97)),
+        radial-gradient(circle at top right, rgba(0, 212, 255, 0.12), transparent 40%);
+    box-shadow:
+        0 16px 40px rgba(2, 6, 23, 0.42),
+        0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+        0 0 18px rgba(0, 212, 255, 0.08);
+    overflow: hidden;
+}
+
+.modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 22px 28px 18px;
+    background:
+        linear-gradient(180deg, rgba(14, 22, 58, 0.98), rgba(14, 22, 58, 0.94)),
+        rgba(14, 22, 58, 0.96);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+}
+
+.modal-header h3 {
+    font-size: 18px;
+    letter-spacing: 0.3px;
+}
+
+.modal-close {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 24px 28px 20px;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 212, 255, 0.55) rgba(255, 255, 255, 0.06);
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.modal-body::-webkit-scrollbar,
+.modal-content::-webkit-scrollbar,
+.modal-body textarea::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.modal-body::-webkit-scrollbar-track,
+.modal-content::-webkit-scrollbar-track,
+.modal-body textarea::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 999px;
+}
+
+.modal-body::-webkit-scrollbar-thumb,
+.modal-content::-webkit-scrollbar-thumb,
+.modal-body textarea::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(0, 212, 255, 0.75), rgba(168, 85, 247, 0.68));
+    border-radius: 999px;
+    border: 2px solid rgba(10, 14, 39, 0.55);
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover,
+.modal-content::-webkit-scrollbar-thumb:hover,
+.modal-body textarea::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(34, 211, 238, 0.95), rgba(192, 132, 252, 0.9));
+}
+
+.modal-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: 18px 28px 22px;
+    background:
+        linear-gradient(180deg, rgba(10, 16, 44, 0.9), rgba(10, 16, 44, 0.98)),
+        rgba(10, 16, 44, 0.96);
+    border-top: 1px solid rgba(0, 212, 255, 0.12);
+}
+
+.modal-body .form-group {
+    margin-bottom: 18px;
+    padding: 16px 18px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(0, 212, 255, 0.025));
+    border: 1px solid rgba(0, 212, 255, 0.08);
+    box-shadow: 0 4px 14px rgba(2, 6, 23, 0.12);
+}
+
+.modal-body .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.modal-body .form-group label {
+    margin-bottom: 10px;
+    color: #d8e4f8;
+    font-weight: 600;
+}
+
+.modal-body .form-group input,
+.modal-body .form-group select,
+.modal-body .form-group textarea {
+    background: rgba(7, 12, 36, 0.88);
+    border: 1px solid rgba(0, 212, 255, 0.14);
+}
+
+.modal-body .form-group input:focus,
+.modal-body .form-group select:focus,
+.modal-body .form-group textarea:focus {
+    border-color: rgba(34, 211, 238, 0.85);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12), 0 0 10px rgba(34, 211, 238, 0.08);
 }
 
 .modal-body .form-group textarea {
     resize: vertical;
-    min-height: 100px;
-    font-family: 'Monaco', 'Menlo', monospace;
+    min-height: 120px;
+    font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
     font-size: 12px;
+    line-height: 1.7;
+}
+
+.modal-body .form-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    accent-color: #00d4ff;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.modal-body .form-group label:has(input[type="checkbox"]) {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.form-help {
+    display: block;
+    margin-top: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(0, 212, 255, 0.06);
+    border: 1px solid rgba(0, 212, 255, 0.12);
+    color: #9db5d4;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.provider-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.price-row {
+    gap: 14px;
+}
+
+#providerToolsResult {
+    margin-top: 14px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(0, 212, 255, 0.1);
+    min-height: 52px;
 }
 
 /* User management page */
@@ -463,6 +635,25 @@
 
 /* Responsive for admin pages */
 @media (max-width: 768px) {
+    .modal-content,
+    .modal-content.admin-modal {
+        width: calc(100vw - 20px);
+        max-height: 92vh;
+        border-radius: 18px;
+    }
+
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+
+    .modal-body .form-group {
+        padding: 14px;
+        border-radius: 14px;
+    }
+
     .keys-page-tabs {
         margin-bottom: 16px;
     }

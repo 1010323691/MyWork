@@ -135,30 +135,71 @@ class API {
 // UI 工具类
 // ============================================
 class UI {
+    static TOAST_HOST_ID = 'uiToastHost';
+    static TOAST_DURATION = 5000;
+
+    static ensureToastHost() {
+        let host = document.getElementById(this.TOAST_HOST_ID);
+        if (!host) {
+            host = document.createElement('div');
+            host.id = this.TOAST_HOST_ID;
+            host.className = 'toast-host';
+            host.setAttribute('data-managed', 'true');
+            host.setAttribute('aria-live', 'polite');
+            host.setAttribute('aria-atomic', 'false');
+            document.body.appendChild(host);
+        }
+        return host;
+    }
+
     /**
-     * 显示错误提示
+     * Show a floating toast without shifting page layout.
      */
     static showAlert(message, type = 'error') {
-        let alertBox;
+        const safeType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
+        const host = this.ensureToastHost();
+        const toast = document.createElement('div');
+        const body = document.createElement('div');
+        const closeBtn = document.createElement('button');
 
-        if (type === 'error') {
-            alertBox = document.getElementById('alertBox');
-        } else if (type === 'success') {
-            alertBox = document.getElementById('successBox');
-        }
+        toast.className = `toast toast-${safeType}`;
+        toast.setAttribute('role', safeType === 'error' ? 'alert' : 'status');
 
-        if (!alertBox) {
-            console.error(`未找到 alert box (type: ${type})`);
-            alert(message);
-            return;
-        }
+        body.className = 'toast-message';
+        body.textContent = message;
 
-        alertBox.textContent = message;
-        alertBox.className = `alert alert-${type} show`;
+        closeBtn.type = 'button';
+        closeBtn.className = 'toast-close';
+        closeBtn.setAttribute('aria-label', '\u5173\u95ed\u63d0\u793a');
+        closeBtn.textContent = '\u00D7';
 
-        setTimeout(() => {
-            alertBox.classList.remove('show');
-        }, type === 'error' ? 5000 : 3000);
+        toast.appendChild(body);
+        toast.appendChild(closeBtn);
+        host.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+
+        const removeToast = () => {
+            if (!toast.isConnected || toast.dataset.closing === 'true') {
+                return;
+            }
+            toast.dataset.closing = 'true';
+            toast.classList.remove('show');
+            toast.classList.add('hide');
+            window.setTimeout(() => {
+                if (toast.isConnected) {
+                    toast.remove();
+                }
+                if (host.isConnected && host.childElementCount === 0 && host.dataset.managed === 'true') {
+                    host.remove();
+                }
+            }, 260);
+        };
+
+        closeBtn.addEventListener('click', removeToast);
+        window.setTimeout(removeToast, this.TOAST_DURATION);
     }
 
     static showErrorMessage(message) {

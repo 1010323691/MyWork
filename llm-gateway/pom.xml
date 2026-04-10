@@ -70,6 +70,13 @@
 			<optional>true</optional>
 		</dependency>
 
+		<!-- OSHI - Operating System and Hardware Information (跨平台资源监控) -->
+		<dependency>
+			<groupId>com.github.oshi</groupId>
+			<artifactId>oshi-core</artifactId>
+			<version>6.6.5</version>
+		</dependency>
+
 		<!-- 测试 -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

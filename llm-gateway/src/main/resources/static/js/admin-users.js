@@ -7,6 +7,8 @@
 
     let currentSearch = '';
     let currentPage = 0;
+    let roleChartInstance = null;
+    let registerTrendInstance = null;
 
     document.addEventListener('DOMContentLoaded', async function() {
         if (!(await API.isAuthenticated())) {
@@ -21,6 +23,7 @@
 
         initSidebarUserInfo(user);
         loadUsers(0, '');
+        initCharts();
     });
 
     function initSidebarUserInfo(user) {
@@ -62,7 +65,7 @@
         if (!tbody) return;
 
         if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:40px;">暂无用户</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:40px;">暂无用户</td></tr>';
             return;
         }
 
@@ -72,13 +75,14 @@
                 : '<span class="badge-danger">已禁用</span>';
             const roleBadge = u.userRole === 'ADMIN'
                 ? '<span class="badge-secondary">ADMIN</span>'
-                : '<span>USER</span>';
+                : '<span class="badge-default">USER</span>';
+            const createdAt = u.createdAt ? new Date(u.createdAt).toLocaleString('zh-CN') : '-';
             return '<tr>' +
                 '<td>' + u.id + '</td>' +
                 '<td>' + escapeHtml(u.username) + '</td>' +
                 '<td>' + escapeHtml(u.email || '-') + '</td>' +
                 '<td>' + roleBadge + '</td>' +
-                '<td>' + statusBadge + '</td>' +
+                '<td>' + createdAt + '</td>' +
                 '<td>' + (u.apiKeyCount || 0) + '</td>' +
                 '<td>' +
                     '<button class="btn btn-sm btn-success" style="margin-right:6px;" onclick="toggleUser(' + u.id + ', ' + u.enabled + ')">' +
@@ -147,9 +151,97 @@
         }
     };
 
+    // ===============================
+    // 初始化图表 - 用户角色分布 + 注册趋势
+    // ===============================
+    function initCharts() {
+        initRoleDistributionChart();
+        initRegisterTrendChart();
+    }
+
+    function initRoleDistributionChart() {
+        const chartDom = document.getElementById('roleDistributionChart');
+        if (!chartDom) return;
+
+        roleChartInstance = echarts.init(chartDom, 'tech');
+
+        // 模拟数据 - 后端需返回真实统计
+        const roleData = [
+            { value: 85, name: 'USER', itemStyle: { color: '#00d4ff' } },
+            { value: 15, name: 'ADMIN', itemStyle: { color: '#a855f7' } }
+        ];
+
+        const option = {
+            title: { text: '用户角色分布', left: 'center', textStyle: { color: '#e8ecf1' } },
+            tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+            legend: { top: 'bottom', textStyle: { color: '#a0aec0' } },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                center: ['50%', '55%'],
+                avoidLabelOverlap: false,
+                itemStyle: {
+                    borderRadius: 8,
+                    borderColor: '#151942',
+                    borderWidth: 3
+                },
+                label: { show: false },
+                emphasis: {
+                    label: { show: true, fontSize: '16', fontWeight: 'bold' }
+                },
+                data: roleData
+            }]
+        };
+
+        roleChartInstance.setOption(option);
+
+        window.addEventListener('resize', function() {
+            roleChartInstance.resize();
+        });
+    }
+
+    function initRegisterTrendChart() {
+        const chartDom = document.getElementById('registerTrendChart');
+        if (!chartDom) return;
+
+        registerTrendInstance = echarts.init(chartDom, 'tech');
+
+        // 模拟数据 - 后端需返回近 7 日注册趋势
+        const days = ['前 7 天', '前 6 天', '前 5 天', '前 4 天', '前 3 天', '前 2 天', '今天'];
+        const values = [3, 5, 2, 8, 4, 6, 9];
+
+        const baseOption = {
+            title: { text: '近 7 日用户注册趋势', left: 'center' },
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: days },
+            yAxis: { type: 'value', name: '用户数' },
+            series: [{
+                name: '新用户',
+                type: 'line',
+                data: values,
+                smooth: true
+            }]
+        };
+
+        const option = window.TechChartTheme?.createLineChart ?
+            window.TechChartTheme.createLineChart(baseOption) : baseOption;
+
+        registerTrendInstance.setOption(option);
+
+        window.addEventListener('resize', function() {
+            registerTrendInstance.resize();
+        });
+    }
+
     window.logout = function() {
         fetch('/logout', { method: 'POST', credentials: 'same-origin' })
             .then(() => window.location.href = '/login')
             .catch(() => window.location.href = '/login');
     };
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (roleChartInstance) roleChartInstance.dispose();
+        if (registerTrendInstance) registerTrendInstance.dispose();
+    });
 })();

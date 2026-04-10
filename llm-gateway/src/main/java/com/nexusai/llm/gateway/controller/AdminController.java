@@ -9,6 +9,8 @@ import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.ApiKeyRepository;
 import com.nexusai.llm.gateway.repository.RequestLogRepository;
 import com.nexusai.llm.gateway.repository.UserRepository;
+import com.nexusai.llm.gateway.service.SystemService;
+import com.nexusai.llm.gateway.service.SystemService.GpuData;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -28,13 +32,16 @@ public class AdminController {
     private final UserRepository userRepository;
     private final ApiKeyRepository apiKeyRepository;
     private final RequestLogRepository requestLogRepository;
+    private final SystemService systemService;
 
     public AdminController(UserRepository userRepository,
                            ApiKeyRepository apiKeyRepository,
-                           RequestLogRepository requestLogRepository) {
+                           RequestLogRepository requestLogRepository,
+                           SystemService systemService) {
         this.userRepository = userRepository;
         this.apiKeyRepository = apiKeyRepository;
         this.requestLogRepository = requestLogRepository;
+        this.systemService = systemService;
     }
 
     // ===== 用户管理 =====
@@ -125,6 +132,25 @@ public class AdminController {
                 ? (double) (failCount != null ? failCount : 0L) / totalRequests * 100
                 : 0.0;
 
+        // 获取系统资源数据
+        SystemService.SystemResourceData resourceData = systemService.getSystemResources();
+        java.util.List<SystemService.GpuData> gpuDataList = resourceData.getGpuDataList();
+
+        // 转换为响应格式
+        java.util.List<SystemMonitorResponse.GpuInfo> gpuInfoList = null;
+        if (gpuDataList != null && !gpuDataList.isEmpty()) {
+            gpuInfoList = gpuDataList.stream().map(gpu ->
+                SystemMonitorResponse.GpuInfo.builder()
+                    .index(gpu.getIndex())
+                    .name(gpu.getName())
+                    .utilization(gpu.getUtilization())
+                    .memoryUsedMb(gpu.getUsedMemoryMb())
+                    .memoryTotalMb(gpu.getTotalMemoryMb())
+                    .memoryUsagePercent(gpu.getMemoryUsagePercent())
+                    .build()
+            ).collect(java.util.stream.Collectors.toList());
+        }
+
         SystemMonitorResponse monitor = SystemMonitorResponse.builder()
                 .totalRequests(totalRequests)
                 .successRequests(successCount != null ? successCount : 0L)
@@ -134,6 +160,10 @@ public class AdminController {
                 .avgLatencyMs(avgLatency != null ? avgLatency : 0.0)
                 .totalUsers(totalUsers)
                 .totalApiKeys(totalApiKeys)
+                // 系统资源字段
+                .cpuUsage(resourceData.getCpuUsage())
+                .memoryUsage(resourceData.getMemoryUsage())
+                .gpus(gpuInfoList)
                 .build();
 
         return ResponseEntity.ok(monitor);

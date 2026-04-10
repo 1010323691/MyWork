@@ -8,18 +8,389 @@
 
 <body>
     <main th:fragment="main-content">
-        <!-- 标签页导航 -->
-        <div class="tabs" id="tabNav" role="tablist" aria-label="仪表盘选项卡">
-            <button class="tab active" onclick="switchTab('apikeys')" role="tab" aria-selected="true" id="tab-apikeys">API Key 管理</button>
-            <button class="tab" onclick="switchTab('usage')" role="tab" aria-selected="false" id="tab-usage">使用统计</button>
-            <button class="tab" onclick="switchTab('client')" role="tab" aria-selected="false" id="tab-client">客户端工具</button>
+
+        <!-- ============ 总览概览标签页 ============ -->
+        <div id="overview" class="tab-content active" role="tabpanel" aria-labelledby="tab-overview">
+
+            <!-- === 一、顶部核心指标（KPI 概览）=== -->
+
+            <!-- 💰 收入指标 -->
+            <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">💰 收入指标</h3>
+            <div class="stats-grid" style="margin-bottom: 24px;">
+                <!-- 今日收入 -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    </div>
+                    <div class="stat-value" id="todayRevenue">¥0.00</div>
+                    <div class="stat-label">今日收入</div>
+                    <div class="stat-sublabel" id="todayRevenueChange">较昨日 +12%</div>
+                </div>
+
+                <!-- 本月累计收入 -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <div class="stat-value" id="monthRevenue">¥0.00</div>
+                    <div class="stat-label">本月累计收入</div>
+                    <div class="stat-sublabel" id="monthRevenueProgress">目标进度 45%</div>
+                </div>
+
+                <!-- ARPU -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                    </div>
+                    <div class="stat-value" id="arpuValue">¥0.00</div>
+                    <div class="stat-label">ARPU (平均用户收入)</div>
+                    <div class="stat-sublabel">月均 per user</div>
+                </div>
+
+                <!-- 订阅/按量占比饼图 -->
+                <div class="stat-card" style="position: relative;">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    </div>
+                    <div class="stat-value" id="subscriptionRatio">--</div>
+                    <div class="stat-label">订阅/按量收入占比</div>
+                    <div id="revenueTypeChart" style="height: 60px; margin-top: 8px;"></div>
+                </div>
+            </div>
+
+            <!-- 📊 使用指标 -->
+            <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">📊 使用指标</h3>
+            <div class="stats-grid" style="margin-bottom: 24px;">
+                <!-- 今日 Token 消耗 -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    </div>
+                    <div class="stat-value" id="todayTokens">0</div>
+                    <div class="stat-label">今日 Token 总消耗</div>
+                    <div class="stat-sublabel" id="todayTokenChange">较昨日 +5%</div>
+                </div>
+
+                <!-- 请求次数 -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    </div>
+                    <div class="stat-value" id="totalRequests">0</div>
+                    <div class="stat-label">请求次数 (Requests)</div>
+                    <div class="stat-sublabel">今日总数</div>
+                </div>
+
+                <!-- 平均单请求 Token -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><path d="M9 12h.01"/><circle cx="21" cy="21" r="3"/></svg>
+                    </div>
+                    <div class="stat-value" id="avgTokensPerRequest">0</div>
+                    <div class="stat-label">平均单请求 Token</div>
+                    <div class="stat-sublabel">per request</div>
+                </div>
+
+                <!-- 峰值 QPS 仪表盘 -->
+                <div class="stat-card" style="padding: 16px;">
+                    <div id="peakQpsGaugeChart" style="height: 80px; margin-bottom: 8px;"></div>
+                    <div class="stat-label" style="text-align: center;">峰值 QPS</div>
+                </div>
+            </div>
+
+            <!-- 👤 用户指标 -->
+            <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">👤 用户指标</h3>
+            <div class="stats-grid" style="margin-bottom: 24px;">
+                <!-- 今日新增用户 -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                    </div>
+                    <div class="stat-value" id="newUsersToday">0</div>
+                    <div class="stat-label">新增用户 (今日)</div>
+                    <div class="stat-sublabel">7 日：+<span id="newUsers7Day">0</span></div>
+                </div>
+
+                <!-- DAU/MAU -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <div class="stat-value" id="dauValue">0</div>
+                    <div class="stat-label">DAU (日活跃用户)</div>
+                    <div class="stat-sublabel">MAU: <span id="mauValue">0</span></div>
+                </div>
+
+                <!-- 留存率图表 -->
+                <div class="stat-card" style="padding: 12px;">
+                    <div class="stat-label" style="margin-bottom: 8px;">用户留存率</div>
+                    <div id="retentionRateChart" style="height: 70px;"></div>
+                    <div style="display: flex; justify-content: space-around; font-size: 12px; color: var(--text-secondary);">
+                        <span>D1: <b id="d1Retention">--</b></span>
+                        <span>D7: <b id="d7Retention">--</b></span>
+                        <span>D30: <b id="d30Retention">--</b></span>
+                    </div>
+                </div>
+
+                <!-- DAU/MAU 比率仪表盘 -->
+                <div class="stat-card" style="padding: 16px;">
+                    <div id="dauMauRatioGaugeChart" style="height: 80px; margin-bottom: 4px;"></div>
+                    <div class="stat-label" style="text-align: center;">DAU/MAU 比率</div>
+                </div>
+            </div>
+
+            <!-- ⚠️ 系统健康 -->
+            <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">⚠️ 系统健康</h3>
+            <div class="stats-grid" style="margin-bottom: 24px;">
+                <!-- API 成功率仪表盘 -->
+                <div class="stat-card" style="padding: 16px;">
+                    <div id="apiSuccessRateGaugeChart" style="height: 90px; margin-bottom: 8px;"></div>
+                    <div class="stat-label" style="text-align: center;">API 成功率</div>
+                </div>
+
+                <!-- 平均延迟 -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+                    </div>
+                    <div class="stat-value" id="avgLatency">0ms</div>
+                    <div class="stat-label">平均延迟 (Latency)</div>
+                    <div class="stat-sublabel">p95: <span id="latencyP95">0ms</span></div>
+                </div>
+
+                <!-- 错误率 -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    </div>
+                    <div class="stat-value" id="errorRateValue">0%</div>
+                    <div class="stat-label">错误率 (Error Rate)</div>
+                    <div class="stat-sublabel" id="errorTrend">趋势：平稳</div>
+                </div>
+
+                <!-- 当前负载仪表盘 -->
+                <div class="stat-card" style="padding: 16px;">
+                    <div id="currentLoadGaugeChart" style="height: 90px; margin-bottom: 8px;"></div>
+                    <div class="stat-label" style="text-align: center;">当前负载</div>
+                </div>
+            </div>
+
+            <!-- === 综合趋势图表 === -->
+            <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">📈 综合趋势分析</h3>
+
+            <!-- 7 日综合指标趋势图 -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-title">近 7 日核心指标趋势</div>
+                <div id="coreMetricsTrendChart" style="height: 350px;"></div>
+            </div>
+
+            <!-- 多维度分析图表 -->
+            <div class="row" style="margin-bottom: 24px;">
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title">Token 消耗分布</div>
+                        <div id="tokenDistributionChart" style="height: 300px;"></div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title">API Provider 使用占比</div>
+                        <div id="providerPieChart" style="height: 300px;"></div>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
-        <!-- API Key 管理标签页 -->
-        <div id="apikeys" class="tab-content active" role="tabpanel" aria-labelledby="tab-apikeys">
+        <!-- ============ 实时监控标签页 ============ -->
+        <div id="realtime" class="tab-content" role="tabpanel" aria-labelledby="tab-realtime">
 
-        <!-- API Key 管理标签页 -->
-        <div id="apikeys" class="tab-content active">
+            <!-- === 📡 实时流量监控 === -->
+            <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">📡 实时流量</h3>
+            <div class="stats-grid" style="margin-bottom: 24px;">
+                <!-- QPS 实时值 -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+                    </div>
+                    <div class="stat-value" id="currentQps">0</div>
+                    <div class="stat-label">当前 QPS</div>
+                    <div class="stat-sublabel">每秒请求数</div>
+                </div>
+
+                <!-- Token 消耗速率 -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    </div>
+                    <div class="stat-value" id="tokenRate">0</div>
+                    <div class="stat-label">Token/秒</div>
+                    <div class="stat-sublabel">实时消耗速率</div>
+                </div>
+
+                <!-- 并发请求数 -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/></svg>
+                    </div>
+                    <div class="stat-value" id="concurrentRequests">0</div>
+                    <div class="stat-label">并发请求数</div>
+                    <div class="stat-sublabel">当前活跃连接</div>
+                </div>
+
+                <!-- 平均响应时间 -->
+                <div class="stat-card">
+                    <div class="stat-icon svg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+                    </div>
+                    <div class="stat-value" id="avgResponseTime">0ms</div>
+                    <div class="stat-label">平均响应时间</div>
+                    <div class="stat-sublabel">实时计算</div>
+                </div>
+            </div>
+
+            <!-- QPS 实时曲线图 -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-title">QPS 实时监控（秒级）</div>
+                <div id="realtimeQpsChart" style="height: 300px;"></div>
+            </div>
+
+            <!-- Token 消耗速率图 -->
+            <div class="row" style="margin-bottom: 24px;">
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title">Token 消耗速率</div>
+                        <div id="tokenRateChart" style="height: 250px;"></div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title">并发连接数趋势</div>
+                        <div id="concurrentConnectionsChart" style="height: 250px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- === 🧠 模型负载监控 === -->
+            <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">🧠 模型负载</h3>
+
+            <!-- 各模型占比饼图 -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-title">各模型请求占比</div>
+                <div id="modelDistributionPieChart" style="height: 300px;"></div>
+            </div>
+
+            <!-- 模型详细指标 -->
+            <div class="row" style="margin-bottom: 24px;">
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title">各模型 Token 消耗</div>
+                        <div id="modelTokenUsageChart" style="height: 250px;"></div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title">各模型平均延迟</div>
+                        <div id="modelLatencyChart" style="height: 250px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- === 🖥️ 资源状态监控 === -->
+            <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">🖥️ 资源状态</h3>
+
+            <div class="stats-grid" style="margin-bottom: 24px;">
+                <!-- GPU 使用率仪表盘 -->
+                <div class="stat-card" style="padding: 16px;">
+                    <div id="gpuUsageGaugeChart" style="height: 100px; margin-bottom: 8px;"></div>
+                    <div class="stat-label" style="text-align: center;">GPU 使用率</div>
+                </div>
+
+                <!-- 显存占用仪表盘 -->
+                <div class="stat-card" style="padding: 16px;">
+                    <div id="memoryUsageGaugeChart" style="height: 100px; margin-bottom: 8px;"></div>
+                    <div class="stat-label" style="text-align: center;">显存占用</div>
+                </div>
+
+                <!-- KV Cache 使用率仪表盘 -->
+                <div class="stat-card" style="padding: 16px;">
+                    <div id="kvCacheGaugeChart" style="height: 100px; margin-bottom: 8px;"></div>
+                    <div class="stat-label" style="text-align: center;">KV Cache 使用率</div>
+                </div>
+
+                <!-- 请求队列长度仪表盘 -->
+                <div class="stat-card" style="padding: 16px;">
+                    <div id="queueLengthGaugeChart" style="height: 100px; margin-bottom: 8px;"></div>
+                    <div class="stat-label" style="text-align: center;">请求队列长度</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ============ 用户分析标签页 ============ -->
+        <div id="analytics" class="tab-content" role="tabpanel" aria-labelledby="tab-analytics">
+
+            <!-- === 👥 用户分层分析 === -->
+            <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">👥 用户分层</h3>
+
+            <!-- Top 10 消费用户 -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-title">Top 10 消费用户</div>
+                <div id="topUsersChart" style="height: 350px;"></div>
+            </div>
+
+            <!-- 企业用户 vs 个人用户 -->
+            <div class="row" style="margin-bottom: 24px;">
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title">用户类型分布</div>
+                        <div id="userTypePieChart" style="height: 250px;"></div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title">长尾用户分析</div>
+                        <div id="longTailUserChart" style="height: 250px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- === 📈 使用行为分析 === -->
+            <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">📈 使用行为</h3>
+
+            <div class="row" style="margin-bottom: 24px;">
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title">会话长度分布</div>
+                        <div id="sessionLengthChart" style="height: 250px;"></div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card">
+                        <div class="card-title">长上下文用户比例</div>
+                        <div id="longContextUserChart" style="height: 250px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 请求类型分布 -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-title">请求类型分布</div>
+                <div id="requestTypeChart" style="height: 300px;"></div>
+            </div>
+
+            <!-- === 🕒 使用时段分析 === -->
+            <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">🕒 使用时段</h3>
+
+            <div class="card">
+                <div class="card-title">小时级使用热力图 (Peak Usage Time)</div>
+                <div id="usageHeatmapChart" style="height: 400px;"></div>
+            </div>
+
+        </div>
+
+        <!-- ============ API Key 管理标签页 (保留原有) ============ -->
+        <div id="apikeys" class="tab-content" role="tabpanel" aria-labelledby="tab-apikeys">
             <!-- 创建 API Key 卡片 -->
             <div class="card" id="createApiKeyCard">
                 <div class="card-title">创建 API Key</div>
@@ -72,139 +443,15 @@
             </div>
         </div>
 
-        <!-- 使用统计标签页 -->
-        <div id="usage" class="tab-content" role="tabpanel" aria-labelledby="tab-usage">
-            <div class="stats-grid">
-                <!-- Today Tokens - Bar Chart Icon -->
-                <div class="stat-card">
-                    <div class="stat-icon svg-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="20" x2="18" y2="10"/>
-                            <line x1="12" y1="20" x2="12" y2="4"/>
-                            <line x1="6" y1="20" x2="6" y2="14"/>
-                        </svg>
-                    </div>
-                    <div class="stat-value" id="todayTokens">0</div>
-                    <div class="stat-label">今日 Token</div>
-                </div>
-
-                <!-- Month Tokens - Calendar Icon -->
-                <div class="stat-card">
-                    <div class="stat-icon svg-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                            <line x1="16" y1="2" x2="16" y2="6"/>
-                            <line x1="8" y1="2" x2="8" y2="6"/>
-                            <line x1="3" y1="10" x2="21" y2="10"/>
-                        </svg>
-                    </div>
-                    <div class="stat-value" id="monthTokens">0</div>
-                    <div class="stat-label">本月 Token</div>
-                </div>
-
-                <!-- Total Requests - Refresh Icon -->
-                <div class="stat-card">
-                    <div class="stat-icon svg-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="23,4 23,10 17,10"/>
-                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                        </svg>
-                    </div>
-                    <div class="stat-value" id="totalRequests">0</div>
-                    <div class="stat-label">总请求数</div>
-                </div>
-
-                <!-- Success Rate - Check Circle Icon -->
-                <div class="stat-card">
-                    <div class="stat-icon svg-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                            <polyline points="22,4 12,14.01 9,11.01"/>
-                        </svg>
-                    </div>
-                    <div class="stat-value" id="successRate">0%</div>
-                    <div class="stat-label">成功率</div>
-                </div>
-
-                <!-- Total API Keys - Lock Icon -->
-                <div class="stat-card">
-                    <div class="stat-icon svg-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                        </svg>
-                    </div>
-                    <div class="stat-value" id="totalApiKeys">0</div>
-                    <div class="stat-label">API Key 总数</div>
-                </div>
-
-                <!-- Active API Keys - Circle Icon -->
-                <div class="stat-card">
-                    <div class="stat-icon svg-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                        </svg>
-                    </div>
-                    <div class="stat-value" id="activeApiKeys">0</div>
-                    <div class="stat-label">启用中</div>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-title">近 7 日 Token 趋势</div>
-                <div id="tokenTrendChart" style="height: 300px;"></div>
-            </div>
-        </div>
-
-        <!-- 客户端工具标签页 -->
-        <div id="client" class="tab-content" role="tabpanel" aria-labelledby="tab-client">
-            <div class="card">
-                <div class="card-title">Token 余量查询</div>
-                <p style="color: #666; margin-bottom: 24px;">
-                    使用 API Key 查询剩余 Token 数量
-                </p>
-                <div class="form-group">
-                    <label for="clientApiKey">API Key</label>
-                    <input type="text" id="clientApiKey" placeholder="nkey_..." aria-describedby="apiKeyHelper">
-                    <small id="apiKeyHelper" style="color: var(--text-muted); font-size: 12px;">输入您的 API Key 以查询配额信息</small>
-                </div>
-                <button onclick="checkTokenUsage()" class="btn btn-primary">查询</button>
-
-                <!-- 查询结果 -->
-                <div id="tokenUsageResult" style="display: none; margin-top: 30px;">
-                    <div class="card" style="background: #f8f9fa;">
-                        <div class="form-group">
-                            <label>API Key 名称</label>
-                            <p id="usageKeyName" style="font-size: 16px; color: #333;"></p>
-                        </div>
-                        <div class="row">
-                            <div class="col">
-                                <div class="form-group">
-                                    <label>总配额</label>
-                                    <p id="usageTotal" style="font-size: 28px; color: #1890ff; font-weight: bold;"></p>
-                                </div>
-                            </div>
-                            <div class="col">
-                                <div class="form-group">
-                                    <label>已使用</label>
-                                    <p id="usageUsed" style="font-size: 28px; color: #666; font-weight: bold;"></p>
-                                </div>
-                            </div>
-                            <div class="col">
-                                <div class="form-group">
-                                    <label>剩余</label>
-                                    <p id="usageRemaining" style="font-size: 28px; color: #52c41a; font-weight: bold;"></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </main>
 
-    <!-- 页面脚本 -->
-    <script th:src="@{/js/dashboard.js}"></script>
-    <!-- ECharts -->
+    <!-- 公共脚本 -->
+    <script th:src="@{/js/common.js}"></script>
+    <!-- ECharts CDN (必须放在 echarts-tech-theme.js 之前) -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <!-- ECharts Tech Theme -->
+    <script th:src="@{/js/echarts-tech-theme.js}"></script>
+    <!-- 页面脚本 (需要使用 echarts 和 TechChartTheme) -->
+    <script th:src="@{/js/dashboard.js}"></script>
 </body>
 </html>

@@ -50,22 +50,18 @@
         try {
             let keys = [];
 
-            if (currentUserRole === 'ADMIN') {
-                // 管理员：从管理员端点获取所有 keys
-                const response = await fetch('/api/admin/apikeys', {
+            // 根据角色选择端点
+            const endpoint = currentUserRole === 'ADMIN' ? '/api/admin/apikeys' : '/api/user/apikeys';
+
+            try {
+                const response = await fetch(endpoint, {
                     credentials: 'same-origin'
                 });
                 if (response.ok) {
                     keys = await response.json();
                 }
-            } else {
-                // 用户：只能获取自己的 keys
-                const response = await fetch('/api/user/apikeys', {
-                    credentials: 'same-origin'
-                });
-                if (response.ok) {
-                    keys = await response.json();
-                }
+            } catch (e) {
+                console.error('加载 API Keys 失败:', e);
             }
 
             // 构建选项

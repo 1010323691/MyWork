@@ -30,13 +30,13 @@
 .filter-item input,
 .filter-item select {
     padding: 8px 12px;
-    border: 1px solid rgba(232, 220, 196, 0.8);
+    border: 1px solid rgba(232, 220, 196, 0.5);  /* Was 0.8 → more subtle */
     border-radius: 6px;
     font-size: 14px;
     color: #3D3934;
-    background: rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.2);       /* Was 0.5 → more transparent */
+    backdrop-filter: blur(16px);                /* Was 10px → stronger glass effect */
+    -webkit-backdrop-filter: blur(16px);
     min-width: 180px;
     transition: all 0.3s ease;
 }
@@ -45,7 +45,7 @@
 .filter-item select:focus {
     outline: none;
     border-color: #C9A86C;
-    box-shadow: 0 0 0 3px rgba(201, 168, 108, 0.15);
+    box-shadow: 0 0 0 3px rgba(201, 168, 108, 0.1);
 }
 
 .filter-btn {
@@ -71,26 +71,26 @@
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(8px);               /* Was 5px → stronger */
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .circuit-normal {
-    background-color: rgba(230, 251, 229, 0.8);
+    background-color: rgba(230, 251, 229, 0.6);   /* Was 0.8 → more transparent */
     color: #2D7A3C;
-    border: 1px solid rgba(145, 230, 136, 0.6);
+    border: 1px solid rgba(145, 230, 136, 0.5);
 }
 
 .circuit-warning {
-    background-color: rgba(254, 241, 210, 0.8);
+    background-color: rgba(254, 241, 210, 0.6);   /* Was 0.8 → more transparent */
     color: #F9A825;
-    border: 1px solid rgba(255, 231, 149, 0.6);
+    border: 1px solid rgba(255, 231, 149, 0.5);
 }
 
 .circuit-open {
-    background-color: rgba(254, 226, 226, 0.8);
+    background-color: rgba(254, 226, 226, 0.6);   /* Was 0.8 → more transparent */
     color: #C62828;
-    border: 1px solid rgba(255, 179, 179, 0.6);
+    border: 1px solid rgba(255, 179, 179, 0.5);
 }
 
 /* Text utilities */
@@ -119,13 +119,13 @@
 
 /* Pricing styles - Glassmorphism */
 .pricing-info {
-    background-color: rgba(255, 253, 247, 0.7);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background-color: rgba(255, 253, 247, 0.18);  /* Was 0.7 → more transparent */
+    backdrop-filter: blur(16px);                  /* Was 10px → stronger glass effect */
+    -webkit-backdrop-filter: blur(16px);
     padding: 20px;
     border-radius: 12px;
     margin-bottom: 20px;
-    border: 1px solid rgba(232, 220, 196, 0.5);
+    border: 1px solid rgba(232, 220, 196, 0.45);
 }
 
 .pricing-info h4 {
@@ -154,21 +154,21 @@
 }
 
 .profit-positive {
-    background-color: rgba(230, 251, 229, 0.8);
+    background-color: rgba(230, 251, 229, 0.6);   /* Was 0.8 → more transparent */
     color: #2D7A3C;
-    border: 1px solid rgba(145, 230, 136, 0.6);
+    border: 1px solid rgba(145, 230, 136, 0.5);
 }
 
 .profit-zero {
-    background-color: rgba(236, 236, 236, 0.8);
+    background-color: rgba(236, 236, 236, 0.6);   /* Was 0.8 → more transparent */
     color: #3D3934;
-    border: 1px solid rgba(217, 217, 217, 0.6);
+    border: 1px solid rgba(217, 217, 217, 0.5);
 }
 
 .profit-negative {
-    background-color: rgba(254, 226, 226, 0.8);
+    background-color: rgba(254, 226, 226, 0.6);   /* Was 0.8 → more transparent */
     color: #C62828;
-    border: 1px solid rgba(255, 179, 179, 0.6);
+    border: 1px solid rgba(255, 179, 179, 0.5);
 }
 
 /* Provider list enhancements */
@@ -288,12 +288,12 @@
 }
 
 .info-item {
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.18);       /* Was 0.4 → more transparent */
+    backdrop-filter: blur(16px);                 /* Was 10px → stronger glass effect */
+    -webkit-backdrop-filter: blur(16px);
     padding: 16px;
     border-radius: 8px;
-    border: 1px solid rgba(232, 220, 196, 0.5);
+    border: 1px solid rgba(232, 220, 196, 0.45);
 }
 
 .info-label {
@@ -314,14 +314,15 @@
    User Balance Page Styles
    ============================================ */
 .balance-card {
-    background: linear-gradient(135deg, rgba(201, 168, 108, 0.9), rgba(184, 148, 93, 0.85));
+    background: linear-gradient(135deg, rgba(201, 168, 108, 0.4), rgba(184, 148, 93, 0.3));  /* Lower opacity for glass effect */
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     color: white;
     padding: 30px;
     border-radius: 12px;
     margin-bottom: 20px;
-    box-shadow: 0 8px 32px rgba(201, 168, 108, 0.3);
+    box-shadow: 0 8px 32px rgba(201, 168, 108, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .balance-amount {

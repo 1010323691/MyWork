@@ -6,6 +6,8 @@
     'use strict';
 
     let currentPage = 0;
+    let topKeysChartInstance = null;
+    let tokenTrendInstance = null;
 
     document.addEventListener('DOMContentLoaded', async function() {
         if (!(await API.isAuthenticated())) {
@@ -20,6 +22,7 @@
 
         initSidebarUserInfo(user);
         loadKeys(0);
+        initCharts();
     });
 
     function initSidebarUserInfo(user) {
@@ -66,10 +69,10 @@
             const statusBadge = k.enabled
                 ? '<span class="badge-success">启用</span>'
                 : '<span class="badge-danger">禁用</span>';
-            const maskedKey = k.key ? (k.key.substring(0, 8) + '...' + k.key.substring(k.key.length - 4)) : '-';
+            const maskedKey = k.apiKeyValue ? (k.apiKeyValue.substring(0, 8) + '...' + k.apiKeyValue.substring(k.apiKeyValue.length - 4)) : '-';
             return '<tr>' +
                 '<td>' + escapeHtml(k.name) + '</td>' +
-                '<td title="' + escapeHtml(k.key || '') + '">' + maskedKey + '</td>' +
+                '<td title="' + escapeHtml(k.apiKeyValue || '') + '">' + maskedKey + '</td>' +
                 '<td>-</td>' +
                 '<td>' + (k.tokenLimit != null ? UI.formatNumber(k.tokenLimit) : '无限') + '</td>' +
                 '<td>' + UI.formatNumber(k.usedTokens || 0) + '</td>' +
@@ -148,6 +151,106 @@
             .catch(() => window.location.href = '/login');
     };
 
+    // ===============================
+    // 初始化图表 - Key 使用量排行榜 + Token 趋势图
+    // ===============================
+    function initCharts() {
+        initTopKeysChart();
+        initTokenTrendChart();
+    }
+
+    function initTopKeysChart() {
+        const chartDom = document.getElementById('topKeysChart');
+        if (!chartDom) return;
+
+        topKeysChartInstance = echarts.init(chartDom, 'tech');
+
+        // 模拟数据 - Top API Keys Token 消耗排名
+        const topKeysData = [
+            { name: 'Production Key', value: 234567 },
+            { name: 'Dev Environment', value: 189012 },
+            { name: 'Mobile App', value: 156789 },
+            { name: 'Test Suite', value: 123456 },
+            { name: 'Staging Key', value: 89012 }
+        ];
+
+        const option = {
+            title: { text: 'Top 5 API Keys Token 消耗榜', left: 'center' },
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            xAxis: {
+                type: 'category',
+                data: topKeysData.map(item => item.name),
+                axisLabel: { color: '#a0aec0', interval: 0, rotate: 30 },
+                axisLine: { lineStyle: { color: 'rgba(0, 212, 255, 0.3)' } }
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Token',
+                axisLabel: { color: '#a0aec0' },
+                splitLine: { lineStyle: { color: 'rgba(0, 212, 255, 0.08)' } }
+            },
+            series: [{
+                data: topKeysData.map(item => item.value),
+                type: 'bar',
+                barWidth: '60%',
+                borderRadius: [4, 4, 0, 0],
+                itemStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: '#00d4ff' },
+                        { offset: 1, color: '#a855f7' }
+                    ])
+                }
+            }]
+        };
+
+        topKeysChartInstance.setOption(option);
+
+        window.addEventListener('resize', function() {
+            topKeysChartInstance.resize();
+        });
+    }
+
+    function initTokenTrendChart() {
+        const chartDom = document.getElementById('tokenTrendChart');
+        if (!chartDom) return;
+
+        tokenTrendInstance = echarts.init(chartDom, 'tech');
+
+        // 模拟数据 - 近 7 日 Token 消耗趋势 (所有 Keys 总和)
+        const days = ['前 7 天', '前 6 天', '前 5 天', '前 4 天', '前 3 天', '前 2 天', '今天'];
+        const values = [1200000, 1500000, 980000, 1800000, 2100000, 1650000, 2300000];
+
+        const baseOption = {
+            title: { text: '近 7 日 Token 消耗趋势 (总计)', left: 'center' },
+            tooltip: { trigger: 'axis', formatter: function(params) {
+                return params[0].name + ': ' + params[0].value.toLocaleString() + ' (' + (params[0].value / 1000000).toFixed(2) + 'M)';
+            } },
+            xAxis: { type: 'category', data: days },
+            yAxis: {
+                type: 'value',
+                name: 'Token',
+                axisLabel: {
+                    formatter: function(value) { return (value / 1000000).toFixed(1) + 'M'; }
+                }
+            },
+            series: [{
+                name: 'Token 消耗',
+                type: 'line',
+                data: values,
+                smooth: true
+            }]
+        };
+
+        const option = window.TechChartTheme?.createLineChart ?
+            window.TechChartTheme.createLineChart(baseOption) : baseOption;
+
+        tokenTrendInstance.setOption(option);
+
+        window.addEventListener('resize', function() {
+            tokenTrendInstance.resize();
+        });
+    }
+
     // Close modal on overlay click
     const overlay = document.getElementById('editModal');
     if (overlay) {
@@ -155,4 +258,10 @@
             if (e.target === overlay) closeModal();
         });
     }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (topKeysChartInstance) topKeysChartInstance.dispose();
+        if (tokenTrendInstance) tokenTrendInstance.dispose();
+    });
 })();

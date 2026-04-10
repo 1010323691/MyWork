@@ -23,7 +23,9 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -132,6 +134,37 @@ public class UserController {
         }
 
         return ResponseEntity.ok(toResponse(log));
+    }
+
+    /**
+     * 获取当前用户的 API Keys 列表（不包含 Key 值本身）
+     */
+    @GetMapping("/apikeys")
+    @Transactional(readOnly = true)
+    public ResponseEntity<List<Map<String, Object>>> listMyApiKeys(
+            HttpServletRequest request,
+            Authentication authentication) {
+        Long userId = getCurrentUserId(request, authentication);
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        List<ApiKey> apiKeys = apiKeyRepository.findByUserId(userId);
+        List<Map<String, Object>> response = apiKeys.stream().map(key -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", key.getId());
+            map.put("name", key.getName());
+            map.put("tokenLimit", key.getTokenLimit());
+            map.put("usedTokens", key.getUsedTokens());
+            map.put("remainingTokens", key.getRemainingTokens());
+            map.put("enabled", key.getEnabled());
+            map.put("expiresAt", key.getExpiresAt());
+            map.put("createdAt", key.getCreatedAt());
+            // 注意：不暴露 apiKeyValue，日志筛选只需要 id 和 name
+            return map;
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
     }
 
     /**

@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>用户管理 - LLM Gateway</title>
 
-    <!-- 公共样式 -->
-    <link rel="stylesheet" th:href="@{/css/common.css}">
-    <link rel="stylesheet" th:href="@{/css/admin.css}">
+    <!-- 公共样式 - Tech Theme -->
+    <link rel="stylesheet" th:href="@{/css/common-tech-theme.css}">
 </head>
 <body>
     <div class="layout-container">
@@ -22,6 +21,21 @@
 
                 <!-- 页面内容区域 -->
                 <div class="page-content-wrapper">
+                    <!-- 图表展示区 -->
+                    <div class="row" style="margin-bottom: 20px;">
+                        <div class="col">
+                            <div class="card">
+                                <div id="roleDistributionChart" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card">
+                                <div id="registerTrendChart" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 用户表格区 -->
                     <div class="card">
                         <div style="padding: 20px 0;">
                             <div class="filter-bar">
@@ -62,6 +76,11 @@
 
     <!-- 公共脚本 -->
     <script th:src="@{/js/common.js}"></script>
+    <!-- ECharts CDN (必须放在 echarts-tech-theme.js 之前) -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <!-- ECharts Tech Theme -->
+    <script th:src="@{/js/echarts-tech-theme.js}"></script>
+    <!-- 页面脚本 (需要使用 echarts 和 TechChartTheme) -->
     <script th:src="@{/js/admin-users.js}"></script>
 </body>
 </html>

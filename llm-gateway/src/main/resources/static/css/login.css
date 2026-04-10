@@ -4,7 +4,7 @@
    ============================================ */
 
 body {
-    background: linear-gradient(135deg, #FAF9F6 0%, #EFECD8 100%);
+    background: linear-gradient(135deg, #D4C5B0 0%, #E8DED5 50%, #C9BCA8 100%);
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -12,19 +12,45 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-/* 背景装饰效果 */
+/* 背景装饰效果 - 增强玻璃可见性 */
 body::before {
     content: '';
     position: fixed;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle at center,
-        rgba(201, 168, 108, 0.1) 0%,
-        transparent 50%);
+    top: -20%;
+    right: -10%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(201, 168, 108, 0.15) 0%, transparent 70%);
+    border-radius: 50%;
     pointer-events: none;
     z-index: -1;
+    animation: float-orb1 20s ease-in-out infinite;
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    bottom: -30%;
+    left: -15%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(184, 148, 93, 0.12) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: -1;
+    animation: float-orb2 25s ease-in-out infinite reverse;
+}
+
+@keyframes float-orb1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(-50px, 50px) scale(1.1); }
+    66% { transform: translate(50px, -30px) scale(0.95); }
+}
+
+@keyframes float-orb2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -40px) scale(0.9); }
+    66% { transform: translate(-40px, 30px) scale(1.05); }
 }
 
 .login-container {
@@ -46,14 +72,14 @@ body::before {
 }
 
 .login-card {
-    background: rgba(255, 253, 247, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(255, 253, 247, 0.2);   /* Was 0.85 → true glassmorphism */
+    backdrop-filter: blur(24px);            /* Was 20px → stronger blur */
+    -webkit-backdrop-filter: blur(24px);
     border-radius: 16px;
     padding: 48px 40px;
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    box-shadow: 0 8px 32px rgba(61, 57, 52, 0.12),
-                0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 32px rgba(61, 57, 52, 0.08),
+                0 0 0 1px rgba(255, 255, 255, 0.3) inset;
     position: relative;
     overflow: hidden;
 }
@@ -96,14 +122,14 @@ body::before {
 }
 
 .login-container .form-group input {
-    background: rgba(255, 255, 255, 0.6);
-    border-color: rgba(232, 220, 196, 0.8);
+    background: rgba(255, 255, 255, 0.25);  /* Was 0.6 → more transparent */
+    border-color: rgba(232, 220, 196, 0.5);
 }
 
 .login-container .form-group input:focus {
     border-color: #C9A86C;
-    box-shadow: 0 0 0 3px rgba(201, 168, 108, 0.15);
-    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 0 3px rgba(201, 168, 108, 0.1);
+    background: rgba(255, 255, 255, 0.6);   /* Was 0.9 → still glassy */
 }
 
 /* 登录按钮全宽样式 */

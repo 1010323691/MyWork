@@ -1,138 +1,132 @@
-# Security 模块文档（安全认证）
+# Security 安全模块说明
 
-## 模块职责
+## 概述
 
-实现双模式认证：**Session/Cookie 认证**（网页登录）和 **API Key 认证**（程序调用）。包含密码加密、CORS 配置等。
+Security 层基于 Spring Security 构建，支持两种认证模式：Session/Cookie（Web 页面）和 API Key（API 调用）。使用 BCrypt 密码加密、方法级权限控制 (`@PreAuthorize`) 以及 CORS 配置。
 
 ---
 
-## 安全组件列表
+## 核心组件
 
-### 1. SecurityConfig (安全配置) ⭐核心
+### 1. SecurityConfig
+**路径**: `security/SecurityConfig.java`  
+**职责**: Spring Security 全局配置（过滤器链、认证提供者、CORS）
 
-**文件路径**: `src/main/java/com/nexusai/llm/gateway/security/SecurityConfig.java`
+#### SecurityFilterChain 配置要点
+| 配置项 | 设置 | 说明 |
+|--------|------|------|
+| CSRF | disable() | 禁用 CSRF（JSON API 场景） |
+| Session Creation | IF_REQUIRED | 需要时创建 Session（支持无状态 API） |
+| Form Login | disable() | 禁用默认登录页，使用自定义 `/api/auth/login` |
+| Logout | `/logout` | 退出后重定向到 `/login?logout` |
 
-**关键配置**:
+#### 路径权限规则
+| 路径模式 | 权限要求 | 说明 |
+|----------|----------|------|
+| /api/auth/register, /api/auth/login | permitAll() | 公开注册/登录接口 |
+| /api/admin/** | hasRole('ADMIN') | 管理员专用接口 |
+| /api/user/**, /api/llm/** | authenticated() | 需要认证（Session 或 API Key） |
+| /admin/** | hasRole('ADMIN') | 管理员页面路由 |
+| /dashboard, /logs | authenticated() | 用户页面需登录 |
+| /, /login, /register | permitAll() | 公开页面 |
+
+#### CORS 配置
 ```java
-@Configuration
-@EnableWebSecurity
-@EnableMethodSecurity  // 启用@PreAuthorize 注解
-public class SecurityConfig {
-    
-    // Session 认证：启用会话支持，CSRF 禁用（JSON API 无需 CSRF）
-    .csrf(csrf -> csrf.disable())
-    .sessionManagement(session -> session
-        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-    
-    // 退出登录配置
-    .logout(logout -> logout
-        .logoutUrl("/logout")
-        .invalidateHttpSession(true)
-        .deleteCookies("JSESSIONID"))
-}
-```
-
-**权限映射**:
-| URL 路径 | 所需权限 |
-|---------|----------|
-| `/api/auth/**` (login/register) | 公开访问 |
-| `/api/admin/**` | ROLE_ADMIN |
-| `/api/user/**` | 已认证用户 |
-| `/api/llm/**` | API Key 或 Session |
-
----
-
-### 2. ApiKeyAuthenticationFilter (API Key 过滤器) ⭐核心
-
-**文件路径**: `src/main/java/com/nexusai/llm/gateway/security/ApiKeyAuthenticationFilter.java`
-
-**职责**: 识别并验证 HTTP 请求头中的 `X-API-Key`，设置 SecurityContext
-
-**认证流程**:
-```
-1. 检查是否命中 skipPaths（如/login, /api/auth/**）→ 跳过
-2. 读取请求头 X-API-Key（以 nkey_开头）→ 无则跳过交给 Session 认证
-3. 调用 ApiKeyService.findByKeyNoCache() 查询数据库
-4. 验证状态：enabled? expiresAt > now?
-5. 创建 UsernamePasswordAuthenticationToken，设置 SecurityContext
-6. 将 ApiKey 对象存入 request.setAttribute("apiKey", key)
-```
-
-**错误响应**:
-| 状态码 | 原因 |
-|--------|------|
-| 401 | Invalid API key |
-| 403 | API key is disabled |
-| 403 | API key has expired |
-
----
-
-### 3. CustomUserDetailsService (用户详情服务)
-
-**文件路径**: `src/main/java/com/nexusai/llm/gateway/security/CustomUserDetailsService.java`
-
-**职责**: Spring Security 的 UserDetailsService 实现，从数据库加载用户信息
-
-```java
-public UserDetails loadUserByUsername(String username) {
-    return userRepository.findByUsername(username)
-        .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-}
+allowedOrigins: ["http://localhost:8080", "http://127.0.0.1:8080"]
+allowedMethods: [GET, POST, PUT, DELETE, OPTIONS]
+allowedHeaders: [Authorization, Content-Type, X-API-Key]
+allowCredentials: true
 ```
 
 ---
 
-### 4. BCryptPasswordEncoder (密码加密器)
+### 2. ApiKeyAuthenticationFilter
+**路径**: `security/ApiKeyAuthenticationFilter.java`  
+**职责**: API Key 认证过滤器（继承 OncePerRequestFilter）
 
-**职责**: 对用户密码进行 BCrypt 哈希加密（在 SecurityConfig 中作为 Bean 提供）
+#### 过滤流程
+1. **跳过检查**：匹配 skipPaths 配置的路径直接放行
+2. **提取 Header**：从请求头获取 `X-API-Key`
+3. **格式校验**：Key 值需以 `nkey_` 开头，否则跳过（交由 Session 认证处理）
+4. **查找验证**：调用 ApiKeyService.findByKeyNoCache()
+5. **状态检查**：验证 enabled 和 expiresAt 字段
+6. **构建认证对象**：创建 UsernamePasswordAuthenticationToken，设置 SecurityContext
+7. **附加信息**：将 ApiKey 实体存入 request.setAttribute("apiKey")
 
-**特点**:
-- 单向不可逆
-- 内置 salt，相同密码生成不同 hash
-
----
-
-## 双认证模式对比
-
-| 特性 | Session/Cookie 认证 | API Key 认证 |
-|------|---------------------|-------------|
-| **使用场景** | Web 浏览器登录 | 程序调用 LLM API |
-| **认证方式** | 用户名/密码 → 表单登录 | X-API-Key 请求头 |
-| **会话保持** | JSESSIONID Cookie（HttpSession） | 无状态（每次携带 Key） |
-| **核心组件** | DaoAuthenticationProvider + HttpSessionSecurityContextRepository | ApiKeyAuthenticationFilter |
-| **权限控制** | USER / ADMIN | API_USER (固定) |
+#### Skip Paths（跳过的路径）
+- /api/auth/**, /swagger-ui/**, /v3/api-docs/**
+- /actuator/**, /css/**, /js/**, /images/**
+- /login, /register, /
 
 ---
 
-## Session/Cookie 认证流程详解
+### 3. ApiKeyService
+**路径**: `security/ApiKeyService.java`  
+**职责**: API Key 业务操作（生成、查询、配额检查）
 
+| 方法 | 说明 |
+|------|------|
+| findByKey(apiKeyValue) | 查找 ApiKey 实体 |
+| createApiKey(...) | 创建新 Key，生成 `nkey_` + Base64(32 字节随机数) |
+| hasEnoughTokens(key, required) | 配额检查：无限制或剩余≥所需 |
+
+---
+
+### 4. CustomUserDetailsService
+**路径**: `security/CustomUserDetailsService.java`  
+**职责**: Spring Security UserDetailsService 实现
+
+- 根据用户名查找 User 实体
+- User 本身已实现 UserDetails 接口，直接返回即可
+
+---
+
+## 认证流程对比
+
+### Session/Cookie 模式（Web 页面）
 ```
-1. 用户提交登录表单 → POST /api/auth/login
-2. AuthController.login():
-   - AuthenticationManager.authenticate() 验证用户名密码
-   - SecurityContextHolder.createEmptyContext() 创建安全上下文
-   - HttpSessionSecurityContextRepository.saveContext() 存入 Session
-3. Spring 自动设置 JSESSIONID Cookie（HttpOnly）
-4. 后续请求自动携带 Cookie → SecurityContextPersistenceFilter 恢复认证状态
+1. 用户提交登录表单 → /api/auth/login (POST)
+2. AuthController.login() → AuthenticationManager.authenticate()
+3. CustomUserDetailsService.loadUserByUsername() → User实体
+4. SecurityConfig.saveContext() → 创建Session，设置JSESSIONID Cookie
+5. 后续请求携带Cookie → Spring Security自动恢复认证状态
+6. @AuthenticationPrincipal UserDetails / Authentication获取当前用户
+```
+
+### API Key 模式（API 调用）
+```
+1. 客户端发送请求，Header: X-API-Key: nkey_xxx
+2. ApiKeyAuthenticationFilter.doFilterInternal() 拦截
+3. ApiKeyService.findByKeyNoCache(key) → ApiKey实体
+4. 验证 enabled / expiresAt 状态
+5. SecurityContextHolder.setAuthentication(authToken)
+6. request.setAttribute("apiKey", key) 供下游使用
 ```
 
 ---
 
-## CORS 配置
+## 权限控制方法注解
 
-**允许的源**: `http://localhost:8080`, `http://127.0.0.1:8080`  
-**允许的方法**: GET, POST, PUT, DELETE, OPTIONS  
-**允许的头**: Authorization, Content-Type, X-API-Key  
-**暴露的头**: X-Remaining-Tokens, X-Total-Tokens  
-**允许凭证**: true（启用 Cookie 跨域）
+| 注解 | 示例 | 说明 |
+|------|------|------|
+| @PreAuthorize('hasRole("ADMIN")') | AdminController 所有方法 | 需要 ADMIN 角色 |
+| @AuthenticationPrincipal UserDetails | ApiKeyController.listApiKeys() | 获取当前认证用户 |
 
 ---
 
-## 修改指引
+## 密码加密
 
-| 需求 | 修改位置 |
-|------|----------|
-| 添加新的公开路径 | SecurityConfig 的 `authorizeHttpRequests` + apiKeyFilter.setSkipPaths() |
-| 更换密码加密算法 | SecurityConfig.passwordEncoder() Bean |
-| 增加权限角色 | User.userRole + SecurityConfig.hasRole() |
-| 调整 Session 超时时间 | application.yml → server.servlet.session.timeout |
+- **算法**: BCrypt（PasswordEncoder Bean）
+- **存储**: User.password 字段存储加密后的字符串
+- **验证**: DaoAuthenticationProvider 自动调用 passwordEncoder.matches()
+
+---
+
+## 常见修改定位
+
+| 问题类型 | 优先检查文件 |
+|----------|--------------|
+| Session 登录失效 | SecurityConfig.securityFilterChain() sessionManagement 配置 |
+| API Key 认证失败 | ApiKeyAuthenticationFilter.doFilterInternal() 跳过路径逻辑 |
+| CORS 跨域错误 | SecurityConfig.corsConfigurationSource() allowedOrigins 配置 |
+| 权限不足返回 403 | Controller 方法的 @PreAuthorize 注解与用户角色匹配关系 |

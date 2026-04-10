@@ -1,159 +1,102 @@
-# Repository 层文档（数据仓库）
+# Repository 层说明
 
-## 模块职责
+## 概述
 
-使用 Spring Data JPA 进行数据库操作，提供 CRUD 和自定义查询功能。所有接口继承自 `JpaRepository`，自动获得基本的增删改查能力。
-
----
-
-## Repository 列表
-
-### 1. UserRepository (用户数据仓库)
-
-**文件路径**: `src/main/java/com/nexusai/llm/gateway/repository/UserRepository.java`
-
-```java
-interface UserRepository extends JpaRepository<User, Long> {
-    // 根据用户名查找（级联加载 apiKeys）
-    Optional<User> findByUsername(String username);
-    
-    // 检查用户是否存在
-    boolean existsByUsername(String username);
-    
-    // 检查邮箱是否已存在
-    boolean existsByEmail(String email);
-    
-    // 模糊查询用户（分页）
-    Page<User> findByUsernameContainingIgnoreCase(String username, Pageable pageable);
-}
-```
+Repository 层负责数据持久化操作，基于 Spring Data JPA 实现。提供标准的 CRUD 接口和自定义查询方法，简化数据库访问逻辑。
 
 ---
 
-### 2. ApiKeyRepository (API Key 数据仓库) ⭐核心
+## Repository 清单
 
-**文件路径**: `src/main/java/com/nexusai/llm/gateway/repository/ApiKeyRepository.java`
+### 1. UserRepository
+**路径**: `repository/UserRepository.java`  
+**实体类**: User  
+**职责**: 用户数据访问
 
-```java
-interface ApiKeyRepository extends JpaRepository<ApiKey, Long> {
-    // 根据 Key 值查找
-    Optional<ApiKey> findByApiKeyValue(String apiKeyValue);
-    
-    // 查询用户的所有 Keys
-    List<ApiKey> findByUserId(Long userId);
-    
-    // 按启用状态筛选
-    List<ApiKey> findByEnabled(Boolean enabled);
-    
-    // 检查 Key 是否存在
-    boolean existsByApiKeyValue(String apiKeyValue);
-    
-    // 统计用户的 Key 数量
-    Long countByUserId(Long userId);
-    
-    // 统计用户启用的 Key 数量
-    Long countByUserIdAndEnabled(Long userId, Boolean enabled);
-    
-    // 计算用户使用的所有 Token 总数（自定义查询）
-    Long sumUsedTokensByUserId(@Param("userId") Long userId);
-    
-    // ⭐ 原子性增加 usedTokens + 更新 lastUsedAt（用于并发扣减）
-    @Modifying
-    @Transactional
-    void incrementUsedTokens(@Param("id") Long id, 
-                             @Param("tokens") long tokens, 
-                             @Param("now") LocalDateTime now);
-}
-```
+| 方法 | 说明 |
+|------|------|
+| findByUsername(username) | 根据用户名查找（含 EntityGraph 预加载 apiKeys） |
+| existsByUsername(username) | 检查用户名是否存在 |
+| existsByEmail(email) | 检查邮箱是否存在 |
+| findByUsernameContainingIgnoreCase(username, pageable) | 模糊查询用户（忽略大小写，分页） |
 
-**重要说明**: `incrementUsedTokens` 使用 SQL UPDATE + SET ... = ... + :param 实现原子性更新，避免并发问题。
+**特性**: `@EntityGraph(attributePaths = {"apiKeys"})` 防止 N+1 查询问题
 
 ---
 
-### 3. RequestLogRepository (请求日志数据仓库) ⭐核心
+### 2. ApiKeyRepository
+**路径**: `repository/ApiKeyRepository.java`  
+**实体类**: ApiKey  
+**职责**: API Key 数据访问
 
-**文件路径**: `src/main/java/com/nexusai/llm/gateway/repository/RequestLogRepository.java`
+| 方法 | 说明 |
+|------|------|
+| findByApiKeyValue(key) | 根据密钥值查找（返回 Optional） |
+| findByUserId(userId) | 获取用户所有 API Keys |
+| findByEnabled(enabled) | 按启用状态筛选 |
+| existsByApiKeyValue(key) | 检查 Key 是否存在 |
+| countByUserId(userId) | 统计用户 API Key 数量 |
+| countByUserIdAndEnabled(userId, enabled) | 统计指定状态的 Key 数量 |
+| sumUsedTokensByUserId(userId) | 求和用户的已用 Token 总量 |
+| incrementUsedTokens(id, tokens, now) | 增量更新 usedTokens（原生 UPDATE 语句） |
 
-```java
-interface RequestLogRepository extends JpaRepository<RequestLog, Long>, 
-                                         JpaSpecificationExecutor<RequestLog> {
-    
-    // 查询用户的请求日志（分页）
-    Page<RequestLog> findByApiKey_User_Id(Long userId, Pageable pageable);
-    
-    // ⭐ 获取用户每日 Token 使用趋势（原生 SQL，按日分组）
-    @Query(value = "SELECT DATE_FORMAT(r.created_at,'%Y-%m-%d') as date, " +
-                   "COALESCE(SUM(r.input_tokens + r.output_tokens), 0) as tokens " +
-                   "FROM request_logs r WHERE ...", nativeQuery = true)
-    List<Object[]> getDailyTrendByUser(@Param("userId") Long userId, 
-                                       @Param("since") LocalDateTime since);
-    
-    // 统计用户自某时间以来的 Token 总数
-    Long sumTokensByUserSince(@Param("userId") Long userId, 
-                              @Param("since") LocalDateTime since);
-    
-    // 统计用户请求总数
-    Long countByUserId(@Param("userId") Long userId);
-    
-    // 统计用户成功请求数
-    Long countSuccessByUserId(@Param("userId") Long userId);
-    
-    // 全局成功/失败统计
-    Long countSuccess();
-    Long countFail();
-    
-    // 计算平均延迟（自某时间）
-    Double avgLatencySince(@Param("since") LocalDateTime since);
-    
-    // 全局 Token 总数
-    Long sumAllTokens();
-}
-```
-
-**继承说明**: `JpaSpecificationExecutor<RequestLog>` 支持动态条件查询（使用 Specification API）。
+**特性**: `@Modifying` + `@Transactional` 用于执行 UPDATE 操作
 
 ---
 
-### 4. BackendServiceRepository (后端服务数据仓库)
+### 3. RequestLogRepository
+**路径**: `repository/RequestLogRepository.java`  
+**实体类**: RequestLog  
+**职责**: 请求日志数据访问与统计分析
 
-**文件路径**: `src/main/java/com/nexusai/llm/gateway/repository/BackendServiceRepository.java`
+| 方法 | 说明 |
+|------|------|
+| findByApiKey_User_Id(userId, pageable) | 分页查询用户的请求日志 |
+| getDailyTrendByUser(userId, since) | 获取每日 Token 使用趋势（原生 SQL，按日期分组） |
+| sumTokensByUserSince(userId, since) | 统计用户指定时间后的 Token 总量 |
+| countByUserId(userId) | 统计用户的请求总数 |
+| countSuccessByUserId(userId) | 统计用户成功请求数 |
+| countSuccess() | 全局成功请求计数 |
+| countFail() | 全局失败请求计数 |
+| avgLatencySince(since) | 计算指定时间后的平均延迟（毫秒） |
+| sumAllTokens() | 全局 Token 使用总量 |
 
-```java
-interface BackendServiceRepository extends JpaRepository<BackendService, Long> {
-    // 查询启用的服务列表
-    List<BackendService> findByEnabled(Boolean enabled);
-    
-    // 根据 ID 查找（常用）
-    Optional<BackendService> findById(Long id);
-}
-```
-
----
-
-## Repository 调用关系图
-
-```
-Controller/Service              →      Repository              →     Entity
-────────────────────           ────────          ─────       ─────────────
-AuthController                  →       UserRepository        →     User
-
-ApiKeyController                →       ApiKeyRepository      →     ApiKey
-
-LlmController                                                          
-    ↓                                                             
-RequestLogService             →       RequestLogRepository  →     RequestLog
-                                ApiKeyRepository.incrementUsedTokens()
-
-AdminController               →       UserRepository + BackendServiceRepository
-```
+**特性**:
+- 继承 `JpaSpecificationExecutor`，支持动态条件查询（Specification API）
+- 原生 SQL (`@Query(nativeQuery = true)`) 用于复杂分组聚合
 
 ---
 
-## 修改指引
+### 4. BackendServiceRepository
+**路径**: `repository/BackendServiceRepository.java`  
+**实体类**: BackendService  
+**职责**: 上游 Provider 配置数据访问
 
-| 需求 | 操作方式 |
-|------|----------|
-| 新增查询条件 | 使用 `JpaSpecificationExecutor` 的 Specification API（动态过滤） |
-| 统计查询优化 | 考虑添加原生 SQL 查询或使用 JPQL |
-| 并发更新字段 | 使用 `@Modifying + @Transactional` 原子性操作 |
-| 分页排序支持 | 参数传递 `Pageable/PageRequest` |
+| 方法 | 说明 |
+|------|------|
+| findByEnabled(enabled) | 按启用状态筛选 Provider |
+
+**特性**: 简单 CRUD，主要依赖 JpaRepository 基础接口
+
+---
+
+## Repository 层设计要点
+
+### 查询优化策略
+- **EntityGraph**: UserRepository.findByUsername 预加载关联的 apiKeys，避免懒加载异常
+- **原生 SQL**: 复杂聚合查询使用 nativeQuery = true（如每日趋势统计）
+- **批量更新**: incrementUsedTokens 使用 UPDATE 语句而非 SELECT + UPDATE 减少网络往返
+
+### 分页支持
+- UserController.getUserLogs 调用 `findByApiKey_User_Id` 时使用 Pageable 参数
+- AdminController.listUsers 调用 `findByUsernameContainingIgnoreCase` 支持模糊搜索分页
+
+---
+
+## 常见修改定位
+
+| 问题类型 | 优先检查 Repository |
+|----------|---------------------|
+| 用户信息查询慢 | UserRepository.findByUsername EntityGraph 配置 |
+| Token 统计不准 | RequestLogRepository.sumTokensByUserSince 查询条件 |
+| API Key 更新失败 | ApiKeyRepository.incrementUsedTokens 事务传播行为 |

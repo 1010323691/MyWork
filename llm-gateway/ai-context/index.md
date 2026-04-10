@@ -1,83 +1,71 @@
 # LLM Gateway 项目索引
 
-## 项目概述
+## 工程路径
+```
+D:\projectPath\MyWork\llm-gateway
+```
 
-**项目名称**: LLM Gateway（大语言模型网关）  
-**技术栈**: Spring Boot + Thymeleaf + MySQL + Spring Security (Session/Cookie)
-**端口**: 8080  
-
-这是一个用于统一管理多个 LLM 后端服务的网关系统，提供 API Key 管理、Token 配额控制、请求转发、使用量统计等功能。
+## 技术栈概览
+- **后端**: Spring Boot 3.4.1 + Java 17
+- **前端**: Thymeleaf + JavaScript (ECharts)
+- **数据库**: MySQL + JPA/Hibernate
+- **安全**: Spring Security (Session/Cookie 模式)
 
 ---
 
-## 目录结构
+## 模块文档索引
 
-```
-/ai-context/
-├── index.md          # 全局索引（本文件）
-├── entity.md         # 实体类文档
-├── controller.md     # Controller 层文档
-├── service.md        # Service 层文档  
-├── repository.md     # Repository 层文档
-├── security.md       # 安全认证模块文档
-└── ui.md            # 前端页面文档
-```
+### 后端模块
+| 文件 | 职责 |
+|------|------|
+| [controller.md](./controller.md) | REST API 控制器与页面路由 |
+| [service.md](./service.md) | 业务逻辑处理（转发、计费、限流） |
+| [repository.md](./repository.md) | JPA 数据访问接口定义 |
+| [entity.md](./entity.md) | 数据库实体映射结构 |
+| [security.md](./security.md) | Spring Security 认证授权配置 |
 
----
-
-## 模块说明与导航
-
-| 文档 | 职责 | 包含内容 |
-|------|------|----------|
-| [entity.md](./entity.md) | 数据模型定义 | User、ApiKey、RequestLog、BackendService |
-| [controller.md](./controller.md) | HTTP 接口层 | Auth、User、ApiKey、Llm、Admin 等控制器 |
-| [service.md](./service.md) | 业务逻辑层 | Token 配额、请求转发、日志记录、路由配置 |
-| [repository.md](./repository.md) | 数据访问层 | JPA Repository 接口定义 |
-| [security.md](./security.md) | 安全认证模块 | Session/Cookie 认证、API Key 验证、密码加密 |
-| [ui.md](./ui.md) | 前端页面 | 登录、注册、Dashboard、管理员页面 |
+### 前端模块
+| 文件 | 职责 |
+|------|------|
+| [ui.md](./ui.md) | Thymeleaf 模板、JavaScript 交互与样式 |
 
 ---
 
-## 核心流程图
+## 任务执行流程（严格按顺序）
 
-### 1. LLM 请求转发流程（核心）
-```
-客户端 → ApiKeyAuthenticationFilter(验证 API Key) 
-      → LlmController.chat()
-      → RoutingConfigParser(解析路由配置)
-      → LlmForwardService(forwardChatRequest)
-      → 后端 OLLAMA/VLLM 服务
-      → RequestLogService(记录日志 + 扣减 Token)
-```
+1. **阅读 index.md** → 确定涉及模块
+2. **查阅对应模块文档** → 理解结构与定位文件
+3. **修改代码文件** → 仅操作必要文件，避免无关改动
+4. **同步更新文档** → 若结构/方法体/核心实现有重大变更
 
-### 2. 用户认证流程（Session/Cookie）
-```
-用户名/密码登录 → AuthController.login()
-              → AuthenticationManager.authenticate()
-              → HttpSessionSecurityContextRepository.saveContext()
-              → Spring 设置 JSESSIONID Cookie
-              → 后续请求自动携带 Cookie 进行认证
+5. **执行 git 提交** → 使用以下命令格式：
+
+```bash
+git add <涉及的文件列表>
+git commit -m "类型：简短说明"
+# 例如：git commit -m "feat: 添加新的 API Key 校验规则"
 ```
 
 ---
 
-## 快速修改指引
+## 快速定位指南
 
-| 问题类型 | 优先查看文档 |
-|----------|-------------|
-| API Key 相关问题 | [entity.md](./entity.md) + [controller.md](./controller.md) |
-| Session 认证失败 | [security.md](./security.md) |
-| Token 扣减逻辑 | [service.md](./service.md) |
-| LLM 转发错误 | [service.md](./service.md) - LlmForwardService |
-| 前端页面样式 | [ui.md](./ui.md) |
-| 数据库查询问题 | [repository.md](./repository.md) |
+| 问题场景 | 优先查阅文档 |
+|----------|--------------|
+| REST API 路由配置 | controller.md |
+| LLM 转发逻辑 | service.md |
+| 数据库查询/实体设计 | entity.md、repository.md |
+| 认证/授权机制 | security.md |
+| 页面显示/UI 交互 | ui.md |
 
 ---
 
-## 任务执行流程
+## 核心业务流
 
-1. **阅读本文件**：确定涉及模块
-2. **查阅对应文档**：查看具体实现细节
-3. **修改代码文件**：根据需求进行修改
-4. **同步更新文档**：如结构变更需同步更新 ai-context 文档
-5. **提交 Git**：执行 git commit
+```
+用户请求 → Controller 路由分发 → Service 处理逻辑 → Repository 数据持久化 → Entity ORM 映射
+                    ↓
+            Security 拦截验证 (API Key / Session)
+                    ↓
+           UI 渲染 (Thymeleaf + JavaScript)
+```

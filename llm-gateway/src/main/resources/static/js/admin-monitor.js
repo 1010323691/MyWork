@@ -7,8 +7,6 @@
     const charts = {};
     const chartSeriesHistory = {};
     const MAX_DATA_POINTS = 60;
-    const MULTI_GPU_CHART_HEIGHT = 88;
-
     let refreshTimer = null;
     let renderedGpuKeys = [];
 
@@ -233,11 +231,11 @@
             <div class="gpu-chart-stack">
                 <div class="gpu-chart-panel">
                     <div class="gpu-chart-subtitle" style="color:var(--text-secondary);font-size:12px;margin-bottom:2px;">使用率</div>
-                    <div id="gpu-${gpuKey}-util" style="height: ${MULTI_GPU_CHART_HEIGHT}px;"></div>
+                    <div id="gpu-${gpuKey}-util" style="flex:1;min-height:0;"></div>
                 </div>
                 <div class="gpu-chart-panel">
                     <div class="gpu-chart-subtitle" style="color:var(--text-secondary);font-size:12px;margin-bottom:2px;">显存</div>
-                    <div id="gpu-${gpuKey}-mem" style="height: ${MULTI_GPU_CHART_HEIGHT}px;"></div>
+                    <div id="gpu-${gpuKey}-mem" style="flex:1;min-height:0;"></div>
                 </div>
             </div>
         `;
@@ -305,10 +303,7 @@
                 type: 'time',
                 boundaryGap: false,
                 axisLine: { lineStyle: { color: '#4a5568' } },
-                axisLabel: compact ? { show: false } : {
-                    color: '#a0aec0',
-                    formatter: function(value) { return formatAxisTimestamp(value); }
-                }
+                axisLabel: { show: false }
             },
             yAxis: {
                 type: 'value',
@@ -488,10 +483,6 @@
     function formatTimestamp(timestamp) {
         const date = new Date(timestamp);
         return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
-    }
-
-    function formatAxisTimestamp(timestamp) {
-        return formatTimestamp(timestamp);
     }
 
     function formatTooltipTimestamp(timestamp) {

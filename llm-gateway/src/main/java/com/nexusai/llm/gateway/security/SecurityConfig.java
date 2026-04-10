@@ -1,5 +1,6 @@
 package com.nexusai.llm.gateway.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -21,6 +22,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -29,22 +31,25 @@ public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+    private final boolean swaggerEnabled;
+    private final List<String> allowedOriginPatterns;
 
-    public SecurityConfig(
-            UserDetailsService userDetailsService,
-            ApiKeyAuthenticationFilter apiKeyAuthenticationFilter
-    ) {
+    public SecurityConfig(UserDetailsService userDetailsService,
+                          ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
+                          @Value("${app.security.swagger-enabled:false}") boolean swaggerEnabled,
+                          @Value("${app.security.allowed-origin-patterns:}") String allowedOriginPatterns) {
         this.userDetailsService = userDetailsService;
         this.apiKeyAuthenticationFilter = apiKeyAuthenticationFilter;
+        this.swaggerEnabled = swaggerEnabled;
+        this.allowedOriginPatterns = Arrays.stream(allowedOriginPatterns.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .collect(Collectors.toList());
 
         apiKeyAuthenticationFilter.setSkipPaths(List.of(
                 "/api/auth/**",
-                "/v3/api-docs/**",
-                "/swagger-ui/**",
-                "/swagger-ui.html",
-                "/swagger-resources/**",
-                "/webjars/**",
-                "/actuator/**",
+                "/actuator/health",
+                "/actuator/info",
                 "/favicon.ico",
                 "/css/**",
                 "/js/**",
@@ -69,37 +74,47 @@ public class SecurityConfig {
                         .logoutSuccessUrl("/login?logout")
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID"))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/login").permitAll()
-                        .requestMatchers("/api/auth/register").permitAll()
-                        .requestMatchers("/api/auth/me").authenticated()
-                        .requestMatchers("/v3/api-docs/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/swagger-resources/**").permitAll()
-                        .requestMatchers("/webjars/**").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/favicon.ico").permitAll()
-                        .requestMatchers("/").permitAll()
-                        .requestMatchers("/login").permitAll()
-                        .requestMatchers("/register").permitAll()
-                        .requestMatchers("/static/**").permitAll()
-                        .requestMatchers("/assets/**").permitAll()
-                        .requestMatchers("/css/**").permitAll()
-                        .requestMatchers("/js/**").permitAll()
-                        .requestMatchers("/images/**").permitAll()
-                        .requestMatchers("/fonts/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/user/**").authenticated()
-                        .requestMatchers("/api/clients/**").authenticated()
-                        .requestMatchers("/api/llm/**").authenticated()
-                        .requestMatchers("/v1/**").authenticated()
-                        .requestMatchers("/api/**").authenticated()
-                        .requestMatchers("/dashboard").authenticated()
-                        .requestMatchers("/logs").authenticated()
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .anyRequest().permitAll()
-                )
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+                    auth.requestMatchers("/api/auth/login").permitAll();
+                    auth.requestMatchers("/api/auth/register").permitAll();
+                    auth.requestMatchers("/api/auth/me").authenticated();
+                    auth.requestMatchers("/actuator/health", "/actuator/info").permitAll();
+                    auth.requestMatchers("/actuator/**").hasRole("ADMIN");
+                    auth.requestMatchers("/favicon.ico").permitAll();
+                    auth.requestMatchers("/").permitAll();
+                    auth.requestMatchers("/login").permitAll();
+                    auth.requestMatchers("/register").permitAll();
+                    auth.requestMatchers("/static/**").permitAll();
+                    auth.requestMatchers("/assets/**").permitAll();
+                    auth.requestMatchers("/css/**").permitAll();
+                    auth.requestMatchers("/js/**").permitAll();
+                    auth.requestMatchers("/images/**").permitAll();
+                    auth.requestMatchers("/fonts/**").permitAll();
+
+                    if (swaggerEnabled) {
+                        auth.requestMatchers("/v3/api-docs/**").hasRole("ADMIN");
+                        auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html").hasRole("ADMIN");
+                        auth.requestMatchers("/swagger-resources/**").hasRole("ADMIN");
+                        auth.requestMatchers("/webjars/**").hasRole("ADMIN");
+                    } else {
+                        auth.requestMatchers("/v3/api-docs/**").denyAll();
+                        auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html").denyAll();
+                        auth.requestMatchers("/swagger-resources/**").denyAll();
+                        auth.requestMatchers("/webjars/**").denyAll();
+                    }
+
+                    auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
+                    auth.requestMatchers("/api/user/**").authenticated();
+                    auth.requestMatchers("/api/clients/**").authenticated();
+                    auth.requestMatchers("/api/llm/**").authenticated();
+                    auth.requestMatchers("/v1/**").authenticated();
+                    auth.requestMatchers("/api/**").authenticated();
+                    auth.requestMatchers("/dashboard").authenticated();
+                    auth.requestMatchers("/logs").authenticated();
+                    auth.requestMatchers("/admin/**").hasRole("ADMIN");
+                    auth.anyRequest().permitAll();
+                })
                 .authenticationProvider(daoAuthenticationProvider())
                 .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -127,19 +142,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",
-                "http://127.0.0.1:*",
-                "http://192.168.*:*",
-                "http://10.*:*",
-                "http://172.16.*:*",
-                "http://172.17.*:*",
-                "http://172.18.*:*",
-                "http://172.19.*:*",
-                "http://172.2*.*:*",
-                "http://172.30.*:*",
-                "http://172.31.*:*"
-        ));
+        configuration.setAllowedOriginPatterns(allowedOriginPatterns);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-API-Key", "X-Requested-With"));
         configuration.setExposedHeaders(Arrays.asList("X-Remaining-Tokens", "X-Total-Tokens"));

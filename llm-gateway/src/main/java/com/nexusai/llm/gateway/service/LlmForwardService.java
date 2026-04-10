@@ -2,44 +2,40 @@ package com.nexusai.llm.gateway.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 public class LlmForwardService {
 
     private static final Logger logger = LoggerFactory.getLogger(LlmForwardService.class);
-    private static final int MAX_CAPTURED_BODY_LENGTH = 4000;
 
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final WebClient webClient;
+    private final Duration readTimeout;
 
     @Autowired
-    public LlmForwardService(ObjectMapper objectMapper) {
+    public LlmForwardService(ObjectMapper objectMapper,
+                             @Value("${gateway.forward.connect-timeout-seconds:30}") long connectTimeoutSeconds,
+                             @Value("${gateway.forward.read-timeout-seconds:300}") long readTimeoutSeconds,
+                             @Value("${gateway.forward.max-in-memory-size-bytes:16777216}") int maxInMemorySizeBytes) {
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(30))
+                .connectTimeout(Duration.ofSeconds(connectTimeoutSeconds))
                 .build();
+        this.readTimeout = Duration.ofSeconds(readTimeoutSeconds);
         this.webClient = WebClient.builder()
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(maxInMemorySizeBytes))
                 .build();
     }
 
@@ -91,7 +87,7 @@ public class LlmForwardService {
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(String.class)
-                    .timeout(Duration.ofSeconds(300))
+                    .timeout(readTimeout)
                     .block();
 
             return response;
@@ -112,7 +108,7 @@ public class LlmForwardService {
                     .bodyValue(body)
                     .retrieve()
                     .bodyToFlux(String.class)
-                    .timeout(Duration.ofSeconds(300))
+                    .timeout(readTimeout)
                     .subscribe(
                             data -> {
                                 if (data != null && !data.isBlank()) {

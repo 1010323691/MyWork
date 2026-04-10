@@ -1,71 +1,44 @@
-# LLM Gateway 项目索引
+﻿# LLM Gateway - AI Context Index
 
-## 工程路径
-```
-D:\projectPath\MyWork\llm-gateway
-```
+工程路径：D:\projectPath\MyWork\llm-gateway
 
-## 技术栈概览
-- **后端**: Spring Boot 3.4.1 + Java 17
-- **前端**: Thymeleaf + JavaScript (ECharts)
-- **数据库**: MySQL + JPA/Hibernate
-- **安全**: Spring Security (Session/Cookie 模式)
+## 模块文档导航
 
----
+### 后端模块 (Spring Boot)
+- controller.md: REST API 控制器层，定义所有 HTTP 端点路由
+- service.md: 业务逻辑层，处理核心网关转发、认证、统计等
+- repository.md: 数据访问层，JPA Repository 接口定义
+- dto.md: 数据传输对象，请求/响应 DTO 和 Entity 实体类
+- config.md: 配置类、安全配置、异步配置等
 
-## 模块文档索引
+### 前端模块 (Thymeleaf + JavaScript)
+- ui.md: 前端 UI 架构，模板结构、JS 模块、页面路由映射
 
-### 后端模块
-| 文件 | 职责 |
-|------|------|
-| [controller.md](./controller.md) | REST API 控制器与页面路由 |
-| [service.md](./service.md) | 业务逻辑处理（转发、计费、限流） |
-| [repository.md](./repository.md) | JPA 数据访问接口定义 |
-| [entity.md](./entity.md) | 数据库实体映射结构 |
-| [security.md](./security.md) | Spring Security 认证授权配置 |
+### 其他文档
+- risk.md: 潜在风险点、修改注意事项、耦合区域说明
 
-### 前端模块
-| 文件 | 职责 |
-|------|------|
-| [ui.md](./ui.md) | Thymeleaf 模板、JavaScript 交互与样式 |
+## 任务执行流程
 
----
+1. 先阅读本文件 (index.md)，确定涉及模块
+2. 查阅对应模块文档 (如 controller.md / service.md / ui.md)
+3. 如需重大变更，同步更新 ai-context/ 对应说明
+4. 执行 git 提交（若环境不支持：输出完整 commit 命令）
 
-## 任务执行流程（严格按顺序）
+## 项目概览
 
-1. **阅读 index.md** → 确定涉及模块
-2. **查阅对应模块文档** → 理解结构与定位文件
-3. **修改代码文件** → 仅操作必要文件，避免无关改动
-4. **同步更新文档** → 若结构/方法体/核心实现有重大变更
+- 类型：Spring Boot 3.x + Thymeleaf 全栈应用
+- 核心功能：LLM API 网关，代理转发到 Ollama/vLLM 后端
+- 认证方式：Session/Cookie (Web) + API Key (客户端)
+- 数据库：MySQL 8.0+ (Spring Data JPA)
+- 前端技术：Thymeleaf + 原生 JavaScript + ECharts
 
-5. **执行 git 提交** → 使用以下命令格式：
+## 快速定位
 
-```bash
-git add <涉及的文件列表>
-git commit -m "类型：简短说明"
-# 例如：git commit -m "feat: 添加新的 API Key 校验规则"
-```
-
----
-
-## 快速定位指南
-
-| 问题场景 | 优先查阅文档 |
+| 需求类型 | 优先查看文件 |
 |----------|--------------|
-| REST API 路由配置 | controller.md |
-| LLM 转发逻辑 | service.md |
-| 数据库查询/实体设计 | entity.md、repository.md |
-| 认证/授权机制 | security.md |
-| 页面显示/UI 交互 | ui.md |
-
----
-
-## 核心业务流
-
-```
-用户请求 → Controller 路由分发 → Service 处理逻辑 → Repository 数据持久化 → Entity ORM 映射
-                    ↓
-            Security 拦截验证 (API Key / Session)
-                    ↓
-           UI 渲染 (Thymeleaf + JavaScript)
-```
+| 新增 API 端点 | controller.md → 对应 Controller |
+| 修改业务逻辑 | service.md → 对应 Service |
+| 调整数据模型 | dto.md + repository.md |
+| 安全/认证配置 | config.md → SecurityConfig |
+| 新增页面/组件 | ui.md → Thymeleaf 模板 + JS |
+| 排查问题 | risk.md → 风险点说明 |

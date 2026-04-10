@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 
@@ -21,13 +22,17 @@ public class OpenAiForwardService {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenAiForwardService.class);
     private static final int MAX_CAPTURED_BODY_LENGTH = 4000;
-    private static final int CONNECT_TIMEOUT_MS = 30_000;
-    private static final int READ_TIMEOUT_MS = 300_000;
 
     private final ObjectMapper objectMapper;
+    private final int connectTimeoutMs;
+    private final int readTimeoutMs;
 
-    public OpenAiForwardService(ObjectMapper objectMapper) {
+    public OpenAiForwardService(ObjectMapper objectMapper,
+                                @Value("${gateway.forward.connect-timeout-seconds:30}") long connectTimeoutSeconds,
+                                @Value("${gateway.forward.read-timeout-seconds:300}") long readTimeoutSeconds) {
         this.objectMapper = objectMapper;
+        this.connectTimeoutMs = Math.toIntExact(connectTimeoutSeconds * 1000);
+        this.readTimeoutMs = Math.toIntExact(readTimeoutSeconds * 1000);
     }
 
     public ForwardedResponse forwardChatRequest(String backendUrl, JsonNode requestBody, String upstreamApiKey) {
@@ -163,8 +168,8 @@ public class OpenAiForwardService {
 
         HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
         connection.setRequestMethod("POST");
-        connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
-        connection.setReadTimeout(READ_TIMEOUT_MS);
+        connection.setConnectTimeout(connectTimeoutMs);
+        connection.setReadTimeout(readTimeoutMs);
         connection.setDoOutput(true);
         connection.setRequestProperty("Content-Type", MediaType.APPLICATION_JSON_VALUE);
         connection.setRequestProperty("Accept", MediaType.ALL_VALUE);

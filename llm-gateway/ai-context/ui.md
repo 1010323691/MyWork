@@ -1,223 +1,250 @@
-# UI 前端层说明
+﻿# UI Layer - Frontend Architecture
 
 ## 概述
+前端采用 Thymeleaf 服务端渲染 + 原生 JavaScript，无构建工具，直接通过静态资源提供服务。
 
-前端基于 Thymeleaf 模板引擎，配合原生 JavaScript (ES6+) 和 CSS3。采用组件化 Fragment 设计模式，实现页面布局复用。UI 主题为科技风格（dark theme），集成 ECharts 数据可视化。
+## 技术栈
+- **模板引擎**: Thymeleaf (服务端渲染)
+- **样式**: CSS3 + 自定义主题 (科技蓝风格)
+- **脚本**: 原生 JavaScript (ES6+)
+- **图表**: ECharts (数据可视化)
+- **认证**: Session/Cookie (无 JWT)
 
----
+## 文件结构
 
-## 目录结构
-
-```
+`
 src/main/resources/
-├── templates/
-│   ├── layout/
-│   │   └── base.html          # 基础布局模板
-│   ├── fragments/             # 可复用组件片段
-│   │   ├── head.html          # <head> 公共头部
-│   │   ├── nav.html           # 导航栏（权限控制）
-│   │   ├── sidebar.html       # 侧边栏容器
-│   │   ├── scripts.html       # 全局 JS 引用
-│   │   ├── card.html          # 卡片组件模板
-│   │   ├── form.html          # 表单组件模板
-│   │   ├── modal.html         # 模态框组件
-│   │   ├── alerts.html        # 成功/错误提示
-│   │   └── stats-card.html    # 统计卡片组件
-│   └── pages/                 # 页面模板
-│       ├── login.html         # 登录页
-│       ├── register.html      # 注册页
-│       ├── dashboard/index.html # 仪表盘首页
-│       ├── user/balance.html  # 用户余额
-│       ├── logs/index.html    # 请求日志查询
-│       └── admin/             # 管理员页面
-│           ├── users.html     # 用户管理
-│           ├── keys.html      # API Key 管理
-│           ├── providers.html # Provider 配置
-│           ├── pricing.html   # 价格设置
-│           └── monitor.html   # 系统监控
-└── static/
-    ├── css/
-    │   ├── common.css         # 通用样式
-    │   ├── common-tech-theme.css # Tech 主题配色
-    │   ├── login.css          # 登录页样式
-    │   ├── dashboard.css      # 仪表盘样式
-    │   ├── logs.css           # 日志页样式
-    │   └── admin.css          # 后台管理样式
-    └── js/
-        ├── common.js          # 通用工具类 (API/UI/FormValidation)
-        ├── login.js           # 登录交互
-        ├── register.js        # 注册表单验证
-        ├── dashboard.js       # 仪表盘图表加载
-        ├── logs.js            # 日志查询与筛选
-        ├── echarts-tech-theme.js # ECharts Tech 主题配置
-        └── admin-*.js         # 后台管理各页面脚本
-```
+├── static/                    # 静态资源
+│   ├── css/
+│   │   ├── common.css         # 全局基础样式
+│   │   ├── common-tech-theme.css  # 科技主题配色
+│   │   ├── login.css          # 登录页样式
+│   │   ├── dashboard.css      # 仪表板样式
+│   │   ├── admin.css          # 管理后台样式
+│   │   └── logs.css           # 日志页样式
+│   └── js/
+│       ├── common.js          # 核心工具类 (API/UI/FormValidation)
+│       ├── login.js           # 登录逻辑
+│       ├── register.js        # 注册逻辑
+│       ├── dashboard.js       # 仪表板逻辑
+│       ├── logs.js            # 日志查询逻辑
+│       ├── admin-*.js         # 管理功能 (用户/密钥/服务商)
+│       └── echarts-tech-theme.js  # ECharts 主题配置
+└── templates/                 # Thymeleaf 模板
+    ├── layout/
+    │   └── base.html          # 基础布局模板
+    ├── fragments/             # 可复用片段
+    │   ├── head.html          # <head> 公共部分
+    │   ├── nav.html           # 导航栏
+    │   ├── sidebar.html       # 侧边栏
+    │   ├── scripts.html       # 公共脚本引入
+    │   ├── alerts.html        # 提示信息容器
+    │   ├── form.html          # 表单组件
+    │   ├── card.html          # 卡片组件
+    │   ├── modal.html         # 模态框组件
+    │   ├── stats-card.html    # 统计卡片组件
+    │   └── user-profile.html  # 用户头像下拉
+    └── pages/                 # 页面模板
+        ├── login.html         # 登录页
+        ├── register.html      # 注册页
+        ├── dashboard/
+        │   └── index.html     # 仪表板主页
+        ├── logs/
+        │   └── index.html     # 请求日志页
+        ├── user/
+        │   └── balance.html   # 用户余额充值
+        └── admin/             # 管理后台页面
+            ├── users.html     # 用户管理
+            ├── keys.html      # API Key 管理
+            ├── providers.html # 服务商管理
+            ├── pricing.html   # 定价配置
+            └── monitor.html   # 系统监控
+`
 
----
+## 核心 JavaScript 模块
 
-## Thymeleaf 模板体系
+### 1. API 类 (HTTP 客户端)
+**文件**: common.js - API class
+- **职责**: 封装所有 HTTP 请求，自动处理 Session/Cookie 认证
+- **关键方法**:
+  - isAuthenticated() - 检查用户是否登录（调用 /api/auth/me）
+  - getCurrentUser() - 获取当前用户信息
+  - equest(endpoint, options) - 统一请求入口
+  - get/post/put/delete(endpoint) - HTTP 方法封装
+- **特性**:
+  - 自动携带 Cookie (credentials: 'same-origin')
+  - 401/403 自动跳转到登录页
+  - 30 秒超时控制
+  - JSON 自动解析
+
+### 2. UI 类 (界面交互)
+**文件**: common.js - UI class
+- **职责**: 提供通用 UI 组件和交互方法
+- **关键方法**:
+  - showAlert(message, type) - 显示 Toast 提示（success/error/warning/info）
+  - showSuccessMessage(message) - 成功提示
+  - showErrorMessage(message) - 错误提示
+  - copyToClipboard(text) - 复制到剪贴板
+  - ormatNumber(num) - 数字千分位格式化
+  - ormatDate(dateString) - 日期格式化
+  - switchTab(tabId) - 切换标签页
+  - confirm(message, callback) - 确认对话框
+  - debounce(func, wait) - 防抖函数
+
+### 3. FormValidation 类 (表单验证)
+**文件**: common.js - FormValidation class
+- **职责**: 客户端表单字段验证
+- **关键方法**:
+  - equired(value, fieldName) - 非空验证
+  - email(value) - 邮箱格式验证
+  - minLength(value, min, fieldName) - 最小长度验证
+  - 
+umber(value, fieldName) - 数字类型验证
+  - minValue(value, min, fieldName) - 最小值验证
+
+## Thymeleaf 模板架构
 
 ### 基础布局 (base.html)
-**路径**: `templates/layout/base.html`  
-**职责**: 定义页面骨架，引入 Fragment 组件
+**文件**: layout/base.html
+- **结构**: 
+  `html
+  <th:block th:fragment="layout(pageTitle, content, extraCss)">
+    - sidebar (侧边栏)
+    - main.main-content
+      - alerts (提示信息)
+      - content (页面内容，通过 th:replace 注入)
+  </th:block>
+  `
+- **用法**: <th:block th:replace="~{layout/base :: layout('标题', ~{pages/xxx}, '/css/xxx.css')}">
 
-| Fragment 引用 | 说明 |
-|---------------|------|
-| fragments/head | 公共头部（meta/title/css） |
-| fragments/sidebar | 侧边栏导航容器 |
-| fragments/alerts | 提示信息区域 |
-| fragments/scripts | 全局脚本引用 |
-
-**使用方式**:
-```html
-<th:block th:replace="~{layout/base :: layout(pageTitle, content, extraCss)}">
-```
-
----
-
-### Fragment 组件清单
-
-#### head.html
-- `<title>` 动态设置（pageTitle 参数）
-- CSS 引用：common.css + common-tech-theme.css
-- Favicon 配置
-
-#### sidebar.html  
-- 包含侧边栏布局结构
-- th:replace fragments/nav 引入导航菜单
-
-#### nav.html
-**权限控制逻辑**:
-- `currentUserRole == 'ADMIN'` → 显示管理员菜单项（用户管理、计费、风控等）
-- 普通用户仅可见：总览、实时监控、请求日志
-
-| 菜单项 | 路由 | 角色要求 |
-|--------|------|----------|
-| 总览 | /dashboard | 所有认证用户 |
-| 实时监控 | /admin/monitor | ADMIN |
-| 请求日志 | /logs | 所有认证用户 |
-| 用户与用量 | /admin/users | ADMIN |
-| API Key | /admin/keys | ADMIN |
-| 系统与模型 | /admin/providers | ADMIN |
-
-#### modal.html
-**模态框模板**:
-- modal-form-base: 通用表单模态框结构
-- modal-confirm: 确认对话框
-
-#### alerts.html
-- alertBox (error): 错误提示容器
-- successBox (success): 成功提示容器
-
----
-
-## JavaScript 工具类 (common.js)
-
-### API 类（HTTP 请求封装）
-**认证模式**: Session/Cookie (`credentials: 'same-origin'`)
-
-| 方法 | 说明 |
+### 可复用片段 (fragments/)
+| 文件 | 用途 |
 |------|------|
-| isAuthenticated() | 检查用户是否已登录（调用 /api/auth/me） |
-| getCurrentUser() | 获取当前用户信息 |
-| request(endpoint, options) | 统一请求处理（超时、错误跳转） |
-| get(endpoint) | GET 请求封装 |
-| post(endpoint, data) | POST 请求封装 |
-| put(endpoint, data) | PUT 请求封装 |
-| delete(endpoint) | DELETE 请求封装 |
+| head.html | <head> 公共部分（meta、title、CSS 引用） |
+| nav.html | 顶部导航栏（用户头像下拉菜单） |
+| sidebar.html | 侧边栏菜单（根据角色显示不同项） |
+| scripts.html | 公共 JS 引入 (common.js + ECharts) |
+| alerts.html | Spring Security 提示信息容器 |
+| form.html | 表单组件（输入框、按钮、错误提示） |
+| card.html | 卡片容器组件 |
+| modal.html | 模态框组件 |
+| stats-card.html | 统计数字卡片 |
+| user-profile.html | 用户头像与下拉菜单 |
 
-**特性**:
-- 自动携带 Session Cookie
-- 401/403 错误跳转到 /login
-- 统一超时时间（30 秒）
+## 页面路由映射
 
----
+### 公开页面 (无需认证)
+- /login - pages/login.html → login.js
+- /register - pages/register.html → egister.js
 
-### UI 类（界面交互工具）
+### 用户页面 (USER/ADMIN)
+| URL | 模板文件 | JS 文件 | 说明 |
+|-----|----------|--------|------|
+| /dashboard | pages/dashboard/index.html | dashboard.js | 仪表板主页 |
+| /logs | pages/logs/index.html | logs.js | 请求日志查询 |
+| /user/balance | pages/user/balance.html | - | 余额充值 |
 
-| 方法 | 说明 |
-|------|------|
-| showAlert(message, type) | 显示成功/错误提示 |
-| showErrorMessage(message) | 快捷显示错误 |
-| showSuccessMessage(message) | 快捷显示成功 |
-| copyToClipboard(text) | 复制到剪贴板 |
-| formatNumber(num) | 数字千分位格式化 |
-| formatDate(dateString) | 日期格式化（zh-CN） |
-| switchTab(tabId) | 切换标签页显示 |
-| confirm(message, callback) | 确认对话框 |
-| debounce(func, wait) | 防抖函数 |
+### 管理页面 (仅 ADMIN)
+| URL | 模板文件 | JS 文件 | 说明 |
+|-----|----------|--------|------|
+| /admin/users | pages/admin/users.html | admin-users.js | 用户管理 CRUD |
+| /admin/keys | pages/admin/keys.html | admin-keys.js | API Key 管理 |
+| /admin/providers | pages/admin/providers.html | admin-providers.js | 后端服务商管理 |
+| /admin/pricing | pages/admin/pricing.html | admin-pricing.js | Token 定价配置 |
+| /admin/monitor | pages/admin/monitor.html | admin-monitor.js | 系统实时监控 |
 
----
+## 前端与后端 API 对应关系
 
-### FormValidation 类（表单验证）
+### 认证相关
+`javascript
+// login.js
+API.post('/auth/login', { username, password })  -> AuthController.login()
+API.post('/auth/register', {...})                -> AuthController.register()
+API.get('/auth/me')                              -> AuthController.getCurrentUser()
+`
 
-| 方法 | 说明 |
-|------|------|
-| required(value, fieldName) | 非空校验 |
-| email(value) | 邮箱格式校验 |
-| minLength(value, min, fieldName) | 最小长度校验 |
-| number(value, fieldName) | 数字类型校验 |
-| minValue(value, min, fieldName) | 最小值校验 |
+### Dashboard
+`javascript
+// dashboard.js
+API.get('/dashboard/summary')                    -> DashboardController.getSummary()
+API.get('/dashboard/stats/users')                -> DashboardController.getUserStats()
+API.get('/dashboard/stats/tokens?start=...&end=...') -> DashboardController.getTokenUsageTrend()
+API.get('/dashboard/system/monitor')             -> DashboardController.getSystemMonitor()
+`
 
----
+### API Key 管理
+`javascript
+// admin-keys.js (管理员查看所有)
+API.get('/apikeys')                              -> ApiKeyController.findAll()
+API.post('/apikeys', {...})                      -> ApiKeyController.create()
+API.put('/apikeys/' + id, {...})                 -> ApiKeyController.update()
+API.delete('/apikeys/' + id)                     -> ApiKeyController.delete()
+`
 
-## 页面与 JS 映射关系
+### 用户管理 (管理员)
+`javascript
+// admin-users.js
+API.get('/admin/users')                          -> AdminController.findAllUsers()
+API.put('/admin/users/' + id, {...})             -> AdminController.updateUser()
+API.delete('/admin/users/' + id)                 -> AdminController.deleteUser()
+API.post('/admin/users/' + id + '/enable')       -> AdminController.toggleEnable()
+`
 
-| 页面模板 | JavaScript 文件 | CSS 文件 | API Endpoint |
-|----------|----------------|---------|--------------|
-| pages/login.html | login.js | login.css | /api/auth/login |
-| pages/register.html | register.js | - | /api/auth/register |
-| pages/dashboard/index.html | dashboard.js | dashboard.css | /api/user/stats, /api/admin/monitor |
-| pages/logs/index.html | logs.js | logs.css | /api/user/logs |
-| pages/admin/users.html | admin-users.js | admin.css | /api/admin/users* |
-| pages/admin/keys.html | admin-keys.js | admin.css | /api/admin/apikeys* |
-| pages/admin/providers.html | admin-providers.js | admin.css | /api/admin/providers* |
-| pages/admin/pricing.html | admin-pricing.js | admin.css | (待实现) |
-| pages/admin/monitor.html | admin-monitor.js | admin.css | /api/admin/monitor |
-| pages/user/balance.html | - | - | /api/balance/current |
+### 服务商管理 (管理员)
+`javascript
+// admin-providers.js
+API.get('/admin/providers')                      -> AdminProviderController.findAll()
+API.post('/admin/providers', {...})              -> AdminProviderController.create()
+API.put('/admin/providers/' + id, {...})         -> AdminProviderController.update()
+API.delete('/admin/providers/' + id)             -> AdminProviderController.delete()
+API.post('/admin/providers/' + id + '/connectivity-test') -> testConnectivity()
+`
 
----
+### 请求日志 (管理员)
+`javascript
+// logs.js
+API.get('/admin/logs?page=...&size=...&userId=...&status=...') -> AdminLogController.searchLogs()
+`
 
-## ECharts 集成
+## CSS 主题系统
 
-### echarts-tech-theme.js
-**职责**: 定义 Tech 风格图表主题（深色背景、霓虹配色）
+### 配色方案 (common-tech-theme.css)
+- **主色调**: #1a1a2e (深蓝黑背景)
+- **强调色**: #00d4ff (科技蓝)
+- **辅助色**: #ee3d5c (粉红)、#f7b731 (橙黄)
+- **文字**: #eaeaea (浅灰白)
 
-| 配置项 | 值 |
-|--------|------|
-| color | ['#00f5d4', '#00bbf3', ...] (青色/蓝色渐变) |
-| backgroundColor | '#1a1b26' (深灰黑) |
-| textStyle.color | '#e0e0e0' (浅灰文字) |
+### 响应式设计
+- 使用 Flexbox + Grid 布局
+- 侧边栏可折叠（移动端适配）
+- 表格横向滚动（小屏幕）
 
-### dashboard.js 图表示例
-- Token 使用趋势（折线图）
-- 今日 vs 本月用量对比（柱状图）
+## 状态管理
+- **无集中式状态管理** (如 Redux/Vuex)
+- **Session 驱动**: 用户登录状态由后端 Session 维护
+- **本地缓存**: currentUser 变量缓存在 JS 中，减少请求
+- **页面间通信**: URL 参数 + Session
 
----
+## 修改指南
 
-## CSS 主题配色 (common-tech-theme.css)
+### 新增页面
+1. 创建模板文件：	emplates/pages/xxx/index.html
+2. 使用基础布局：	h:replace="~{layout/base :: layout(...)}"
+3. 创建 JS 文件：static/js/xxx.js
+4. 在 scripts.html 或页面中引入 JS
+5. 添加路由映射（ViewController 或直接访问模板）
 
-| 变量名 | 颜色值 | 用途 |
-|--------|--------|------|
-| --color-primary | #00f5d4 | 主色（青色） |
-| --color-secondary | #00bbf3 | 辅色（蓝色） |
-| --color-bg-dark | #1a1b26 | 深背景 |
-| --color-card-bg | rgba(30,31,45,0.9) | 卡片背景 |
-| --color-text-main | #e0e0e0 | 主文字 |
+### 新增组件
+1. 创建片段文件：	emplates/fragments/component-name.html
+2. 定义 th:fragment，如 <th:block th:fragment="componentName(params)"
+3. 在其他页面引用：	h:replace="~{fragments/component-name :: componentName(...)}"
 
-**设计特点**:
-- 毛玻璃效果（backdrop-filter: blur）
-- 渐变边框动画
-- SVG Icon 描边风格
+### 修改样式
+1. 全局样式：修改 common.css
+2. 主题配色：修改 common-tech-theme.css
+3. 页面专用：创建/修改对应 CSS 文件
 
----
-
-## 常见修改定位
-
-| 问题类型 | 优先检查文件 |
-|----------|--------------|
-| 登录失效/Session 丢失 | common.js API.request() credentials 配置 |
-| 菜单项未显示 | fragments/nav.html currentUserRole 变量传递 |
-| 图表不渲染 | dashboard.js ECharts 初始化逻辑 / echarts-tech-theme.js |
-| 响应式布局错乱 | common.css .layout-container flex 布局 |
-| API 调用返回 401 | SecurityConfig CORS 配置 + Session 创建逻辑 |
+### 新增 API 调用
+1. 在 API 类中添加方法（如需要特殊处理）
+2. 直接使用 API.get/post/put/delete()
+3. 错误处理由 UI.showErrorMessage() 统一展示

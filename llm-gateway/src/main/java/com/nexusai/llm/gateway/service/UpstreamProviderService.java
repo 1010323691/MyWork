@@ -6,6 +6,7 @@ import com.nexusai.llm.gateway.entity.BackendService;
 import com.nexusai.llm.gateway.repository.BackendServiceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,15 +29,26 @@ import java.util.Set;
 public class UpstreamProviderService {
 
     private static final Logger logger = LoggerFactory.getLogger(UpstreamProviderService.class);
-    private static final int CIRCUIT_FAILURE_THRESHOLD = 5;
-    private static final Duration CIRCUIT_RESET_DURATION = Duration.ofMinutes(5);
 
     private final BackendServiceRepository backendServiceRepository;
     private final ObjectMapper objectMapper;
+    private final int circuitFailureThreshold;
+    private final Duration circuitResetDuration;
+    private final int defaultConnectivityTimeoutSeconds;
+    private final int defaultModelDiscoveryTimeoutSeconds;
 
-    public UpstreamProviderService(BackendServiceRepository backendServiceRepository, ObjectMapper objectMapper) {
+    public UpstreamProviderService(BackendServiceRepository backendServiceRepository,
+                                   ObjectMapper objectMapper,
+                                   @Value("${gateway.upstream.circuit-failure-threshold:5}") int circuitFailureThreshold,
+                                   @Value("${gateway.upstream.circuit-reset-minutes:5}") long circuitResetMinutes,
+                                   @Value("${gateway.upstream.connectivity-timeout-seconds:5}") int defaultConnectivityTimeoutSeconds,
+                                   @Value("${gateway.upstream.model-discovery-timeout-seconds:30}") int defaultModelDiscoveryTimeoutSeconds) {
         this.backendServiceRepository = backendServiceRepository;
         this.objectMapper = objectMapper;
+        this.circuitFailureThreshold = circuitFailureThreshold;
+        this.circuitResetDuration = Duration.ofMinutes(circuitResetMinutes);
+        this.defaultConnectivityTimeoutSeconds = defaultConnectivityTimeoutSeconds;
+        this.defaultModelDiscoveryTimeoutSeconds = defaultModelDiscoveryTimeoutSeconds;
     }
 
     public Optional<BackendService> findById(Long id) {
@@ -160,7 +172,7 @@ public class UpstreamProviderService {
         provider.setFailureCount(newFailureCount);
         provider.setLastFailureAt(LocalDateTime.now());
 
-        if (newFailureCount >= CIRCUIT_FAILURE_THRESHOLD) {
+        if (newFailureCount >= circuitFailureThreshold) {
             logger.warn("Circuit breaker triggered for provider {}: {} failures", providerId, newFailureCount);
             provider.setEnabled(false);
         }
@@ -177,14 +189,14 @@ public class UpstreamProviderService {
         }
 
         int failureCount = provider.getFailureCount() != null ? provider.getFailureCount() : 0;
-        if (failureCount >= CIRCUIT_FAILURE_THRESHOLD) {
+        if (failureCount >= circuitFailureThreshold) {
             return true;
         }
 
         if (provider.getLastFailureAt() != null) {
             Duration sinceLastFailure = Duration.between(provider.getLastFailureAt(), LocalDateTime.now());
-            if (sinceLastFailure.compareTo(CIRCUIT_RESET_DURATION) < 0) {
-                return failureCount >= CIRCUIT_FAILURE_THRESHOLD;
+            if (sinceLastFailure.compareTo(circuitResetDuration) < 0) {
+                return failureCount >= circuitFailureThreshold;
             }
             resetFailureCount(providerId);
         }
@@ -213,7 +225,11 @@ public class UpstreamProviderService {
 
         for (String url : attempts) {
             try {
-                SimpleHttpResult response = sendGet(url, provider.getUpstreamKey(), 5);
+                SimpleHttpResult response = sendGet(
+                        url,
+                        provider.getUpstreamKey(),
+                        resolveTimeoutSeconds(provider, defaultConnectivityTimeoutSeconds)
+                );
                 traces.add("GET " + url + " -> " + response.statusCode());
 
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
@@ -238,9 +254,10 @@ public class UpstreamProviderService {
         List<String> traces = new ArrayList<>();
         Set<String> modelIds = new LinkedHashSet<>();
 
-        tryDiscovery(appendPath(provider.getBaseUrl(), "/v1/models"), provider.getUpstreamKey(), traces, modelIds);
+        int timeoutSeconds = resolveTimeoutSeconds(provider, defaultModelDiscoveryTimeoutSeconds);
+        tryDiscovery(appendPath(provider.getBaseUrl(), "/v1/models"), provider.getUpstreamKey(), timeoutSeconds, traces, modelIds);
         if (modelIds.isEmpty()) {
-            tryDiscovery(appendPath(provider.getBaseUrl(), "/api/tags"), provider.getUpstreamKey(), traces, modelIds);
+            tryDiscovery(appendPath(provider.getBaseUrl(), "/api/tags"), provider.getUpstreamKey(), timeoutSeconds, traces, modelIds);
         }
 
         if (modelIds.isEmpty()) {
@@ -286,9 +303,9 @@ public class UpstreamProviderService {
         return false;
     }
 
-    private void tryDiscovery(String url, String upstreamKey, List<String> traces, Set<String> modelIds) {
+    private void tryDiscovery(String url, String upstreamKey, int timeoutSeconds, List<String> traces, Set<String> modelIds) {
         try {
-            SimpleHttpResult response = sendGet(url, upstreamKey, 30);
+            SimpleHttpResult response = sendGet(url, upstreamKey, timeoutSeconds);
             traces.add("GET " + url + " -> " + response.statusCode());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 return;
@@ -377,6 +394,13 @@ public class UpstreamProviderService {
             normalized = normalized.substring(0, normalized.length() - 1);
         }
         return normalized;
+    }
+
+    private int resolveTimeoutSeconds(BackendService provider, int fallbackSeconds) {
+        if (provider != null && provider.getTimeoutSeconds() != null && provider.getTimeoutSeconds() > 0) {
+            return provider.getTimeoutSeconds();
+        }
+        return fallbackSeconds;
     }
 
     private static class SimpleHttpResult {

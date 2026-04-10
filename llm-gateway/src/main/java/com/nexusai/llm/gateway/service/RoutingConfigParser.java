@@ -4,27 +4,30 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class RoutingConfigParser {
 
     private static final Logger logger = LoggerFactory.getLogger(RoutingConfigParser.class);
-    private static final String DEFAULT_BACKEND_URL = "http://localhost:11434";
 
     private final ObjectMapper objectMapper;
+    private final String defaultBackendUrl;
 
-    public RoutingConfigParser(ObjectMapper objectMapper) {
+    public RoutingConfigParser(ObjectMapper objectMapper,
+                               @Value("${gateway.default-backend-url:}") String defaultBackendUrl) {
         this.objectMapper = objectMapper;
+        this.defaultBackendUrl = defaultBackendUrl;
     }
 
-    /**
-     * 根据 routingConfig JSON 中的 modelMappings 将请求的模型名映射到实际模型名。
-     * 示例: {"modelMappings": {"gpt-4": "llama3"}}
-     */
     public String resolveModel(String routingConfig, String requestedModel) {
-        if (requestedModel == null) return null;
-        if (routingConfig == null || routingConfig.isBlank()) return requestedModel;
+        if (requestedModel == null) {
+            return null;
+        }
+        if (routingConfig == null || routingConfig.isBlank()) {
+            return requestedModel;
+        }
         try {
             JsonNode root = objectMapper.readTree(routingConfig);
             JsonNode mappings = root.path("modelMappings");
@@ -37,15 +40,12 @@ public class RoutingConfigParser {
         return requestedModel;
     }
 
-    /**
-     * 优先顺序：routingConfig.targetUrl > apiKey.targetUrl > 默认值。
-     */
     public String resolveTargetUrl(String routingConfig, String apiKeyTargetUrl) {
         String configuredTarget = resolveConfiguredTargetUrl(routingConfig, apiKeyTargetUrl);
         if (configuredTarget != null && !configuredTarget.isBlank()) {
             return configuredTarget;
         }
-        return DEFAULT_BACKEND_URL;
+        return defaultBackendUrl == null || defaultBackendUrl.isBlank() ? null : defaultBackendUrl.trim();
     }
 
     public String resolveConfiguredTargetUrl(String routingConfig, String apiKeyTargetUrl) {

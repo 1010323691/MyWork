@@ -1,0 +1,35 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  web:
+    resources:
+      cache:
+        period: 0
+
+  thymeleaf:
+    cache: false
+
+logging:
+  level:
+    com.nexusai.llm.gateway: DEBUG
+    org.springframework.security: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+app:
+  security:
+    swagger-enabled: true
+    allowed-origin-patterns: http://localhost:*,http://127.0.0.1:*,http://192.168.*:*,http://10.*:*,http://172.16.*:*,http://172.17.*:*,http://172.18.*:*,http://172.19.*:*,http://172.2*.*:*,http://172.30.*:*,http://172.31.*:*

@@ -3,16 +3,23 @@ package com.nexusai.llm.gateway.controller;
 import com.nexusai.llm.gateway.dto.ChatRequest;
 import com.nexusai.llm.gateway.entity.ApiKey;
 import com.nexusai.llm.gateway.entity.RequestLog;
+import com.nexusai.llm.gateway.security.ApiKeyService;
 import com.nexusai.llm.gateway.service.LlmForwardService;
 import com.nexusai.llm.gateway.service.RequestLogService;
 import com.nexusai.llm.gateway.service.RoutingConfigParser;
-import com.nexusai.llm.gateway.security.ApiKeyService;
+import com.nexusai.llm.gateway.service.UpstreamProviderService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/llm")
@@ -22,70 +29,65 @@ public class LlmController {
     private final ApiKeyService apiKeyService;
     private final RequestLogService requestLogService;
     private final RoutingConfigParser routingConfigParser;
+    private final UpstreamProviderService upstreamProviderService;
 
     @Autowired
     public LlmController(LlmForwardService llmForwardService,
                          ApiKeyService apiKeyService,
                          RequestLogService requestLogService,
-                         RoutingConfigParser routingConfigParser) {
+                         RoutingConfigParser routingConfigParser,
+                         UpstreamProviderService upstreamProviderService) {
         this.llmForwardService = llmForwardService;
         this.apiKeyService = apiKeyService;
         this.requestLogService = requestLogService;
         this.routingConfigParser = routingConfigParser;
+        this.upstreamProviderService = upstreamProviderService;
     }
 
     @PostMapping("/chat")
-    public ResponseEntity<String> chat(
-            HttpServletRequest httpRequest,
-            @RequestBody ChatRequest request) {
-
-        // 从 ApiKeyAuthenticationFilter 存入的属性中取 ApiKey
+    public ResponseEntity<String> chat(HttpServletRequest httpRequest, @RequestBody ChatRequest request) {
         ApiKey key = (ApiKey) httpRequest.getAttribute("apiKey");
         if (key == null) {
             return ResponseEntity.status(401).body("{\"error\": \"API key required\"}");
         }
 
-        // 预估输入 token
         String messagesStr = request.getMessages() != null ? request.getMessages() : "";
         long estimatedInput = llmForwardService.estimateTokenUsage(messagesStr);
 
-        // 配额检查
+        if (Boolean.TRUE.equals(request.getStream())) {
+            return ResponseEntity.badRequest().body(
+                    "{\"error\": \"Legacy endpoint /api/llm/chat does not support streaming. Use /v1/chat/completions instead.\"}"
+            );
+        }
+
         if (!apiKeyService.hasEnoughTokens(key, estimatedInput)) {
             return ResponseEntity.status(429).body("{\"error\": \"Token quota exceeded\"}");
         }
 
-        // 解析目标 URL 和模型名
         String targetUrl = routingConfigParser.resolveTargetUrl(key.getRoutingConfig(), key.getTargetUrl());
         String resolvedModel = routingConfigParser.resolveModel(key.getRoutingConfig(), request.getModel());
+        if (targetUrl == null || targetUrl.isBlank()) {
+            return ResponseEntity.status(502).body("{\"error\": \"No backend target configured\"}");
+        }
 
-        // 转发请求并计时
         long startMs = System.currentTimeMillis();
         String response;
         RequestLog.RequestStatus status = RequestLog.RequestStatus.SUCCESS;
         try {
-            response = llmForwardService.forwardChatRequest(
-                    targetUrl,
-                    resolvedModel,
-                    messagesStr,
-                    Boolean.TRUE.equals(request.getStream())
-            );
+            response = llmForwardService.forwardChatRequest(targetUrl, resolvedModel, messagesStr, false);
         } catch (Exception e) {
             status = RequestLog.RequestStatus.FAIL;
             long latency = System.currentTimeMillis() - startMs;
             requestLogService.asyncLogRequest(key.getId(), estimatedInput, 0L,
                     resolvedModel, latency, status, messagesStr, e.getMessage());
-            return ResponseEntity.status(502).body("{\"error\": \"" + e.getMessage() + "\"}");
+            return ResponseEntity.status(502).body("{\"error\": \"Upstream request failed\"}");
         }
         long latencyMs = System.currentTimeMillis() - startMs;
 
-        // 估算输出 token
         long outputTokens = llmForwardService.estimateTokenUsage(response);
         long totalTokens = estimatedInput + outputTokens;
 
-        // 异步：扣减 token + 更新 lastUsedAt
         requestLogService.asyncRecordUsage(key.getId(), totalTokens);
-
-        // 异步：写入请求日志
         requestLogService.asyncLogRequest(key.getId(), estimatedInput, outputTokens,
                 resolvedModel, latencyMs, status, messagesStr, response);
 
@@ -98,8 +100,23 @@ public class LlmController {
         if (key == null) {
             return ResponseEntity.status(401).body(Map.of("error", "API key required"));
         }
+
+        Set<String> models = new LinkedHashSet<>();
+        upstreamProviderService.findAllEnabled().forEach(provider -> {
+            String supportedModels = provider.getSupportedModels();
+            if (supportedModels == null || supportedModels.isBlank()) {
+                return;
+            }
+            for (String rawModel : supportedModels.split("[,\\r\\n]+")) {
+                String model = rawModel.trim();
+                if (!model.isBlank() && !"*".equals(model) && !model.endsWith("*")) {
+                    models.add(model);
+                }
+            }
+        });
+
         return ResponseEntity.ok(Map.of(
-                "models", new String[]{"llama2", "mistral", "gemma", "qwen"}
+                "models", models
         ));
     }
 }

@@ -9,13 +9,18 @@
     <link rel="stylesheet" th:href="@{/css/common-tech-theme.css}">
     <link rel="stylesheet" th:href="@{/css/admin.css}">
     <style>
-        #multiGpuContainer {
-            display: flex;
-            flex-direction: row;
-            flex-wrap: nowrap;
+        #systemResourceRow {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 12px;
+            overflow: visible;
+            padding-bottom: 0;
+            margin-bottom: 24px;
+        }
+
+        #multiGpuContainer {
+            display: contents;
             margin-bottom: 0;
-            align-items: stretch;
         }
 
         .gpu-compact-card {
@@ -24,9 +29,10 @@
             grid-template-rows: auto auto;
             gap: 8px;
             padding: 12px 14px;
-            min-width: 520px;
-            flex: 0 0 520px;
+            min-width: 0;
+            width: 100%;
             align-items: stretch;
+            margin-bottom: 0;
         }
 
         .gpu-compact-header {
@@ -59,7 +65,7 @@
 
         .gpu-chart-stack {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: 1fr;
             gap: 8px;
             min-width: 0;
         }
@@ -78,40 +84,13 @@
             margin-bottom: 2px;
         }
 
-        @media (max-width: 1280px) {
-            .gpu-compact-card {
-                min-width: 480px;
-                flex-basis: 480px;
-            }
-        }
-
-        @media (max-width: 1200px) {
+        @media (max-width: 900px) {
             #systemResourceRow {
-                grid-template-columns: none !important;
-            }
-
-            .gpu-compact-card {
-                min-width: 440px;
-                flex-basis: 440px;
-            }
-
-            .gpu-chart-stack {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-        }
-
-        @media (max-width: 768px) {
-            #systemResourceRow {
-                grid-template-columns: none !important;
             }
 
             .gpu-chart-stack {
                 grid-template-columns: 1fr;
-            }
-
-            .gpu-compact-card {
-                min-width: 90vw;
-                flex-basis: 90vw;
             }
 
             .gpu-compact-header {
@@ -120,24 +99,15 @@
             }
         }
 
-        .resource-strip {
-            display: flex;
-            gap: 12px;
-            overflow-x: auto;
-            overflow-y: hidden;
-            padding-bottom: 4px;
-            margin-bottom: 24px;
-            scrollbar-width: thin;
-        }
-
-        .resource-strip > .card,
-        .resource-strip > #multiGpuContainer {
-            flex: 0 0 auto;
+        @media (max-width: 768px) {
+            #systemResourceRow {
+                grid-template-columns: 1fr;
+            }
         }
 
         .resource-mini-card {
-            width: 360px;
-            min-width: 360px;
+            width: 100%;
+            min-width: 0;
         }
 
         .resource-mini-card .card-title {
@@ -230,26 +200,6 @@
                     </div>
 
                     <div id="multiGpuContainer"></div>
-                </div>
-
-                <div class="card" style="margin-bottom: 24px;">
-                    <div class="card-title">实时 QPS</div>
-                    <div id="realtimeQpsChart" style="height: 300px;"></div>
-                </div>
-
-                <div class="row" style="margin-bottom: 24px;">
-                    <div class="col">
-                        <div class="card">
-                            <div class="card-title">Token 趋势</div>
-                            <div id="tokenRateChart" style="height: 250px;"></div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="card">
-                            <div class="card-title">连接趋势</div>
-                            <div id="concurrentConnectionsChart" style="height: 250px;"></div>
-                        </div>
-                    </div>
                 </div>
 
                 <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">模型负载</h3>

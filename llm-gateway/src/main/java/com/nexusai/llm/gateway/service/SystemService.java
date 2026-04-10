@@ -24,22 +24,53 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.Base64;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 
 @Service
 public class SystemService {
 
     private static final Logger logger = LoggerFactory.getLogger(SystemService.class);
     private static final Pattern LINUX_CARD_PATTERN = Pattern.compile("card(\\d+)");
+    private static final long REFRESH_INTERVAL_MS = 1000L;
 
     private final SystemInfo systemInfo = new SystemInfo();
     private final HardwareAbstractionLayer hal = systemInfo.getHardware();
+    private final ScheduledExecutorService metricsScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread thread = new Thread(r, "system-metrics-refresh");
+        thread.setDaemon(true);
+        return thread;
+    });
     private volatile long[] previousCpuTicks = hal.getProcessor().getSystemCpuLoadTicks();
+    private volatile SystemResourceData cachedResources;
+
+    @PostConstruct
+    void startMetricsRefresh() {
+        cachedResources = collectSystemResources();
+        metricsScheduler.scheduleAtFixedRate(this::refreshCachedResources, REFRESH_INTERVAL_MS, REFRESH_INTERVAL_MS, TimeUnit.MILLISECONDS);
+    }
+
+    @PreDestroy
+    void stopMetricsRefresh() {
+        metricsScheduler.shutdownNow();
+    }
 
     public SystemResourceData getSystemResources() {
+        SystemResourceData snapshot = cachedResources;
+        return snapshot != null ? snapshot : collectSystemResources();
+    }
+
+    private void refreshCachedResources() {
+        cachedResources = collectSystemResources();
+    }
+
+    private SystemResourceData collectSystemResources() {
         try {
             return SystemResourceData.builder()
                     .cpuUsage(getCpuUsage())
@@ -93,7 +124,6 @@ public class SystemService {
         Map<String, GpuData> merged = new LinkedHashMap<>();
 
         mergeGpuList(merged, getInventoryGpuList());
-        mergeGpuList(merged, getNvidiaGpuDataList());
 
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         if (os.contains("win")) {
@@ -101,6 +131,8 @@ public class SystemService {
         } else if (os.contains("linux")) {
             mergeGpuList(merged, getLinuxGpuDataList());
         }
+
+        mergeGpuList(merged, getNvidiaGpuDataList());
 
         return merged.values().stream()
                 .sorted(Comparator.comparing(gpu -> gpu.getIndex() == null ? Integer.MAX_VALUE : gpu.getIndex()))
@@ -179,64 +211,39 @@ public class SystemService {
         String script = String.join("\n",
                 "$ErrorActionPreference = 'SilentlyContinue'",
                 "$engine = @{}",
-                "$dedicatedUsage = @{}",
-                "$sharedUsage = @{}",
-                "$dedicatedLimit = @{}",
-                "$sharedLimit = @{}",
+                "$adapter = @{}",
                 "function Get-LuidKey([string]$name) {",
                 "  if ($name -match '(luid_0x[0-9a-fA-F]+_0x[0-9a-fA-F]+)') { return $matches[1].ToLower() }",
                 "  return $null",
                 "}",
-                "$samples = (Get-Counter '\\GPU Engine(*)\\Utilization Percentage').CounterSamples",
-                "foreach ($sample in $samples) {",
-                "  $key = Get-LuidKey $sample.InstanceName",
+                "Get-CimInstance -Namespace root\\cimv2 -ClassName Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine | ForEach-Object {",
+                "  $key = Get-LuidKey $_.Name",
                 "  if ($key) {",
-                "    $value = [double]$sample.CookedValue",
+                "    $value = [double]$_.UtilizationPercentage",
                 "    if (-not $engine.ContainsKey($key) -or $value -gt $engine[$key]) { $engine[$key] = $value }",
                 "  }",
                 "}",
-                "$memSamples = (Get-Counter '\\GPU Adapter Memory(*)\\Dedicated Usage').CounterSamples",
-                "foreach ($sample in $memSamples) {",
-                "  $key = Get-LuidKey $sample.InstanceName",
+                "Get-CimInstance -Namespace root\\cimv2 -ClassName Win32_PerfFormattedData_GPUPerformanceCounters_GPUAdapterMemory | ForEach-Object {",
+                "  $key = Get-LuidKey $_.Name",
                 "  if ($key) {",
-                "    if (-not $dedicatedUsage.ContainsKey($key)) { $dedicatedUsage[$key] = 0.0 }",
-                "    $dedicatedUsage[$key] += [double]$sample.CookedValue",
-                "  }",
-                "}",
-                "$sharedSamples = (Get-Counter '\\GPU Adapter Memory(*)\\Shared Usage').CounterSamples",
-                "foreach ($sample in $sharedSamples) {",
-                "  $key = Get-LuidKey $sample.InstanceName",
-                "  if ($key) {",
-                "    if (-not $sharedUsage.ContainsKey($key)) { $sharedUsage[$key] = 0.0 }",
-                "    $sharedUsage[$key] += [double]$sample.CookedValue",
-                "  }",
-                "}",
-                "$dedicatedLimitSamples = (Get-Counter '\\GPU Adapter Memory(*)\\Dedicated Limit').CounterSamples",
-                "foreach ($sample in $dedicatedLimitSamples) {",
-                "  $key = Get-LuidKey $sample.InstanceName",
-                "  if ($key) {",
-                "    if (-not $dedicatedLimit.ContainsKey($key)) { $dedicatedLimit[$key] = 0.0 }",
-                "    $dedicatedLimit[$key] += [double]$sample.CookedValue",
-                "  }",
-                "}",
-                "$sharedLimitSamples = (Get-Counter '\\GPU Adapter Memory(*)\\Shared Limit').CounterSamples",
-                "foreach ($sample in $sharedLimitSamples) {",
-                "  $key = Get-LuidKey $sample.InstanceName",
-                "  if ($key) {",
-                "    if (-not $sharedLimit.ContainsKey($key)) { $sharedLimit[$key] = 0.0 }",
-                "    $sharedLimit[$key] += [double]$sample.CookedValue",
+                "    $adapter[$key] = [pscustomobject]@{",
+                "      Key = $key;",
+                "      Dedicated = [double]$_.DedicatedUsage;",
+                "      Shared = [double]$_.SharedUsage;",
+                "      TotalCommitted = [double]$_.TotalCommitted",
+                "    }",
                 "  }",
                 "}",
                 "$adapters = @()",
-                "$allKeys = @($engine.Keys + $dedicatedUsage.Keys + $sharedUsage.Keys + $dedicatedLimit.Keys + $sharedLimit.Keys | Select-Object -Unique)",
+                "$allKeys = @($engine.Keys + $adapter.Keys | Select-Object -Unique)",
                 "foreach ($key in $allKeys) {",
+                "  $adapterData = if ($adapter.ContainsKey($key)) { $adapter[$key] } else { $null }",
                 "  $adapters += [pscustomobject]@{",
                 "    Key = $key;",
                 "    Engine = if ($engine.ContainsKey($key)) { [double]$engine[$key] } else { 0.0 };",
-                "    DedicatedUsage = if ($dedicatedUsage.ContainsKey($key)) { [double]$dedicatedUsage[$key] } else { 0.0 };",
-                "    SharedUsage = if ($sharedUsage.ContainsKey($key)) { [double]$sharedUsage[$key] } else { 0.0 };",
-                "    DedicatedLimit = if ($dedicatedLimit.ContainsKey($key)) { [double]$dedicatedLimit[$key] } else { 0.0 };",
-                "    SharedLimit = if ($sharedLimit.ContainsKey($key)) { [double]$sharedLimit[$key] } else { 0.0 }",
+                "    DedicatedUsage = if ($adapterData) { [double]$adapterData.Dedicated } else { 0.0 };",
+                "    SharedUsage = if ($adapterData) { [double]$adapterData.Shared } else { 0.0 };",
+                "    TotalCommitted = if ($adapterData) { [double]$adapterData.TotalCommitted } else { 0.0 }",
                 "  }",
                 "}",
                 "$cards = @(Get-CimInstance Win32_VideoController)",
@@ -265,25 +272,26 @@ public class SystemService {
                 "  } else {",
                 "    $selected = $availableAdapters | Sort-Object @{Expression={ $_.DedicatedUsage + $_.SharedUsage + $_.Engine };Descending=$true} | Select-Object -First 1",
                 "  }",
-                "  $availableAdapters = @($availableAdapters | Where-Object { $_.Key -ne $selected.Key })",
+                "  if ($selected) { $availableAdapters = @($availableAdapters | Where-Object { $_.Key -ne $selected.Key }) }",
                 "  $adapterRamMb = if ($card.AdapterRAM) { [int64][math]::Round([double]$card.AdapterRAM / 1MB) } else { 0 }",
-                "  $usedBytes = 0.0",
-                "  $limitBytes = 0.0",
+                "  $usedMb = 0",
+                "  $totalMb = $adapterRamMb",
                 "  $util = ''",
                 "  if ($selected) {",
-                "    $usedBytes = [double]$selected.DedicatedUsage + [double]$selected.SharedUsage",
-                "    $limitBytes = [double]$selected.DedicatedLimit + [double]$selected.SharedLimit",
                 "    if ($selected.Engine -gt 0) { $util = [math]::Round([math]::Min([double]$selected.Engine, 100.0), 1) }",
+                "    if ($vendor -eq 'Intel') {",
+                "      $usedMb = [int64][math]::Round([double]$selected.SharedUsage / 1MB)",
+                "      $totalMb = if ($systemMemoryMb -gt 0) { [int64][math]::Round($systemMemoryMb / 2.0) } else { [int64][math]::Max($adapterRamMb, $usedMb) }",
+                "    } else {",
+                "      $usedMb = [int64][math]::Round([double]$selected.DedicatedUsage / 1MB)",
+                "    }",
                 "  }",
-                "  $usedMb = [int64][math]::Round($usedBytes / 1MB)",
-                "  $totalMb = if ($limitBytes -gt 0) { [int64][math]::Round($limitBytes / 1MB) } else { $adapterRamMb }",
-                "  if ($vendor -eq 'Intel' -and $totalMb -le 0 -and $systemMemoryMb -gt 0) { $totalMb = [int64][math]::Round($systemMemoryMb / 2.0) }",
                 "  if ($vendor -eq 'Intel' -and $totalMb -gt 0 -and $usedMb -gt $totalMb) { $usedMb = [int64][math]::Min($usedMb, $totalMb) }",
                 "  if ($vendor -ne 'Intel' -and $usedMb -gt $totalMb -and $totalMb -gt 0) { $usedMb = $totalMb }",
                 "  Write-Output(\"$i`t$vendor`t$($card.Name)`t$totalMb`t$usedMb`t$util\")",
                 "}");
 
-        List<String> lines = runPowerShell(script, 20);
+        List<String> lines = runPowerShell(script, 5);
         List<GpuData> result = new ArrayList<>();
 
         for (String line : lines) {

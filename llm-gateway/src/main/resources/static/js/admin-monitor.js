@@ -1,15 +1,15 @@
-/**
+﻿/**
  * LLM Gateway - Admin Monitor Page
  */
 (function() {
     'use strict';
 
     const charts = {};
+    const chartSeriesHistory = {};
     const MAX_DATA_POINTS = 60;
-    const MULTI_GPU_CHART_HEIGHT = 64;
+    const MULTI_GPU_CHART_HEIGHT = 88;
 
     let refreshTimer = null;
-    let qpsData = Array.from({ length: 20 }, () => randomRange(5, 20));
     let renderedGpuKeys = [];
 
     document.addEventListener('DOMContentLoaded', async function() {
@@ -33,84 +33,10 @@
     function initCharts() {
         const realtimeData = getMockRealtimeData();
 
-        setText('currentQps', realtimeData.qps[realtimeData.qps.length - 1]);
-        setText('tokenRate', realtimeData.tokenRate[realtimeData.tokenRate.length - 1].toLocaleString());
-        setText('concurrentRequests', realtimeData.concurrent[realtimeData.concurrent.length - 1]);
+        setText('currentQps', realtimeData.failRequests);
+        setText('tokenRate', realtimeData.totalTokens.toLocaleString());
+        setText('concurrentRequests', realtimeData.totalApiKeys);
         setText('avgResponseTime', realtimeData.avgLatency + 'ms');
-
-        initChart('realtimeQpsChart', {
-            title: { text: '实时请求速率', left: 'left', textStyle: { color: '#e8ecf1' } },
-            tooltip: { trigger: 'axis', formatter: '{b}<br/><span style="color:#00d4ff">{c}</span> req/s' },
-            xAxis: {
-                type: 'category',
-                boundaryGap: false,
-                data: buildRecentTimestamps(20),
-                axisLine: { lineStyle: { color: '#4a5568' } },
-                axisLabel: { color: '#a0aec0' }
-            },
-            yAxis: {
-                type: 'value',
-                name: 'QPS',
-                min: 0,
-                axisLine: { lineStyle: { color: '#4a5568' } },
-                axisLabel: { color: '#a0aec0' },
-                splitLine: { lineStyle: { color: '#2d3748' } }
-            },
-            grid: { left: '3%', right: '4%', bottom: '3%', top: '15%', containLabel: true },
-            series: [{
-                type: 'line',
-                smooth: true,
-                showSymbol: false,
-                data: realtimeData.qps,
-                lineStyle: { width: 2, color: '#00d4ff' },
-                areaStyle: {
-                    color: new window.echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: 'rgba(0, 212, 255, 0.4)' },
-                        { offset: 1, color: 'rgba(0, 212, 255, 0.05)' }
-                    ])
-                }
-            }]
-        });
-
-        initChart('tokenRateChart', {
-            tooltip: { trigger: 'axis' },
-            xAxis: { type: 'category', data: Array.from({ length: 20 }, (_, i) => i + 1), boundaryGap: false, show: false },
-            yAxis: { type: 'value', min: 0, show: false },
-            grid: { left: '3%', right: '4%', bottom: '3%', top: '5%' },
-            series: [{
-                type: 'line',
-                smooth: true,
-                showSymbol: false,
-                data: realtimeData.tokenRate,
-                lineStyle: { width: 2, color: '#a855f7' },
-                areaStyle: {
-                    color: new window.echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: 'rgba(168, 85, 247, 0.3)' },
-                        { offset: 1, color: 'rgba(168, 85, 247, 0.05)' }
-                    ])
-                }
-            }]
-        });
-
-        initChart('concurrentConnectionsChart', {
-            tooltip: { trigger: 'axis' },
-            xAxis: { type: 'category', data: Array.from({ length: 20 }, (_, i) => i + 1), boundaryGap: false, show: false },
-            yAxis: { type: 'value', min: 0, show: false },
-            grid: { left: '3%', right: '4%', bottom: '3%', top: '5%' },
-            series: [{
-                type: 'line',
-                smooth: true,
-                showSymbol: false,
-                data: realtimeData.concurrent,
-                lineStyle: { width: 2, color: '#10b981' },
-                areaStyle: {
-                    color: new window.echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: 'rgba(16, 185, 129, 0.3)' },
-                        { offset: 1, color: 'rgba(16, 185, 129, 0.05)' }
-                    ])
-                }
-            }]
-        });
 
         initChart('modelDistributionPieChart', {
             title: { text: '模型请求占比', left: 'center', textStyle: { color: '#e8ecf1' } },
@@ -215,6 +141,8 @@
         if (isNumber(gpu.memoryUsagePercent)) {
             updateLineChart('gpuMemoryChart', gpu.memoryUsagePercent);
         }
+
+        scheduleChartsResize();
     }
 
     function hideSingleGpuCharts() {
@@ -227,6 +155,8 @@
         if (gpuMemoryCard) {
             gpuMemoryCard.style.display = 'none';
         }
+
+        scheduleChartsResize();
     }
 
     function renderMultiGpuCharts(gpus) {
@@ -235,27 +165,32 @@
             return;
         }
 
-        multiContainer.style.cssText = [
-            'display:flex',
-            'flex-direction:row',
-            'flex-wrap:nowrap',
-            'gap:12px',
-            'margin-bottom:0',
-            'align-items:stretch'
-        ].join(';');
-
         const gpuKeys = gpus.map(getGpuKey);
         removeStaleGpuRows(gpuKeys);
 
         gpus.forEach((gpu) => {
             const gpuKey = getGpuKey(gpu);
+            const utilId = `gpu-${gpuKey}-util`;
+            const memId = `gpu-${gpuKey}-mem`;
             let row = document.getElementById(`gpu-row-${gpuKey}`);
 
             if (!row) {
                 row = createMultiGpuRow(gpu, gpuKey);
                 multiContainer.appendChild(row);
-                initCompactLineChart(`gpu-${gpuKey}-util`, `GPU ${gpu.index} 使用率 (%)`, '#f59e0b');
-                initCompactLineChart(`gpu-${gpuKey}-mem`, `GPU ${gpu.index} 显存 (%)`, '#ef4444');
+                requestAnimationFrame(() => {
+                    if (!charts[utilId]) {
+                        initCompactLineChart(utilId, `GPU ${gpu.index} 使用率 (%)`, '#f59e0b');
+                    }
+                    if (!charts[memId]) {
+                        initCompactLineChart(memId, `GPU ${gpu.index} 显存 (%)`, '#ef4444');
+                    }
+                    if (isNumber(gpu.utilization)) {
+                        updateLineChart(utilId, gpu.utilization);
+                    }
+                    if (isNumber(gpu.memoryUsagePercent)) {
+                        updateLineChart(memId, gpu.memoryUsagePercent);
+                    }
+                });
             }
 
             const nameEl = row.querySelector('.gpu-compact-name');
@@ -267,44 +202,40 @@
                 metaEl.textContent = buildGpuMeta(gpu);
             }
 
+            if (!charts[utilId]) {
+                initCompactLineChart(utilId, `GPU ${gpu.index} 使用率 (%)`, '#f59e0b');
+            }
+            if (!charts[memId]) {
+                initCompactLineChart(memId, `GPU ${gpu.index} 显存 (%)`, '#ef4444');
+            }
+
             if (isNumber(gpu.utilization)) {
-                updateLineChart(`gpu-${gpuKey}-util`, gpu.utilization);
+                updateLineChart(utilId, gpu.utilization);
             }
             if (isNumber(gpu.memoryUsagePercent)) {
-                updateLineChart(`gpu-${gpuKey}-mem`, gpu.memoryUsagePercent);
+                updateLineChart(memId, gpu.memoryUsagePercent);
             }
         });
 
         renderedGpuKeys = gpuKeys;
+        scheduleChartsResize();
     }
 
     function createMultiGpuRow(gpu, gpuKey) {
         const row = document.createElement('div');
         row.id = `gpu-row-${gpuKey}`;
         row.className = 'card gpu-compact-card';
-        row.style.cssText = [
-            'display:grid',
-            'grid-template-columns:1fr',
-            'grid-template-rows:auto auto',
-            'gap:8px',
-            'padding:12px 14px',
-            'min-width:520px',
-            'flex:0 0 520px',
-            'align-items:stretch',
-            'margin-bottom:0'
-        ].join(';');
-
         row.innerHTML = `
-            <div class="gpu-compact-header" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;min-width:0;margin-bottom:2px;">
-                <div class="gpu-compact-name" style="color:var(--text-primary);font-weight:600;font-size:14px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${gpu.name || `GPU ${gpu.index}`}</div>
-                <div class="gpu-compact-meta" style="color:var(--text-secondary);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${buildGpuMeta(gpu)}</div>
+            <div class="gpu-compact-header">
+                <div class="gpu-compact-name">${gpu.name || `GPU ${gpu.index}`}</div>
+                <div class="gpu-compact-meta">${buildGpuMeta(gpu)}</div>
             </div>
-            <div class="gpu-chart-stack" style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:8px;min-width:0;">
-                <div class="gpu-chart-panel" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:6px 8px;min-width:0;">
+            <div class="gpu-chart-stack">
+                <div class="gpu-chart-panel">
                     <div class="gpu-chart-subtitle" style="color:var(--text-secondary);font-size:12px;margin-bottom:2px;">使用率</div>
                     <div id="gpu-${gpuKey}-util" style="height: ${MULTI_GPU_CHART_HEIGHT}px;"></div>
                 </div>
-                <div class="gpu-chart-panel" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:6px 8px;min-width:0;">
+                <div class="gpu-chart-panel">
                     <div class="gpu-chart-subtitle" style="color:var(--text-secondary);font-size:12px;margin-bottom:2px;">显存</div>
                     <div id="gpu-${gpuKey}-mem" style="height: ${MULTI_GPU_CHART_HEIGHT}px;"></div>
                 </div>
@@ -334,6 +265,8 @@
         if (multiContainer) {
             multiContainer.innerHTML = '';
         }
+
+        scheduleChartsResize();
     }
 
     function initLineChart(domId, label, color) {
@@ -366,21 +299,16 @@
         return {
             tooltip: {
                 trigger: 'axis',
-                formatter: function(params) {
-                    if (!params || !params.length) {
-                        return '';
-                    }
-                    const point = params[0];
-                    const value = isNumber(point.value) ? Math.round(point.value * 10) / 10 : '-';
-                    return `${point.name}<br/><span style="display:inline-block;width:10px;height:10px;background-color:${color};"></span> ${label}: ${value}%`;
-                }
+                formatter: buildTimeSeriesTooltipFormatter(label, color, '%')
             },
             xAxis: {
-                type: 'category',
+                type: 'time',
                 boundaryGap: false,
-                data: buildRecentTimestamps(MAX_DATA_POINTS),
                 axisLine: { lineStyle: { color: '#4a5568' } },
-                axisLabel: compact ? { show: false } : { color: '#a0aec0', interval: 'auto' }
+                axisLabel: compact ? { show: false } : {
+                    color: '#a0aec0',
+                    formatter: function(value) { return formatAxisTimestamp(value); }
+                }
             },
             yAxis: {
                 type: 'value',
@@ -415,21 +343,21 @@
             return;
         }
 
-        const option = chart.getOption();
-        const seriesData = (option.series[0].data || []).slice();
-        const xAxisData = (option.xAxis[0].data || []).slice();
-
-        if (seriesData.length >= MAX_DATA_POINTS) {
-            seriesData.shift();
-            xAxisData.shift();
+        const history = chartSeriesHistory[domId] || (chartSeriesHistory[domId] = []);
+        if (history.length === 0) {
+            const seed = round1(value);
+            for (let i = MAX_DATA_POINTS - 1; i >= 0; i--) {
+                history.push([Date.now() - i * 1000, seed]);
+            }
+        } else {
+            if (history.length >= MAX_DATA_POINTS) {
+                history.shift();
+            }
+            history.push([Date.now(), round1(value)]);
         }
 
-        seriesData.push(round1(value));
-        xAxisData.push(formatTimestamp(Date.now()));
-
         chart.setOption({
-            xAxis: { data: xAxisData },
-            series: [{ data: seriesData }]
+            series: [{ data: history }]
         });
     }
 
@@ -444,7 +372,6 @@
         setText('currentQps', failRequests);
         setText('concurrentRequests', totalApiKeys);
 
-        updateQpsChart();
     }
 
     function getRealtimeValue(data, field, fallback) {
@@ -452,24 +379,8 @@
         return value !== null && value !== undefined ? value : fallback();
     }
 
-    function updateQpsChart() {
-        const chart = charts.realtimeQpsChart;
-        if (!chart) {
-            return;
-        }
-
-        qpsData.shift();
-        qpsData.push(round1(randomRange(8, 18)));
-
-        chart.setOption({
-            xAxis: { data: buildRecentTimestamps(20) },
-            series: [{ data: qpsData }]
-        });
-    }
-
     function updateWithMockData() {
         setText('avgResponseTime', Math.round(randomRange(200, 300)) + 'ms');
-        updateQpsChart();
     }
 
     function initChart(domId, option) {
@@ -490,6 +401,17 @@
             charts[domId].dispose();
             delete charts[domId];
         }
+    }
+
+    function scheduleChartsResize(delay) {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            Object.values(charts).forEach((chart) => {
+                if (chart && typeof chart.resize === 'function') {
+                    chart.resize();
+                }
+            });
+        }, typeof delay === 'number' ? delay : 150);
     }
 
     function normalizeGpus(gpus) {
@@ -530,9 +452,9 @@
 
     function getMockRealtimeData() {
         return {
-            qps: [8, 12, 15, 11, 18, 14, 16, 12, 10, 14, 17, 13, 11, 15, 19, 14, 12, 16, 13, 11],
-            tokenRate: [1200, 1800, 2200, 1600, 2700, 2100, 2400, 1800, 1500, 2100, 2600, 1900, 1600, 2300, 2900, 2100, 1800, 2400, 1900, 1600],
-            concurrent: [45, 52, 58, 48, 67, 61, 65, 52, 47, 59, 68, 55, 50, 62, 71, 58, 53, 64, 56, 50],
+            failRequests: 0,
+            totalTokens: 0,
+            totalApiKeys: 0,
             avgLatency: Math.round(randomRange(150, 350)),
             models: {
                 distribution: [
@@ -554,13 +476,41 @@
         };
     }
 
-    function buildRecentTimestamps(count) {
-        return Array.from({ length: count }, (_, i) => formatTimestamp(Date.now() - (count - 1 - i) * 1000));
+    function buildRecentSeriesData(values, endTime) {
+        const safeValues = Array.isArray(values) ? values : [];
+        const resolvedEndTime = isNumber(endTime) ? endTime : Date.now();
+        return safeValues.map((value, index) => {
+            const timestamp = resolvedEndTime - (safeValues.length - 1 - index) * 1000;
+            return [timestamp, round1(value)];
+        });
     }
 
     function formatTimestamp(timestamp) {
         const date = new Date(timestamp);
-        return `${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+    }
+
+    function formatAxisTimestamp(timestamp) {
+        return formatTimestamp(timestamp);
+    }
+
+    function formatTooltipTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${formatTimestamp(timestamp)}`;
+    }
+
+    function buildTimeSeriesTooltipFormatter(label, color, suffix) {
+        return function(params) {
+            if (!params || !params.length) {
+                return '';
+            }
+
+            const point = params[0];
+            const value = Array.isArray(point.data) ? point.data[1] : point.value;
+            const timestamp = Array.isArray(point.data) ? point.data[0] : point.axisValue;
+            const displayValue = isNumber(value) ? round1(value) + (suffix || '') : '-';
+            return formatTooltipTimestamp(timestamp) + '<br/><span style="display:inline-block;width:10px;height:10px;background-color:' + color + ';"></span> ' + label + ': ' + displayValue;
+        };
     }
 
     function setText(id, value) {
@@ -606,9 +556,6 @@
 
     let resizeTimeout = null;
     window.addEventListener('resize', function() {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-            Object.values(charts).forEach(chart => chart.resize());
-        }, 150);
+        scheduleChartsResize();
     });
 })();

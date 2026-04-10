@@ -27,6 +27,7 @@ const Config = {
     storageKeys: {
         apiUrl: 'concurrent_test_api_url',
         apiType: 'concurrent_test_api_type',
+        apiKey: 'concurrent_test_api_key',
         model: 'concurrent_test_model',
         prompt: 'concurrent_test_prompt',
         concurrentCount: 'concurrent_test_concurrent_count',

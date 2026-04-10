@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -16,6 +17,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
+    Long countByCreatedAtGreaterThanEqual(LocalDateTime createdAt);
 
     Page<User> findByUsernameContainingIgnoreCase(String username, Pageable pageable);
 }

@@ -31,6 +31,7 @@ public interface ApiKeyRepository extends JpaRepository<ApiKey, Long> {
 
     Long countByUserId(Long userId);
     Long countByUserIdAndEnabled(Long userId, Boolean enabled);
+    Long countByEnabled(Boolean enabled);
 
     @Query("SELECT COALESCE(SUM(k.usedTokens), 0) FROM ApiKey k WHERE k.user.id = :userId")
     Long sumUsedTokensByUserId(@Param("userId") Long userId);

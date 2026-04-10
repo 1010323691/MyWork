@@ -18,6 +18,7 @@ const UI = {
         // 配置元素
         this.elements.apiTypeSelect = document.getElementById('apiTypeSelect');
         this.elements.apiUrl = document.getElementById('apiUrl');
+        this.elements.apiKey = document.getElementById('apiKey');
         this.elements.modelSelect = document.getElementById('modelSelect');
         this.elements.refreshBtn = document.getElementById('refreshBtn');
 
@@ -82,6 +83,12 @@ const UI = {
             const url = this.elements.apiUrl.value.replace(/\/$/, '');
             localStorage.setItem(Config.storageKeys.apiUrl, url);
         });
+
+        if (this.elements.apiKey) {
+            this.elements.apiKey.addEventListener('input', () => {
+                localStorage.setItem(Config.storageKeys.apiKey, this.elements.apiKey.value.trim());
+            });
+        }
 
         // 模型选择变更
         this.elements.modelSelect.addEventListener('change', () => {
@@ -497,8 +504,9 @@ const UI = {
             this.elements.apiTypeSelect.value = savedApiType;
         }
 
-        // API 地址：根据 API 类型设置默认地址
+        // API 地址：优先使用已保存地址，否则回退到当前类型的默认地址
         const currentApiType = this.elements.apiTypeSelect?.value || Config.defaultApiType;
+        const savedApiUrl = localStorage.getItem(Config.storageKeys.apiUrl);
         let defaultUrl;
 
         if (currentApiType === Config.apiTypes.VLLM) {
@@ -510,9 +518,14 @@ const UI = {
         }
 
         if (this.elements.apiUrl) {
-            this.elements.apiUrl.value = defaultUrl;
-            // 同步到 localStorage，确保 API.getApiUrl() 获取正确的值
-            localStorage.setItem(Config.storageKeys.apiUrl, defaultUrl);
+            const resolvedUrl = (savedApiUrl || defaultUrl).replace(/\/$/, '');
+            this.elements.apiUrl.value = resolvedUrl;
+            localStorage.setItem(Config.storageKeys.apiUrl, resolvedUrl);
+        }
+
+        const savedApiKey = localStorage.getItem(Config.storageKeys.apiKey);
+        if (savedApiKey && this.elements.apiKey) {
+            this.elements.apiKey.value = savedApiKey;
         }
 
         // 模型

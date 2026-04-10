@@ -10,10 +10,9 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <!-- 顶部导航栏 -->
     <header class="navbar">
         <div class="nav-brand">
-            <span class="brand-icon">🚀</span>
+            <span class="brand-icon">AI</span>
             <span class="brand-text">大模型多并发测试</span>
         </div>
         <div class="nav-status">
@@ -22,11 +21,8 @@
         </div>
     </header>
 
-    <!-- 主内容区 -->
     <main class="main-container">
-        <!-- 左侧控制面板 -->
         <aside class="sidebar">
-            <!-- API 配置 -->
             <section class="card config-card">
                 <h3 class="card-title">API 配置</h3>
                 <div class="form-group">
@@ -39,7 +35,11 @@
                 </div>
                 <div class="form-group">
                     <label for="apiUrl">API 地址</label>
-                    <input type="text" id="apiUrl" value="http://127.0.0.1:8000" placeholder="API 服务器地址">
+                    <input type="text" id="apiUrl" value="http://127.0.0.1:8000" placeholder="API 服务地址">
+                </div>
+                <div class="form-group">
+                    <label for="apiKey">API Key（可选）</label>
+                    <input type="password" id="apiKey" placeholder="Bearer token / nkey_xxx">
                 </div>
                 <div class="form-group">
                     <label for="modelSelect">选择模型</label>
@@ -48,12 +48,11 @@
                     </select>
                 </div>
                 <button id="refreshBtn" class="btn btn-secondary btn-block">
-                    <span class="btn-icon">🔄</span>
+                    <span class="btn-icon">↻</span>
                     刷新模型列表
                 </button>
             </section>
 
-            <!-- 测试参数 -->
             <section class="card test-config-card">
                 <h3 class="card-title">测试参数</h3>
                 <div class="form-group">
@@ -72,26 +71,23 @@
                 </div>
             </section>
 
-            <!-- 操作按钮 -->
             <section class="card action-card">
                 <button id="startBtn" class="btn btn-primary btn-block">
                     <span class="btn-icon">▶</span>
                     开始并发测试
                 </button>
                 <button id="stopBtn" class="btn btn-danger btn-block" disabled>
-                    <span class="btn-icon">⏹</span>
+                    <span class="btn-icon">■</span>
                     停止测试
                 </button>
                 <button id="clearBtn" class="btn btn-outline btn-block">
-                    <span class="btn-icon">🗑</span>
+                    <span class="btn-icon">⌫</span>
                     清空结果
                 </button>
             </section>
         </aside>
 
-        <!-- 右侧结果展示 -->
         <section class="results-panel">
-            <!-- 实时指标卡片 -->
             <div class="metrics-grid">
                 <div class="metric-card">
                     <div class="metric-label">并发数</div>
@@ -115,12 +111,11 @@
                 </div>
             </div>
 
-            <!-- 平均指标卡片 -->
             <div class="metrics-grid avg-metrics">
                 <div class="metric-card">
                     <div class="metric-label">平均 TTFT</div>
                     <div class="metric-value" id="avgTtf">-</div>
-                    <div class="metric-sub">首字延迟(含思考时间)</div>
+                    <div class="metric-sub">首字延迟</div>
                 </div>
                 <div class="metric-card">
                     <div class="metric-label">平均速度</div>
@@ -134,7 +129,6 @@
                 </div>
             </div>
 
-            <!-- 并发任务列表 -->
             <div class="card concurrent-tasks-card">
                 <div class="card-header">
                     <h3 class="card-title">并发任务列表</h3>
@@ -144,7 +138,6 @@
                 </div>
             </div>
 
-            <!-- 测试结果历史 -->
             <div class="card results-history-card">
                 <div class="card-header">
                     <h3 class="card-title">测试结果</h3>
@@ -160,21 +153,19 @@
                                 <th>模型</th>
                                 <th>输入 Tokens</th>
                                 <th>输出 Tokens</th>
-                                <th>TTFT(含思考)</th>
+                                <th>TTFT</th>
                                 <th>生成速度</th>
                                 <th>总耗时</th>
                                 <th>状态</th>
                             </tr>
                         </thead>
-                        <tbody id="resultsTableBody">
-                        </tbody>
+                        <tbody id="resultsTableBody"></tbody>
                     </table>
                 </div>
             </div>
         </section>
     </main>
 
-    <!-- 引入模块 -->
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
     <script src="js/concurrent.js"></script>

@@ -21,21 +21,25 @@
 ### 配置获取
 - `getApiType()` - 获取当前 API 类型（从 localStorage 或默认值）
 - `getApiUrl()` - 获取当前 API 地址（从 localStorage 或根据类型返回默认值）
+- `getAuthHeaders()` - 获取可选认证头；当填写了 API Key 时，按 OpenAI 标准注入 `Authorization: Bearer <token>`
 
 ### 连接与模型
 - `checkConnection()` - 检查连接：
   - vLLM/LM Studio: `GET /v1/models`
   - Ollama: `GET /api/tags`
+  - OpenAI 兼容接口会自动附带可选 `Authorization` 请求头
   - 5 秒超时
 
 - `getModels()` - 获取模型列表：
   - vLLM/LM Studio: 解析 `{ data: [{ id }] }` 格式
   - Ollama: 解析 `{ models: [{ name }] }` 格式
+  - 当网关要求鉴权时，会复用同一个 Bearer Token 请求模型列表
 
 ### 聊天请求（核心）
 - `chat(prompt, model, temperature, controller)` - 发送聊天请求：
   - vLLM/LM Studio: `POST /v1/chat/completions`（OpenAI 兼容）
   - Ollama: `POST /api/chat`
+  - 若填写 API Key，则对 OpenAI 兼容接口追加 `Authorization: Bearer <token>`
   - 支持流式响应（`Accept: text/event-stream`）
   - Ollama 特有：模型加载时重试 5 次（每次间隔 1 秒）
 

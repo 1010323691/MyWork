@@ -25,10 +25,21 @@ public class ViewController {
 
     @GetMapping("/dashboard")
     public String dashboardPage(Model model, Authentication authentication) {
+        if (!"ADMIN".equals(extractUserRoleFromAuth(authentication))) {
+            return "redirect:/apikeys";
+        }
         model.addAttribute("title", "管理后台");
         model.addAttribute("currentPage", "dashboard");
         model.addAttribute("currentUserRole", extractUserRoleFromAuth(authentication));
         return "pages/dashboard/index";
+    }
+
+    @GetMapping("/apikeys")
+    public String apiKeysPage(Model model, Authentication authentication) {
+        model.addAttribute("title", "API Key 管理");
+        model.addAttribute("currentPage", "apikeys");
+        model.addAttribute("currentUserRole", extractUserRoleFromAuth(authentication));
+        return "pages/admin/keys";
     }
 
     @GetMapping("/logs")
@@ -48,11 +59,8 @@ public class ViewController {
     }
 
     @GetMapping("/admin/keys")
-    public String adminKeysPage(Model model, Authentication authentication) {
-        model.addAttribute("title", "Key 管理");
-        model.addAttribute("currentPage", "admin/keys");
-        model.addAttribute("currentUserRole", extractUserRoleFromAuth(authentication));
-        return "pages/admin/keys";
+    public String adminKeysPage() {
+        return "redirect:/apikeys";
     }
 
     @GetMapping("/admin/monitor")
@@ -92,21 +100,16 @@ public class ViewController {
         return "redirect:/login";
     }
 
-    /**
-     * 从 Authentication 中提取用户角色
-     * @param authentication Spring Security 认证对象
-     * @return 用户角色，默认为"USER"
-     */
     private String extractUserRoleFromAuth(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return "USER";
         }
 
-        // 从认证对象的 authorities 中提取角色
         var authorities = AuthorityUtils.authorityListToSet(authentication.getAuthorities());
         if (authorities.contains("ROLE_ADMIN")) {
             return "ADMIN";
-        } else if (authorities.contains("ROLE_USER")) {
+        }
+        if (authorities.contains("ROLE_USER")) {
             return "USER";
         }
         return "USER";

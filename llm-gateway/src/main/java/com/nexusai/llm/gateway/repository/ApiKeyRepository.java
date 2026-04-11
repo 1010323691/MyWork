@@ -17,20 +17,30 @@ import java.util.Optional;
 public interface ApiKeyRepository extends JpaRepository<ApiKey, Long> {
     @EntityGraph(attributePaths = {"user"})
     Optional<ApiKey> findByApiKeyValue(String apiKeyValue);
+
     @EntityGraph(attributePaths = {"user"})
     List<ApiKey> findByUserId(Long userId);
+
     @EntityGraph(attributePaths = {"user"})
     List<ApiKey> findAllByOrderByCreatedAtDesc();
+
     @EntityGraph(attributePaths = {"user"})
     List<ApiKey> findByUserIdOrderByCreatedAtDesc(Long userId);
+
     @EntityGraph(attributePaths = {"user"})
     List<ApiKey> findByEnabled(Boolean enabled);
+
     @EntityGraph(attributePaths = {"user"})
     Optional<ApiKey> findWithUserById(Long id);
+
+    boolean existsByIdAndUser_Id(Long id, Long userId);
+
     boolean existsByApiKeyValue(String apiKeyValue);
 
     Long countByUserId(Long userId);
+
     Long countByUserIdAndEnabled(Long userId, Boolean enabled);
+
     Long countByEnabled(Boolean enabled);
 
     @Query("SELECT COALESCE(SUM(k.usedTokens), 0) FROM ApiKey k WHERE k.user.id = :userId")

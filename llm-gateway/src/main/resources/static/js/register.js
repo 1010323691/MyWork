@@ -1,14 +1,14 @@
 /**
  * LLM Gateway - Register Page JavaScript
- * Session/Cookie 认证模式
+ * Session/Cookie authentication mode
  */
 (function() {
     'use strict';
 
     document.addEventListener('DOMContentLoaded', async function() {
-        // 已登录则直接跳转
         if (await API.isAuthenticated()) {
-            window.location.href = '/dashboard';
+            const user = await API.getCurrentUser();
+            window.location.href = user && user.role === 'ADMIN' ? '/dashboard' : '/apikeys';
             return;
         }
 
@@ -26,7 +26,6 @@
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
 
-        // 表单验证
         const usernameErr = FormValidation.required(username, '用户名') ||
                             FormValidation.minLength(username, 3, '用户名');
         if (usernameErr) { UI.showErrorMessage(usernameErr); return; }
@@ -49,7 +48,7 @@
         try {
             const resp = await API.post('/auth/register', { username, email, password });
             if (resp.message) {
-                UI.showSuccessMessage('注册成功！即将跳转到登录页...');
+                UI.showSuccessMessage('注册成功，即将跳转到登录页...');
                 setTimeout(function() {
                     window.location.href = '/login';
                 }, 1500);

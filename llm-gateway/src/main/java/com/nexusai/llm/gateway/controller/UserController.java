@@ -40,17 +40,12 @@ public class UserController {
         this.apiKeyRepository = apiKeyRepository;
     }
 
-    /**
-     * 获取当前用户 ID（支持 Session 认证和 API Key 认证）
-     */
     private Long getCurrentUserId(HttpServletRequest request, Authentication authentication) {
-        // 优先从 API Key 获取（API Key 认证场景）
         ApiKey apiKey = (ApiKey) request.getAttribute("apiKey");
         if (apiKey != null) {
             return apiKey.getUser().getId();
         }
 
-        // 从 Session 认证获取（Session 认证场景）
         if (authentication != null && authentication.getPrincipal() instanceof User) {
             return ((User) authentication.getPrincipal()).getId();
         }
@@ -58,9 +53,6 @@ public class UserController {
         return null;
     }
 
-    /**
-     * 查询当前用户的请求日志（分页 + 可选过滤）
-     */
     @GetMapping("/logs")
     @Transactional(readOnly = true)
     public ResponseEntity<Page<RequestLogResponse>> getUserLogs(
@@ -78,16 +70,22 @@ public class UserController {
         if (userId == null) {
             return ResponseEntity.status(401).build();
         }
+        if (filterUserId != null && !userId.equals(filterUserId)) {
+            return ResponseEntity.status(403).build();
+        }
+        if (apiKeyId != null && !apiKeyRepository.existsByIdAndUser_Id(apiKeyId, userId)) {
+            return ResponseEntity.status(403).build();
+        }
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         Specification<RequestLog> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("apiKey").get("user").get("id"), userId));
+
             if (filterUserId != null) {
                 predicates.add(cb.equal(root.get("userId"), filterUserId));
             }
-
             if (apiKeyId != null) {
                 predicates.add(cb.equal(root.get("apiKey").get("id"), apiKeyId));
             }
@@ -103,7 +101,8 @@ public class UserController {
                 try {
                     RequestLog.RequestStatus s = RequestLog.RequestStatus.valueOf(status.toUpperCase());
                     predicates.add(cb.equal(root.get("status"), s));
-                } catch (IllegalArgumentException ignored) {}
+                } catch (IllegalArgumentException ignored) {
+                }
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -114,9 +113,6 @@ public class UserController {
         return ResponseEntity.ok(result);
     }
 
-    /**
-     * 获取指定日志详情
-     */
     @GetMapping("/logs/{id}")
     @Transactional(readOnly = true)
     public ResponseEntity<RequestLogResponse> getLogDetail(
@@ -132,7 +128,6 @@ public class UserController {
         RequestLog log = requestLogRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Log not found: " + id));
 
-        // 验证日志是否属于当前用户
         if (!log.getApiKey().getUser().getId().equals(userId)) {
             return ResponseEntity.status(403).build();
         }
@@ -140,9 +135,6 @@ public class UserController {
         return ResponseEntity.ok(toResponse(log));
     }
 
-    /**
-     * 获取当前用户的 API Keys 列表（不包含 Key 值本身）
-     */
     @GetMapping("/apikeys")
     @Transactional(readOnly = true)
     public ResponseEntity<List<Map<String, Object>>> listMyApiKeys(
@@ -158,22 +150,16 @@ public class UserController {
             Map<String, Object> map = new HashMap<>();
             map.put("id", key.getId());
             map.put("name", key.getName());
-            map.put("tokenLimit", key.getTokenLimit());
             map.put("usedTokens", key.getUsedTokens());
-            map.put("remainingTokens", key.getRemainingTokens());
             map.put("enabled", key.getEnabled());
             map.put("expiresAt", key.getExpiresAt());
             map.put("createdAt", key.getCreatedAt());
-            // 注意：不暴露 apiKeyValue，日志筛选只需要 id 和 name
             return map;
         }).collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * 获取当前用户的统计数据
-     */
     @GetMapping("/stats")
     @Transactional(readOnly = true)
     public ResponseEntity<UserStatsResponse> getUserStats(
@@ -197,7 +183,6 @@ public class UserController {
 
         double successRate = totalRequests > 0 ? (double) successCount / totalRequests * 100 : 0.0;
 
-        // 最近7天每日 token 趋势
         List<Object[]> rawTrend = requestLogRepository.getDailyTrendByUser(userId, weekAgo);
         List<DailyTokenStat> dailyTrend = rawTrend.stream()
                 .map(row -> new DailyTokenStat(

@@ -11,9 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TokenUsageResponse {
 
-    private Long totalTokens;
     private Long usedTokens;
-    private Long remainingTokens;
     private String apiKeyName;
-    private Boolean hasLimit;
 }

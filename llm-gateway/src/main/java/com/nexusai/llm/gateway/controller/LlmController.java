@@ -1,5 +1,6 @@
 package com.nexusai.llm.gateway.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.nexusai.llm.gateway.dto.ChatRequest;
 import com.nexusai.llm.gateway.entity.ApiKey;
 import com.nexusai.llm.gateway.entity.RequestLog;
@@ -8,6 +9,7 @@ import com.nexusai.llm.gateway.service.LlmForwardService;
 import com.nexusai.llm.gateway.service.RequestLogService;
 import com.nexusai.llm.gateway.service.RoutingConfigParser;
 import com.nexusai.llm.gateway.service.UpstreamProviderService;
+import com.nexusai.llm.gateway.service.UserBillingService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,12 +19,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @RestController
-@RequestMapping("/api/llm")
 public class LlmController {
 
     private final LlmForwardService llmForwardService;
@@ -30,28 +33,35 @@ public class LlmController {
     private final RequestLogService requestLogService;
     private final RoutingConfigParser routingConfigParser;
     private final UpstreamProviderService upstreamProviderService;
+    private final UserBillingService userBillingService;
 
     @Autowired
     public LlmController(LlmForwardService llmForwardService,
                          ApiKeyService apiKeyService,
                          RequestLogService requestLogService,
                          RoutingConfigParser routingConfigParser,
-                         UpstreamProviderService upstreamProviderService) {
+                         UpstreamProviderService upstreamProviderService,
+                         UserBillingService userBillingService) {
         this.llmForwardService = llmForwardService;
         this.apiKeyService = apiKeyService;
         this.requestLogService = requestLogService;
         this.routingConfigParser = routingConfigParser;
         this.upstreamProviderService = upstreamProviderService;
+        this.userBillingService = userBillingService;
     }
 
-    @PostMapping("/chat")
+    @PostMapping({"/api/llm/chat", "/api/chat"})
     public ResponseEntity<String> chat(HttpServletRequest httpRequest, @RequestBody ChatRequest request) {
         ApiKey key = (ApiKey) httpRequest.getAttribute("apiKey");
         if (key == null) {
             return ResponseEntity.status(401).body("{\"error\": \"API key required\"}");
         }
 
-        String messagesStr = request.getMessages() != null ? request.getMessages() : "";
+        JsonNode messagesNode = request.getMessages();
+        String messagesStr = "";
+        if (messagesNode != null && !messagesNode.isNull()) {
+            messagesStr = messagesNode.isTextual() ? messagesNode.asText("") : messagesNode.toString();
+        }
         long estimatedInput = llmForwardService.estimateTokenUsage(messagesStr);
 
         if (Boolean.TRUE.equals(request.getStream())) {
@@ -60,12 +70,13 @@ public class LlmController {
             );
         }
 
-        if (!apiKeyService.hasEnoughTokens(key, estimatedInput)) {
-            return ResponseEntity.status(429).body("{\"error\": \"Token quota exceeded\"}");
-        }
-
         String targetUrl = routingConfigParser.resolveTargetUrl(key.getRoutingConfig(), key.getTargetUrl());
         String resolvedModel = routingConfigParser.resolveModel(key.getRoutingConfig(), request.getModel());
+        Optional<com.nexusai.llm.gateway.entity.BackendService> providerOptional = upstreamProviderService.findByModelName(resolvedModel);
+        Long userId = key.getUser() != null ? key.getUser().getId() : null;
+        if (!userBillingService.hasEnoughBalance(userId, providerOptional.orElse(null), estimatedInput)) {
+            return ResponseEntity.status(402).body("{\"error\": \"Insufficient balance\"}");
+        }
         if (targetUrl == null || targetUrl.isBlank()) {
             return ResponseEntity.status(502).body("{\"error\": \"No backend target configured\"}");
         }
@@ -79,22 +90,23 @@ public class LlmController {
             status = RequestLog.RequestStatus.FAIL;
             long latency = System.currentTimeMillis() - startMs;
             requestLogService.asyncLogRequest(key.getId(), estimatedInput, 0L,
-                    resolvedModel, latency, status, messagesStr, e.getMessage());
+                    resolvedModel, latency, BigDecimal.ZERO, status, messagesStr, e.getMessage());
             return ResponseEntity.status(502).body("{\"error\": \"Upstream request failed\"}");
         }
         long latencyMs = System.currentTimeMillis() - startMs;
 
         long outputTokens = llmForwardService.estimateTokenUsage(response);
         long totalTokens = estimatedInput + outputTokens;
+        BigDecimal actualCost = userBillingService.settleUsage(userId, providerOptional.orElse(null), estimatedInput, outputTokens);
 
         requestLogService.asyncRecordUsage(key.getId(), totalTokens);
         requestLogService.asyncLogRequest(key.getId(), estimatedInput, outputTokens,
-                resolvedModel, latencyMs, status, messagesStr, response);
+                resolvedModel, latencyMs, actualCost, status, messagesStr, response);
 
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/models")
+    @GetMapping({"/api/llm/models", "/api/models"})
     public ResponseEntity<Map<String, Object>> listModels(HttpServletRequest httpRequest) {
         ApiKey key = (ApiKey) httpRequest.getAttribute("apiKey");
         if (key == null) {

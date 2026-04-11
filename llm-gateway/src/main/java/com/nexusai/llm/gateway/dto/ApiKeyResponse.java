@@ -20,9 +20,7 @@ public class ApiKeyResponse {
     @JsonProperty("key")
     private String apiKeyValue;
     private String name;
-    private Long tokenLimit;
     private Long usedTokens;
-    private Long remainingTokens;
     private Boolean enabled;
     private LocalDateTime expiresAt;
     private LocalDateTime createdAt;

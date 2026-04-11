@@ -201,14 +201,19 @@ public class OpenAiForwardService {
     }
 
     private String buildChatCompletionsUrl(String backendUrl) {
-        String normalized = normalizeBaseUrl(backendUrl);
-        if (normalized.endsWith("/v1")) {
-            return normalized + "/chat/completions";
+        URI uri = URI.create(normalizeBaseUrl(backendUrl));
+        String authority = uri.getRawAuthority();
+        if (authority == null || authority.isBlank()) {
+            throw new IllegalArgumentException("Backend URL must include host: " + backendUrl);
         }
-        if (normalized.endsWith("/chat/completions")) {
-            return normalized;
-        }
-        return normalized + "/v1/chat/completions";
+
+        StringBuilder builder = new StringBuilder()
+                .append(uri.getScheme())
+                .append("://")
+                .append(authority)
+                .append("/v1/chat/completions");
+
+        return builder.toString();
     }
 
     private String normalizeBaseUrl(String backendUrl) {

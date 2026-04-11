@@ -11,8 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * 用户余额服务
@@ -55,13 +53,16 @@ public class UserBalanceService {
      */
     public BigDecimal estimateCost(long inputTokens, long outputTokens,
                                    BigDecimal sellPriceInput, BigDecimal sellPriceOutput) {
+        BigDecimal normalizedSellPriceInput = sellPriceInput != null ? sellPriceInput : BigDecimal.ZERO;
+        BigDecimal normalizedSellPriceOutput = sellPriceOutput != null ? sellPriceOutput : BigDecimal.ZERO;
+
         BigDecimal inputCost = BigDecimal.valueOf(inputTokens)
-                .multiply(sellPriceInput)
-                .divide(MILLION, 4, RoundingMode.HALF_UP);
+                .multiply(normalizedSellPriceInput)
+                .divide(MILLION, 8, RoundingMode.HALF_UP);
 
         BigDecimal outputCost = BigDecimal.valueOf(outputTokens)
-                .multiply(sellPriceOutput)
-                .divide(MILLION, 4, RoundingMode.HALF_UP);
+                .multiply(normalizedSellPriceOutput)
+                .divide(MILLION, 8, RoundingMode.HALF_UP);
 
         return inputCost.add(outputCost);
     }

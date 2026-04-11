@@ -1,6 +1,6 @@
 /**
  * LLM Gateway - Logs Page
- * Session/Cookie 认证模式
+ * Session/Cookie authentication mode
  */
 (function() {
     'use strict';
@@ -8,6 +8,7 @@
     let currentPage = 0;
     let currentPageSize = 20;
     let currentUserRole = '';
+    let isAdmin = false;
 
     document.addEventListener('DOMContentLoaded', async function() {
         if (!(await API.isAuthenticated())) {
@@ -22,6 +23,7 @@
         }
 
         currentUserRole = user.role || '';
+        isAdmin = currentUserRole === 'ADMIN';
         initSidebarUserInfo(user);
         initFilters(user);
         bindEvents();
@@ -42,20 +44,9 @@
     }
 
     function initFilters(user) {
-        const userIdGroup = document.getElementById('userIdFilterGroup');
         const userIdInput = document.getElementById('filterUserId');
-
-        if (currentUserRole === 'ADMIN') {
-            if (userIdGroup) {
-                userIdGroup.classList.remove('d-none');
-            }
-        } else {
-            if (userIdGroup) {
-                userIdGroup.classList.add('d-none');
-            }
-            if (userIdInput && user && user.id) {
-                userIdInput.value = String(user.id);
-            }
+        if (!isAdmin && userIdInput && user && user.id) {
+            userIdInput.value = String(user.id);
         }
     }
 
@@ -98,7 +89,7 @@
         if (!select) return;
 
         try {
-            const endpoint = currentUserRole === 'ADMIN' ? '/admin/apikeys' : '/user/apikeys';
+            const endpoint = isAdmin ? '/admin/apikeys' : '/user/apikeys';
             const keys = await API.get(endpoint) || [];
 
             let options = '<option value="">全部 API Keys</option>';
@@ -122,7 +113,7 @@
         if (container) container.classList.add('d-none');
 
         try {
-            const endpoint = currentUserRole === 'ADMIN' ? '/admin/logs' : '/user/logs';
+            const endpoint = isAdmin ? '/admin/logs' : '/user/logs';
             const data = await API.get(endpoint + '?' + buildQueryParams(currentPage).toString());
             const logs = data?.content || [];
 
@@ -150,7 +141,7 @@
 
         params.set('page', String(page));
         params.set('size', String(currentPageSize));
-        if (userId) params.set('userId', userId);
+        if (isAdmin && userId) params.set('userId', userId);
         if (apiKeyId) params.set('apiKeyId', apiKeyId);
         if (status) params.set('status', status);
         if (startDate) params.set('startDate', startDate);
@@ -164,7 +155,7 @@
         if (!tbody) return;
 
         if (!logs.length) {
-            tbody.innerHTML = '<tr><td colspan="11" class="table-empty">当前条件下没有日志</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="' + getColumnCount() + '" class="table-empty">当前条件下没有日志</td></tr>';
             return;
         }
 
@@ -172,20 +163,23 @@
             const inputTokens = numberOrZero(log.inputTokens);
             const outputTokens = numberOrZero(log.outputTokens);
             const totalTokens = inputTokens + outputTokens;
+            const cells = [];
 
-            return '<tr>' +
-                '<td>' + formatDateTime(log.createdAt) + '</td>' +
-                '<td><span class="request-id" title="' + escapeHtml(log.requestId || '-') + '">' + escapeHtml(shortRequestId(log.requestId)) + '</span></td>' +
-                '<td>' + escapeHtml(stringValue(log.userId)) + '</td>' +
-                '<td>' + escapeHtml(log.apiKeyName || '-') + '</td>' +
-                '<td>' + escapeHtml(log.modelName || '-') + '</td>' +
-                '<td class="text-right">' + UI.formatNumber(inputTokens) + '</td>' +
-                '<td class="text-right">' + UI.formatNumber(outputTokens) + '</td>' +
-                '<td class="text-right">' + UI.formatNumber(totalTokens) + '</td>' +
-                '<td class="text-right">' + formatLatency(log.latencyMs) + '</td>' +
-                '<td class="text-center">' + renderStatusBadge(log.status) + '</td>' +
-                '<td><button class="btn btn-sm btn-primary" onclick="viewLogDetails(' + log.id + ')">详情</button></td>' +
-                '</tr>';
+            cells.push('<td>' + formatDateTime(log.createdAt) + '</td>');
+            cells.push('<td><span class="request-id" title="' + escapeHtml(log.requestId || '-') + '">' + escapeHtml(shortRequestId(log.requestId)) + '</span></td>');
+            if (isAdmin) {
+                cells.push('<td>' + escapeHtml(stringValue(log.userId)) + '</td>');
+            }
+            cells.push('<td>' + escapeHtml(log.apiKeyName || '-') + '</td>');
+            cells.push('<td>' + escapeHtml(log.modelName || '-') + '</td>');
+            cells.push('<td class="text-right">' + UI.formatNumber(inputTokens) + '</td>');
+            cells.push('<td class="text-right">' + UI.formatNumber(outputTokens) + '</td>');
+            cells.push('<td class="text-right">' + UI.formatNumber(totalTokens) + '</td>');
+            cells.push('<td class="text-right">' + formatLatency(log.latencyMs) + '</td>');
+            cells.push('<td class="text-center">' + renderStatusBadge(log.status) + '</td>');
+            cells.push('<td><button class="btn btn-sm btn-primary" onclick="viewLogDetails(' + log.id + ')">详情</button></td>');
+
+            return '<tr>' + cells.join('') + '</tr>';
         }).join('');
     }
 
@@ -246,7 +240,7 @@
 
     async function viewLogDetails(id) {
         try {
-            const endpoint = currentUserRole === 'ADMIN' ? '/admin/logs/' + id : '/user/logs/' + id;
+            const endpoint = isAdmin ? '/admin/logs/' + id : '/user/logs/' + id;
             const log = await API.get(endpoint);
             fillLogDetails(log);
             document.getElementById('logDetailModal')?.classList.add('show');
@@ -262,7 +256,9 @@
 
         setText('detailTime', formatDateTime(log.createdAt));
         setText('detailRequestId', stringValue(log.requestId));
-        setText('detailUserId', stringValue(log.userId));
+        if (isAdmin) {
+            setText('detailUserId', stringValue(log.userId));
+        }
         setText('detailApiKey', stringValue(log.apiKeyName));
         setText('detailModel', stringValue(log.modelName));
         setText('detailInput', UI.formatNumber(inputTokens));
@@ -287,11 +283,15 @@
         setValue('filterStartDate', '');
         setValue('filterEndDate', '');
         setValue('filterPageSize', '20');
-        if (currentUserRole === 'ADMIN') {
+        if (isAdmin) {
             setValue('filterUserId', '');
         }
         currentPageSize = 20;
         loadLogs(0);
+    }
+
+    function getColumnCount() {
+        return isAdmin ? 11 : 10;
     }
 
     function formatDateTime(timestamp) {

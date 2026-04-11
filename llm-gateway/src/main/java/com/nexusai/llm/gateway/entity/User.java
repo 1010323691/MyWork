@@ -42,7 +42,7 @@ public class User implements UserDetails {
     @Column(name = "user_role", nullable = false, length = 20)
     private String userRole = "USER";  // USER or ADMIN
 
-    @Column(name = "balance", precision = 18, scale = 4)
+    @Column(name = "balance", precision = 18, scale = 8)
     private BigDecimal balance;  // 用户余额（人民币）
 
     @Version

@@ -140,15 +140,16 @@ umber(value, fieldName) - 数字类型验证
 ### 用户页面 (USER/ADMIN)
 | URL | 模板文件 | JS 文件 | 说明 |
 |-----|----------|--------|------|
-| /dashboard | pages/dashboard/index.html | dashboard.js | 仪表板主页 |
+| /dashboard | pages/dashboard/index.html | dashboard.js | 仪表板主页（仅 ADMIN 保留为默认入口） |
+| /apikeys | pages/admin/keys.html | admin-keys.js | API Key 页面（ADMIN/USER 共用，USER 仅可见本人数据） |
 | /logs | pages/logs/index.html | logs.js | 请求日志查询 |
 | /user/balance | pages/user/balance.html | - | 余额充值 |
 
 ### 管理页面 (仅 ADMIN)
 | URL | 模板文件 | JS 文件 | 说明 |
 |-----|----------|--------|------|
-| /admin/users | pages/admin/users.html | admin-users.js | 用户管理 CRUD |
-| /admin/keys | pages/admin/keys.html | admin-keys.js | API Key 管理 |
+| /admin/users | pages/admin/users.html | admin-users.js | 用户管理 CRUD（表格列：ID / 用户名 / 角色 / Token 用量 / 余额 / 状态 / 操作） |
+| /admin/keys | pages/admin/keys.html | admin-keys.js | 兼容旧入口，重定向到 /apikeys |
 | /admin/providers | pages/admin/providers.html | admin-providers.js | 后端服务商管理 |
 | /admin/pricing | pages/admin/pricing.html | admin-pricing.js | Token 定价配置 |
 | /admin/monitor | pages/admin/monitor.html | admin-monitor.js | 系统实时监控 |
@@ -174,11 +175,11 @@ API.get('/dashboard/system/monitor')             -> DashboardController.getSyste
 
 ### API Key 管理
 `javascript
-// admin-keys.js (管理员查看所有)
-API.get('/apikeys')                              -> ApiKeyController.findAll()
-API.post('/apikeys', {...})                      -> ApiKeyController.create()
-API.put('/apikeys/' + id, {...})                 -> ApiKeyController.update()
-API.delete('/apikeys/' + id)                     -> ApiKeyController.delete()
+// admin-keys.js (ADMIN/USER 共用)
+API.get('/apikeys')                              -> ApiKeyController.listApiKeys()
+API.post('/apikeys', {...})                      -> ApiKeyController.createApiKey()
+API.put('/apikeys/' + id + '/toggle', {})        -> ApiKeyController.toggleApiKey()
+API.delete('/apikeys/' + id)                     -> ApiKeyController.deleteApiKey()
 `
 
 ### 用户管理 (管理员)
@@ -200,10 +201,11 @@ API.delete('/admin/providers/' + id)             -> AdminProviderController.dele
 API.post('/admin/providers/' + id + '/connectivity-test') -> testConnectivity()
 `
 
-### 请求日志 (管理员)
+### 请求日志
 `javascript
 // logs.js
-API.get('/admin/logs?page=...&size=...&userId=...&status=...') -> AdminLogController.searchLogs()
+API.get('/admin/logs?page=...&size=...&userId=...&status=...') -> AdminLogController.getLogs()
+API.get('/user/logs?page=...&size=...&apiKeyId=...&status=...') -> UserController.getUserLogs()
 `
 
 ## CSS 主题系统

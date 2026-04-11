@@ -82,7 +82,7 @@
             try {
                 const response = await fetch('/api/balance/current');
                 const data = await response.json();
-                document.getElementById('balanceAmount').textContent = '¥ ' + data.balance.toFixed(4);
+                document.getElementById('balanceAmount').textContent = '¥ ' + UI.formatMoney(data.balance, 2, 8);
             } catch (error) {
                 console.error('加载余额失败:', error);
                 UI.showAlert('加载余额失败：' + error.message, 'error');
@@ -114,7 +114,7 @@
                         <div style="font-size: 12px; color: #6c757d;">${t.time}</div>
                     </div>
                     <div class="transaction-amount ${t.amount >= 0 ? 'positive' : 'negative'}">
-                        ${t.amount >= 0 ? '+' : ''}¥ ${t.amount.toFixed(4)}
+                        ${t.amount >= 0 ? '+' : ''}¥ ${UI.formatMoney(t.amount, 2, 8)}
                     </div>
                 </div>
             `).join('');

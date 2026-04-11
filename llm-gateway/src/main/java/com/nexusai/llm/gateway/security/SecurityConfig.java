@@ -91,6 +91,9 @@ public class SecurityConfig {
                     auth.requestMatchers("/js/**").permitAll();
                     auth.requestMatchers("/images/**").permitAll();
                     auth.requestMatchers("/fonts/**").permitAll();
+                    auth.requestMatchers("/api/chat", "/api/llm/chat").permitAll();
+                    auth.requestMatchers("/api/models", "/api/llm/models").permitAll();
+                    auth.requestMatchers("/v1/chat/completions", "/v1/models").permitAll();
 
                     if (swaggerEnabled) {
                         auth.requestMatchers("/v3/api-docs/**").hasRole("ADMIN");
@@ -104,6 +107,7 @@ public class SecurityConfig {
                         auth.requestMatchers("/webjars/**").denyAll();
                     }
 
+                    auth.requestMatchers("/api/apikeys/**").authenticated();
                     auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
                     auth.requestMatchers("/api/user/**").authenticated();
                     auth.requestMatchers("/api/clients/**").authenticated();
@@ -111,6 +115,7 @@ public class SecurityConfig {
                     auth.requestMatchers("/v1/**").authenticated();
                     auth.requestMatchers("/api/**").authenticated();
                     auth.requestMatchers("/dashboard").authenticated();
+                    auth.requestMatchers("/apikeys").authenticated();
                     auth.requestMatchers("/logs").authenticated();
                     auth.requestMatchers("/admin/**").hasRole("ADMIN");
                     auth.anyRequest().permitAll();

@@ -29,17 +29,13 @@
   - user: User (外键，所属用户)
   - apiKeyValue: String (唯一，实际 API Key 值)
   - name: String (密钥名称)
-  - tokenLimit: Long (Token 限额，NULL=无限制)
-  - usedTokens: Long (已使用 Token)
-  - inputTokens: Long (输入 Token 统计)
-  - outputTokens: Long (输出 Token 统计)
+  - usedTokens: Long (累计使用 Token 统计，仅用于用量展示)
   - enabled: Boolean (是否启用)
   - expiresAt: LocalDateTime (过期时间)
   - targetUrl: String (自定义目标 URL)
   - routingConfig: String (路由配置，TEXT 类型)
   - lastUsedAt: LocalDateTime
 - **方法**:
-  - getRemainingTokens(): tokenLimit - usedTokens
   - useTokens(long count): 增加已使用量
 
 ### 3. BackendService (后端服务配置表)
@@ -144,7 +140,7 @@ spring:
 
 - 使用 @Transactional 注解在 Service 层
 - 默认传播行为：REQUIRED
-- ApiKey Token 扣减需要事务保证
+- ApiKey 用量统计更新需要事务保证
 
 ## 修改指南
 

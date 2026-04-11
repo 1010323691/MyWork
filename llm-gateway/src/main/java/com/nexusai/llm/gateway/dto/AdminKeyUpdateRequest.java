@@ -8,9 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdminKeyUpdateRequest {
-    private Long tokenLimit;
-    private Boolean clearTokenLimit;
-    private Long usedTokens;
     private String targetUrl;
     private Boolean clearTargetUrl;
     private String routingConfig;

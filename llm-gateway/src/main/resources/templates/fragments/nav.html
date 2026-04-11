@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 
-<!-- 导航菜单组件 (含权限控制，ARIA 增强版 - 科技风主题) -->
 <th:block th:fragment="nav">
     <nav class="sidebar-nav" aria-label="主导航">
-
-        <!-- 1. 总览 (Overview) - Dashboard Icon -->
-        <a href="/dashboard" class="nav-item" th:classappend="${currentPage == 'dashboard'} ? 'active'"
+        <a href="/dashboard" class="nav-item"
+           th:if="${currentUserRole == 'ADMIN'}"
+           th:classappend="${currentPage == 'dashboard'} ? 'active'"
            aria-current="${currentPage == 'dashboard'} ? 'page' : null">
             <span class="nav-icon svg-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -16,11 +15,12 @@
                     <rect x="3" y="14" width="7" height="7" rx="1"/>
                 </svg>
             </span>
-            <span>总览</span>
+            <span>概览</span>
         </a>
 
-        <!-- 2. 实时监控 (Monitoring) - Activity/Chart Icon -->
-        <a href="/admin/monitor" class="nav-item" th:classappend="${currentPage == 'admin/monitor'} ? 'active'"
+        <a href="/admin/monitor" class="nav-item"
+           th:if="${currentUserRole == 'ADMIN'}"
+           th:classappend="${currentPage == 'admin/monitor'} ? 'active'"
            aria-current="${currentPage == 'admin/monitor'} ? 'page' : null">
             <span class="nav-icon svg-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -30,8 +30,8 @@
             <span>实时监控</span>
         </a>
 
-        <!-- 请求日志 (普通用户可见) -->
-        <a href="/logs" class="nav-item" th:classappend="${currentPage == 'logs'} ? 'active'"
+        <a href="/logs" class="nav-item"
+           th:classappend="${currentPage == 'logs'} ? 'active'"
            aria-current="${currentPage == 'logs'} ? 'page' : null">
             <span class="nav-icon svg-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -43,13 +43,23 @@
             <span>请求日志</span>
         </a>
 
-        <!-- 3. 用户与用量 (Users & Usage) - Users Icon -->
+        <a href="/apikeys" class="nav-item"
+           th:classappend="${currentPage == 'apikeys'} ? 'active'"
+           aria-current="${currentPage == 'apikeys'} ? 'page' : null">
+            <span class="nav-icon svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3 5l1 1"/>
+                </svg>
+            </span>
+            <span>API Key</span>
+        </a>
+
         <div class="nav-section-label" th:if="${currentUserRole == 'ADMIN'}">管理与配置</div>
 
         <a href="/admin/users" class="nav-item admin-only"
-            th:classappend="${currentPage == 'admin/users'} ? 'active'"
-            th:if="${currentUserRole == 'ADMIN'}"
-            aria-current="${currentPage == 'admin/users'} ? 'page' : null">
+           th:if="${currentUserRole == 'ADMIN'}"
+           th:classappend="${currentPage == 'admin/users'} ? 'active'"
+           aria-current="${currentPage == 'admin/users'} ? 'page' : null">
             <span class="nav-icon svg-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -61,11 +71,10 @@
             <span>用户与用量</span>
         </a>
 
-        <!-- 4. 计费与财务 (Billing) - Credit Card Icon -->
         <a href="/admin/pricing" class="nav-item admin-only"
-            th:classappend="${currentPage == 'admin/pricing'} ? 'active'"
-            th:if="${currentUserRole == 'ADMIN'}"
-            aria-current="${currentPage == 'admin/pricing'} ? 'page' : null">
+           th:if="${currentUserRole == 'ADMIN'}"
+           th:classappend="${currentPage == 'admin/pricing'} ? 'active'"
+           aria-current="${currentPage == 'admin/pricing'} ? 'page' : null">
             <span class="nav-icon svg-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
@@ -75,24 +84,10 @@
             <span>计费与财务</span>
         </a>
 
-        <!-- Key 管理 (合并到用户与用量或单独显示) -->
-        <a href="/admin/keys" class="nav-item admin-only"
-            th:classappend="${currentPage == 'admin/keys'} ? 'active'"
-            th:if="${currentUserRole == 'ADMIN'}"
-            aria-current="${currentPage == 'admin/keys'} ? 'page' : null">
-            <span class="nav-icon svg-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3 5l1 1"/>
-                </svg>
-            </span>
-            <span>API Key</span>
-        </a>
-
-        <!-- 5. 风控与安全 (Security) - Shield Icon -->
         <a href="/admin/security" class="nav-item admin-only"
-            th:classappend="${currentPage == 'admin/security'} ? 'active'"
-            th:if="${currentUserRole == 'ADMIN'}"
-            aria-current="${currentPage == 'admin/security'} ? 'page' : null">
+           th:if="${currentUserRole == 'ADMIN'}"
+           th:classappend="${currentPage == 'admin/security'} ? 'active'"
+           aria-current="${currentPage == 'admin/security'} ? 'page' : null">
             <span class="nav-icon svg-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -101,11 +96,10 @@
             <span>风控与安全</span>
         </a>
 
-        <!-- 6. 系统与模型 (System / Models) - Server/Settings Icon -->
         <a href="/admin/providers" class="nav-item admin-only"
-            th:classappend="${currentPage == 'admin/providers'} ? 'active'"
-            th:if="${currentUserRole == 'ADMIN'}"
-            aria-current="${currentPage == 'admin/providers'} ? 'page' : null">
+           th:if="${currentUserRole == 'ADMIN'}"
+           th:classappend="${currentPage == 'admin/providers'} ? 'active'"
+           aria-current="${currentPage == 'admin/providers'} ? 'page' : null">
             <span class="nav-icon svg-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
@@ -116,7 +110,6 @@
             </span>
             <span>系统与模型</span>
         </a>
-
     </nav>
 </th:block>
 

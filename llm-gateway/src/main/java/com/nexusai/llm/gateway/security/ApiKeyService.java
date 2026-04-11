@@ -1,12 +1,10 @@
 package com.nexusai.llm.gateway.security;
 
 import com.nexusai.llm.gateway.entity.ApiKey;
+import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.ApiKeyRepository;
-import jakarta.annotation.PostConstruct;
+import com.nexusai.llm.gateway.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,11 +16,13 @@ import java.util.Optional;
 public class ApiKeyService {
 
     private final ApiKeyRepository apiKeyRepository;
+    private final UserRepository userRepository;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     @Autowired
-    public ApiKeyService(ApiKeyRepository apiKeyRepository) {
+    public ApiKeyService(ApiKeyRepository apiKeyRepository, UserRepository userRepository) {
         this.apiKeyRepository = apiKeyRepository;
+        this.userRepository = userRepository;
     }
 
     public Optional<ApiKey> findByKey(String apiKeyValue) {
@@ -34,27 +34,17 @@ public class ApiKeyService {
     }
 
     @Transactional
-    public ApiKey createApiKey(Long userId, String name, Long tokenLimit, Long expiresAtDays,
-                               String targetUrl, String routingConfig) {
+    public ApiKey createApiKey(Long userId, String name) {
         String key = generateKey();
-        java.time.LocalDateTime expiresAt = null;
-        if (expiresAtDays != null && expiresAtDays > 0) {
-            expiresAt = java.time.LocalDateTime.now().plusDays(expiresAtDays);
-        }
-
-        com.nexusai.llm.gateway.entity.User user = new com.nexusai.llm.gateway.entity.User();
-        user.setId(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
 
         ApiKey apiKey = ApiKey.builder()
                 .user(user)
                 .apiKeyValue(key)
-                .name(name)
-                .tokenLimit(tokenLimit)
+                .name(name == null ? null : name.trim())
                 .usedTokens(0L)
-                .expiresAt(expiresAt)
                 .enabled(true)
-                .targetUrl(targetUrl)
-                .routingConfig(routingConfig)
                 .build();
 
         return apiKeyRepository.save(apiKey);
@@ -64,13 +54,6 @@ public class ApiKeyService {
         byte[] randomBytes = new byte[32];
         RANDOM.nextBytes(randomBytes);
         return "nkey_" + Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
-    }
-
-    public boolean hasEnoughTokens(ApiKey apiKey, long requiredTokens) {
-        if (apiKey.getTokenLimit() == null) {
-            return true; // 无限制
-        }
-        return apiKey.getRemainingTokens() >= requiredTokens;
     }
 
     @Transactional

@@ -95,12 +95,6 @@ public class AdminController {
         ApiKey key = apiKeyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("API Key not found: " + id));
 
-        if (Boolean.TRUE.equals(req.getClearTokenLimit())) {
-            key.setTokenLimit(null);
-        } else if (req.getTokenLimit() != null) {
-            key.setTokenLimit(req.getTokenLimit());
-        }
-        if (req.getUsedTokens() != null) key.setUsedTokens(req.getUsedTokens());
         if (Boolean.TRUE.equals(req.getClearTargetUrl())) {
             key.setTargetUrl(null);
         } else if (req.getTargetUrl() != null) {
@@ -113,16 +107,6 @@ public class AdminController {
         }
         if (req.getEnabled() != null) key.setEnabled(req.getEnabled());
 
-        apiKeyRepository.save(key);
-        return ResponseEntity.ok(toKeyResponse(key));
-    }
-
-    @PostMapping("/keys/{id}/reset-usage")
-    @Transactional
-    public ResponseEntity<ApiKeyResponse> resetKeyUsage(@PathVariable Long id) {
-        ApiKey key = apiKeyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("API Key not found: " + id));
-        key.setUsedTokens(0L);
         apiKeyRepository.save(key);
         return ResponseEntity.ok(toKeyResponse(key));
     }
@@ -194,6 +178,7 @@ public class AdminController {
                 .userRole(user.getUserRole() != null ? user.getUserRole() : "USER")
                 .apiKeyCount(keyCount != null ? keyCount : 0L)
                 .totalUsedTokens(usedTokens != null ? usedTokens : 0L)
+                .balance(user.getBalance())
                 .createdAt(user.getCreatedAt())
                 .build();
     }
@@ -205,9 +190,7 @@ public class AdminController {
                 .username(key.getUser() != null ? key.getUser().getUsername() : null)
                 .apiKeyValue(key.getApiKeyValue())
                 .name(key.getName())
-                .tokenLimit(key.getTokenLimit())
                 .usedTokens(key.getUsedTokens())
-                .remainingTokens(key.getRemainingTokens())
                 .enabled(key.getEnabled())
                 .expiresAt(key.getExpiresAt())
                 .createdAt(key.getCreatedAt())

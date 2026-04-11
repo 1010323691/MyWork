@@ -45,7 +45,7 @@ public class RequestLog {
     @Column(name = "latency_ms")
     private Long latencyMs;
 
-    @Column(name = "cost_amount", precision = 18, scale = 4)
+    @Column(name = "cost_amount", precision = 18, scale = 8)
     private BigDecimal costAmount;  // 消耗金额（人民币）
 
     @Enumerated(EnumType.STRING)

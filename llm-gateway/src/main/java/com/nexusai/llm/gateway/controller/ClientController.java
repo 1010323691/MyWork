@@ -29,11 +29,8 @@ public class ClientController {
         ApiKey key = apiKeyOpt.get();
 
         TokenUsageResponse response = TokenUsageResponse.builder()
-                .totalTokens(key.getTokenLimit())
                 .usedTokens(key.getUsedTokens())
-                .remainingTokens(key.getRemainingTokens())
                 .apiKeyName(key.getName())
-                .hasLimit(key.getTokenLimit() != null)
                 .build();
 
         return ResponseEntity.ok(response);

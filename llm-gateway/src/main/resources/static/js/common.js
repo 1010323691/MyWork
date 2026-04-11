@@ -230,6 +230,18 @@ class UI {
     }
 
     /**
+     * 格式化金额，保留足够的小额精度，避免扣费后看起来没有变化。
+     */
+    static formatMoney(value, minFractionDigits = 2, maxFractionDigits = 8) {
+        const amount = Number(value);
+        const normalized = Number.isFinite(amount) ? amount : 0;
+        return normalized.toLocaleString('zh-CN', {
+            minimumFractionDigits: minFractionDigits,
+            maximumFractionDigits: maxFractionDigits
+        });
+    }
+
+    /**
      * 格式化日期
      */
     static formatDate(dateString) {

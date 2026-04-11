@@ -9,6 +9,7 @@
     let currentUsername = '';
     let currentPage = 0;
     let dangerModalResolver = null;
+    let activeActionUser = null;
 
     document.addEventListener('DOMContentLoaded', async function() {
         if (!(await API.isAuthenticated())) {
@@ -25,6 +26,7 @@
         initSidebarUserInfo(user);
         bindSearchEvents();
         bindDangerModalEvents();
+        bindGlobalEvents();
         loadUsers(0, null, '');
     });
 
@@ -47,6 +49,7 @@
 
         if (loading) loading.classList.remove('d-none');
         if (container) container.classList.add('d-none');
+        closeUserActionMenu();
 
         const params = new URLSearchParams({
             page: String(page),
@@ -78,7 +81,7 @@
         if (!tbody) return;
 
         if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:40px;">暂无用户</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:40px;">暂无用户</td></tr>';
             return;
         }
 
@@ -89,26 +92,20 @@
             const roleBadge = user.userRole === 'ADMIN'
                 ? '<span class="badge-secondary">ADMIN</span>'
                 : '<span class="badge-default">USER</span>';
-            const createdAt = user.createdAt
-                ? new Date(user.createdAt).toLocaleString('zh-CN')
-                : '-';
-            const toggleText = user.enabled ? '禁用' : '启用';
-            const toggleClass = user.enabled ? 'btn-warning' : 'btn-success';
             const escapedUsername = escapeJsString(user.username);
+            const escapedEmail = escapeJsString(user.email || '');
 
             return '<tr>' +
                 '<td>' + user.id + '</td>' +
                 '<td>' + escapeHtml(user.username) + '</td>' +
-                '<td>' + escapeHtml(user.email || '-') + '</td>' +
                 '<td>' + roleBadge + '</td>' +
-                '<td>' + createdAt + '</td>' +
-                '<td>' + (user.apiKeyCount || 0) + '</td>' +
+                '<td>' + UI.formatNumber(user.totalUsedTokens || 0) + '</td>' +
+                '<td>¥ ' + formatMoney(user.balance) + '</td>' +
                 '<td>' + statusBadge + '</td>' +
                 '<td>' +
-                    '<button class="btn btn-sm ' + toggleClass + '" type="button" style="margin-right:6px;" onclick="toggleUser(' + user.id + ', ' + user.enabled + ', \'' + escapedUsername + '\')">' +
-                        toggleText +
-                    '</button>' +
-                    '<button class="btn btn-sm btn-danger" type="button" onclick="deleteUser(' + user.id + ', \'' + escapedUsername + '\')">删除</button>' +
+                    '<div class="table-actions">' +
+                        '<button class="btn btn-sm btn-secondary table-actions-menu-trigger" type="button" onclick="toggleUserActionMenu(event, ' + user.id + ', \'' + escapedUsername + '\', \'' + escapedEmail + '\', ' + user.enabled + ')">操作</button>' +
+                    '</div>' +
                 '</td>' +
                 '</tr>';
         }).join('');
@@ -158,6 +155,18 @@
                 closeDangerModal(false);
             }
         });
+    }
+
+    function bindGlobalEvents() {
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('userActionMenu');
+            if (menu && !menu.classList.contains('d-none') && !menu.contains(event.target)) {
+                closeUserActionMenu();
+            }
+        });
+
+        window.addEventListener('resize', closeUserActionMenu);
+        window.addEventListener('scroll', closeUserActionMenu, true);
     }
 
     function openDangerModal(options) {
@@ -211,6 +220,50 @@
             .replace(/\n/g, '\\n');
     }
 
+    function formatMoney(value) {
+        return UI.formatMoney(value, 2, 8);
+    }
+
+    function setActionMenuToggleText() {
+        const menuItem = document.getElementById('userActionToggleItem');
+        if (!menuItem || !activeActionUser) return;
+        menuItem.textContent = activeActionUser.enabled ? '禁用用户' : '启用用户';
+    }
+
+    function closeUserActionMenu() {
+        const menu = document.getElementById('userActionMenu');
+        if (!menu) return;
+        menu.classList.add('d-none');
+    }
+
+    async function adjustUserBalance(userId, amount) {
+        const response = await fetch('/api/balance/admin/user/' + encodeURIComponent(userId), {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ amount: amount })
+        });
+
+        if (!response.ok) {
+            let message = '调整额度失败';
+            try {
+                const data = await response.json();
+                message = data.message || data.error || message;
+            } catch (error) {
+                const text = await response.text();
+                if (text) {
+                    message = text;
+                }
+            }
+            throw new Error(message);
+        }
+
+        return response.json();
+    }
+
     window.searchUsers = function() {
         currentUserId = document.getElementById('userIdSearch').value.trim();
         currentUsername = document.getElementById('usernameSearch').value.trim();
@@ -235,13 +288,50 @@
         loadUsers(page, currentUserId || null, currentUsername);
     };
 
-    window.toggleUser = async function(id, currentEnabled, username) {
+    window.toggleUserActionMenu = function(event, id, username, email, enabled) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        const menu = document.getElementById('userActionMenu');
+        if (!menu) return;
+
+        const sameUser = activeActionUser && activeActionUser.id === id && !menu.classList.contains('d-none');
+        if (sameUser) {
+            closeUserActionMenu();
+            return;
+        }
+
+        activeActionUser = {
+            id: id,
+            username: username,
+            email: email,
+            enabled: Boolean(enabled)
+        };
+
+        setActionMenuToggleText();
+
+        const trigger = event.currentTarget;
+        const rect = trigger.getBoundingClientRect();
+        menu.style.top = (rect.bottom + 8) + 'px';
+        menu.style.left = Math.max(12, rect.right - 168) + 'px';
+        menu.classList.remove('d-none');
+    };
+
+    window.handleUserActionToggle = async function() {
+        closeUserActionMenu();
+        if (!activeActionUser) return;
+
+        const id = activeActionUser.id;
+        const username = activeActionUser.username;
+        const currentEnabled = activeActionUser.enabled;
         const actionText = currentEnabled ? '禁用' : '启用';
 
         if (currentEnabled) {
             const confirmed = await openDangerModal({
                 title: '确认禁用用户',
-                message: '即将禁用用户 “' + username + '” (ID: ' + id + ')。',
+                message: '即将禁用用户 "' + username + '" (ID: ' + id + ')。',
                 hint: '禁用后该用户将无法继续调用系统功能，你可以稍后重新启用。',
                 confirmText: '确认禁用'
             });
@@ -257,10 +347,15 @@
         }
     };
 
-    window.deleteUser = async function(id, username) {
+    window.handleUserActionDelete = async function() {
+        closeUserActionMenu();
+        if (!activeActionUser) return;
+
+        const id = activeActionUser.id;
+        const username = activeActionUser.username;
         const confirmed = await openDangerModal({
             title: '确认删除用户',
-            message: '即将删除用户 “' + username + '” (ID: ' + id + ')。',
+            message: '即将删除用户 "' + username + '" (ID: ' + id + ')。',
             hint: '删除后将同时清理该用户关联的 API Key 和请求日志，且无法恢复。',
             confirmText: '确认删除'
         });
@@ -275,6 +370,73 @@
             loadUsers(nextPage, currentUserId || null, currentUsername);
         } catch (error) {
             UI.showErrorMessage('删除失败：' + error.message);
+        }
+    };
+
+    window.openBalanceModal = async function() {
+        closeUserActionMenu();
+        if (!activeActionUser) return;
+
+        const modal = document.getElementById('balanceAdjustModal');
+        const amountInput = document.getElementById('balanceAdjustAmount');
+        const userInfo = document.getElementById('balanceAdjustUserInfo');
+        const currentValue = document.getElementById('balanceAdjustCurrentValue');
+
+        if (!modal || !amountInput || !userInfo || !currentValue) return;
+
+        userInfo.textContent = '用户：' + activeActionUser.username + ' (ID: ' + activeActionUser.id + ')';
+        amountInput.value = '';
+        currentValue.textContent = '加载中...';
+
+        modal.classList.add('show');
+        modal.style.display = 'flex';
+
+        try {
+            const data = await API.get('/balance/user/' + encodeURIComponent(activeActionUser.id));
+            currentValue.textContent = '¥ ' + formatMoney(data.balance);
+        } catch (error) {
+            currentValue.textContent = '加载失败';
+            UI.showErrorMessage('获取当前余额失败：' + error.message);
+        }
+
+        amountInput.focus();
+    };
+
+    window.closeBalanceModal = function() {
+        const modal = document.getElementById('balanceAdjustModal');
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+    };
+
+    window.submitBalanceAdjust = async function() {
+        if (!activeActionUser) return;
+
+        const amountInput = document.getElementById('balanceAdjustAmount');
+        const confirmBtn = document.getElementById('balanceAdjustConfirmBtn');
+        const rawValue = amountInput ? amountInput.value.trim() : '';
+
+        if (!rawValue) {
+            UI.showErrorMessage('请输入调整金额');
+            return;
+        }
+
+        const amount = Number(rawValue);
+        if (!Number.isFinite(amount) || amount === 0) {
+            UI.showErrorMessage('调整金额必须是非 0 数字');
+            return;
+        }
+
+        if (confirmBtn) confirmBtn.disabled = true;
+        try {
+            const result = await adjustUserBalance(activeActionUser.id, amount);
+            UI.showSuccessMessage('额度调整成功，当前余额：¥ ' + formatMoney(result.balance));
+            closeBalanceModal();
+            loadUsers(currentPage, currentUserId || null, currentUsername);
+        } catch (error) {
+            UI.showErrorMessage(error.message || '额度调整失败');
+        } finally {
+            if (confirmBtn) confirmBtn.disabled = false;
         }
     };
 

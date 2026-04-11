@@ -8,7 +8,7 @@
 
     document.addEventListener('DOMContentLoaded', async function() {
         if (await API.isAuthenticated()) {
-            window.location.href = '/dashboard';
+            window.location.href = await resolveLandingPage();
             return;
         }
 
@@ -46,7 +46,7 @@
                 });
 
                 if (response.ok) {
-                    window.location.href = '/dashboard';
+                    window.location.href = await resolveLandingPage();
                     return;
                 }
 
@@ -77,5 +77,10 @@
         const nextQuery = params.toString();
         const nextUrl = nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname;
         window.history.replaceState({}, document.title, nextUrl);
+    }
+
+    async function resolveLandingPage() {
+        const user = await API.getCurrentUser();
+        return user && user.role === 'ADMIN' ? '/dashboard' : '/apikeys';
     }
 })();

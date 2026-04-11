@@ -11,6 +11,7 @@ import com.nexusai.llm.gateway.service.OpenAiForwardService;
 import com.nexusai.llm.gateway.service.RequestLogService;
 import com.nexusai.llm.gateway.service.RoutingConfigParser;
 import com.nexusai.llm.gateway.service.UpstreamProviderService;
+import com.nexusai.llm.gateway.service.UserBillingService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,7 @@ public class OpenAiCompatibleController {
     private final RequestLogService requestLogService;
     private final RoutingConfigParser routingConfigParser;
     private final UpstreamProviderService upstreamProviderService;
+    private final UserBillingService userBillingService;
     private final ObjectMapper objectMapper;
 
     public OpenAiCompatibleController(OpenAiForwardService openAiForwardService,
@@ -47,12 +50,14 @@ public class OpenAiCompatibleController {
                                       RequestLogService requestLogService,
                                       RoutingConfigParser routingConfigParser,
                                       UpstreamProviderService upstreamProviderService,
+                                      UserBillingService userBillingService,
                                       ObjectMapper objectMapper) {
         this.openAiForwardService = openAiForwardService;
         this.apiKeyService = apiKeyService;
         this.requestLogService = requestLogService;
         this.routingConfigParser = routingConfigParser;
         this.upstreamProviderService = upstreamProviderService;
+        this.userBillingService = userBillingService;
         this.objectMapper = objectMapper;
     }
 
@@ -96,24 +101,26 @@ public class OpenAiCompatibleController {
         ObjectNode rewrittenRequest = openAiForwardService.rewriteRequestModel(requestBody, resolvedModel);
         long estimatedInput = openAiForwardService.estimateTokenUsage(openAiForwardService.extractMessagesText(rewrittenRequest));
 
-        if (!apiKeyService.hasEnoughTokens(key, estimatedInput)) {
-            logger.warn("OpenAI request quota rejected: requestId={}, apiKeyId={}, estimatedInput={}",
-                    requestId, key.getId(), estimatedInput);
-            return jsonResponse(429, Map.of("error", Map.of("message", "Token quota exceeded", "type", "insufficient_quota")));
-        }
-
         boolean stream = rewrittenRequest.path("stream").asBoolean(false);
         long startMs = System.currentTimeMillis();
         Long userId = key.getUser() != null ? key.getUser().getId() : null;
+        BackendService provider = providerOptional.orElse(null);
+
+        if (!userBillingService.hasEnoughBalance(userId, provider, estimatedInput)) {
+            BigDecimal estimatedCost = userBillingService.estimateInputCost(provider, estimatedInput);
+            logger.warn("OpenAI request rejected for insufficient balance: requestId={}, userId={}, apiKeyId={}, estimatedInput={}, estimatedCost={}",
+                    requestId, userId, key.getId(), estimatedInput, estimatedCost);
+            return jsonResponse(402, Map.of("error", Map.of("message", "Insufficient balance", "type", "insufficient_balance")));
+        }
 
         logger.info("OpenAI request forwarding: requestId={}, stream={}, targetUrl={}, upstreamKeyPresent={}, estimatedInput={}",
                 requestId, stream, targetUrl, upstreamApiKey != null && !upstreamApiKey.isBlank(), estimatedInput);
 
         if (stream) {
-            return handleStreamingRequest(key, userId, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, estimatedInput, startMs);
+            return handleStreamingRequest(key, userId, provider, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, estimatedInput, startMs);
         }
 
-        return handleNonStreamingRequest(key, userId, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, estimatedInput, startMs);
+        return handleNonStreamingRequest(key, userId, provider, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, estimatedInput, startMs);
     }
 
     @GetMapping("/v1/models")
@@ -152,6 +159,7 @@ public class OpenAiCompatibleController {
 
     private ResponseEntity<StreamingResponseBody> handleNonStreamingRequest(ApiKey key,
                                                                             Long userId,
+                                                                            BackendService provider,
                                                                             String requestId,
                                                                             String resolvedModel,
                                                                             String targetUrl,
@@ -170,19 +178,22 @@ public class OpenAiCompatibleController {
             logger.error("OpenAI non-stream upstream failed: requestId={}, latencyMs={}, error={}",
                     requestId, latency, e.getMessage(), e);
             requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, 0L,
-                    resolvedModel, latency, RequestLog.RequestStatus.FAIL, null, null);
+                    resolvedModel, latency, BigDecimal.ZERO, RequestLog.RequestStatus.FAIL, null, null);
             return jsonResponse(502, Map.of("error", Map.of("message", e.getMessage(), "type", "upstream_error")));
         }
 
         long latencyMs = System.currentTimeMillis() - startMs;
         long outputTokens = openAiForwardService.estimateTokenUsage(openAiForwardService.extractResponseText(response.body()));
         RequestLog.RequestStatus status = response.statusCode() >= 400 ? RequestLog.RequestStatus.FAIL : RequestLog.RequestStatus.SUCCESS;
+        BigDecimal actualCost = status == RequestLog.RequestStatus.SUCCESS
+                ? userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens)
+                : BigDecimal.ZERO;
 
         if (status == RequestLog.RequestStatus.SUCCESS) {
             requestLogService.asyncRecordUsage(key.getId(), estimatedInput + outputTokens);
         }
         requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, outputTokens,
-                resolvedModel, latencyMs, status, null, null);
+                resolvedModel, latencyMs, actualCost, status, null, null);
 
         StreamingResponseBody responseBody = outputStream ->
                 outputStream.write(response.body().getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -194,6 +205,7 @@ public class OpenAiCompatibleController {
 
     private ResponseEntity<StreamingResponseBody> handleStreamingRequest(ApiKey key,
                                                                          Long userId,
+                                                                         BackendService provider,
                                                                          String requestId,
                                                                          String resolvedModel,
                                                                          String targetUrl,
@@ -212,7 +224,7 @@ public class OpenAiCompatibleController {
             logger.error("OpenAI stream upstream open failed: requestId={}, latencyMs={}, error={}",
                     requestId, latency, e.getMessage(), e);
             requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, 0L,
-                    resolvedModel, latency, RequestLog.RequestStatus.FAIL, null, null);
+                    resolvedModel, latency, BigDecimal.ZERO, RequestLog.RequestStatus.FAIL, null, null);
             return jsonResponse(502, Map.of("error", Map.of("message", e.getMessage(), "type", "upstream_error")));
         }
 
@@ -244,11 +256,14 @@ public class OpenAiCompatibleController {
                 if (outputTokens <= 0 && visibleContent != null && !visibleContent.isBlank()) {
                     outputTokens = openAiForwardService.estimateTokenUsage(visibleContent);
                 }
+                BigDecimal actualCost = finalStatus == RequestLog.RequestStatus.SUCCESS
+                        ? userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens)
+                        : BigDecimal.ZERO;
                 if (finalStatus == RequestLog.RequestStatus.SUCCESS) {
                     requestLogService.asyncRecordUsage(key.getId(), estimatedInput + outputTokens);
                 }
                 requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, outputTokens,
-                        resolvedModel, latencyMs, finalStatus, null, null);
+                        resolvedModel, latencyMs, actualCost, finalStatus, null, null);
             }
         };
 

@@ -24,10 +24,18 @@
 
 ### 3. API Key 管理
 **文件**: ApiKeyController.java
-- GET /api/apikeys - 列出当前用户的 API Keys
-- POST /api/apikeys - 创建新的 API Key
-- PUT /api/apikeys/{id} - 更新 API Key
+- GET /api/apikeys - 列出 API Key
+  - ADMIN: 可查看全部，支持 `userId` 过滤
+  - USER: 只能查看自己的 API Key
+- POST /api/apikeys - 创建 API Key
+  - ADMIN: 可为指定 `userId` 创建
+  - USER: 只能为自己创建
+- PUT /api/apikeys/{id}/toggle - 切换 API Key 启用状态
+  - ADMIN: 可操作任意 Key
+  - USER: 只能操作自己的 Key
 - DELETE /api/apikeys/{id} - 删除 API Key
+  - ADMIN: 可删除任意 Key
+  - USER: 只能删除自己的 Key
 
 ### 4. 用户管理
 **文件**: UserController.java
@@ -46,7 +54,8 @@
 
 **文件**: ViewController.java
 - Web 页面路由（Thymeleaf）
-- /dashboard - 仪表板页面
+- /apikeys - API Key 页面（ADMIN/USER 共用）
+- /dashboard - 仪表板页面（USER 访问时重定向到 /apikeys）
 - /login, /register - 登录注册页面
 - /admin/* - 管理后台页面
 
@@ -106,7 +115,9 @@
 | /api/auth/me | GET | Session | USER | 获取当前用户 |
 | /api/llm/chat | POST | API Key | - | LLM 聊天（传统） |
 | /v1/chat/completions | POST | API Key | - | OpenAI 兼容接口 |
-| /api/apikeys | GET,POST | Session | USER | API Key CRUD |
+| /api/apikeys | GET,POST | Session | USER | API Key 列表与创建 |
+| /api/apikeys/{id}/toggle | PUT | Session | USER | API Key 启停（限本人） |
+| /api/apikeys/{id} | DELETE | Session | USER | API Key 删除（限本人） |
 | /api/dashboard/* | GET | Session | USER | 仪表板数据 |
 | /api/admin/* | All | Session | ADMIN | 管理功能 |
 

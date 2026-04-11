@@ -48,28 +48,18 @@ const API = {
      * 检查与服务端的连接
      */
     async checkConnection() {
-        const apiType = this.getApiType();
         try {
             const controller = new AbortController();
             setTimeout(() => controller.abort(), 5000);
 
-            let res;
-            if (apiType === Config.apiTypes.VLLM || apiType === Config.apiTypes.LM_STUDIO) {
-                res = await fetch(`${this.getApiUrl()}/v1/models`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        ...this.getAuthHeaders()
-                    },
-                    signal: controller.signal
-                });
-            } else {
-                res = await fetch(`${this.getApiUrl()}/api/tags`, {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' },
-                    signal: controller.signal
-                });
-            }
+            const res = await fetch(`${this.getApiUrl()}/v1/models`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    ...this.getAuthHeaders()
+                },
+                signal: controller.signal
+            });
 
             if (!res.ok) {
                 throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -87,33 +77,21 @@ const API = {
      * 获取模型列表
      */
     async getModels() {
-        const apiType = this.getApiType();
         try {
-            let res;
-            if (apiType === Config.apiTypes.VLLM || apiType === Config.apiTypes.LM_STUDIO) {
-                res = await fetch(`${this.getApiUrl()}/v1/models`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        ...this.getAuthHeaders()
-                    }
-                });
-            } else {
-                res = await fetch(`${this.getApiUrl()}/api/tags`, {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' }
-                });
-            }
+            const res = await fetch(`${this.getApiUrl()}/v1/models`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    ...this.getAuthHeaders()
+                }
+            });
 
             if (!res.ok) {
                 throw new Error(`HTTP ${res.status}`);
             }
 
             const data = await res.json();
-            if (apiType === Config.apiTypes.VLLM || apiType === Config.apiTypes.LM_STUDIO) {
-                return data.data?.map(model => model.id).filter(Boolean) || [];
-            }
-            return data.models?.map(model => model.name).filter(Boolean) || [];
+            return data.data?.map(model => model.id).filter(Boolean) || [];
         } catch (error) {
             console.error('[API] 获取模型列表失败:', error.message);
             return [];
@@ -124,7 +102,6 @@ const API = {
      * 调用聊天 API（流式响应）
      */
     async chat(prompt, model, temperature = 0.7, controller = null) {
-        const apiType = this.getApiType();
         const maxRetries = 5;
         const retryDelay = 1000;
 
@@ -135,36 +112,21 @@ const API = {
                     options.signal = controller.signal;
                 }
 
-                let response;
-                if (apiType === Config.apiTypes.VLLM || apiType === Config.apiTypes.LM_STUDIO) {
-                    response = await fetch(`${this.getApiUrl()}/v1/chat/completions`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'text/event-stream',
-                            ...this.getAuthHeaders()
-                        },
-                        body: JSON.stringify({
-                            model,
-                            messages: [{ role: 'user', content: prompt }],
-                            stream: true,
-                            temperature
-                        }),
-                        ...options
-                    });
-                } else {
-                    response = await fetch(`${this.getApiUrl()}/api/chat`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            model,
-                            messages: [{ role: 'user', content: prompt }],
-                            stream: true,
-                            options: { temperature }
-                        }),
-                        ...options
-                    });
-                }
+                const response = await fetch(`${this.getApiUrl()}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream',
+                        ...this.getAuthHeaders()
+                    },
+                    body: JSON.stringify({
+                        model,
+                        messages: [{ role: 'user', content: prompt }],
+                        stream: true,
+                        temperature
+                    }),
+                    ...options
+                });
 
                 if (response.ok) {
                     return response.body;
@@ -172,11 +134,7 @@ const API = {
 
                 const errorBody = await response.text();
 
-                if (
-                    apiType === Config.apiTypes.OLLAMA &&
-                    response.status === 500 &&
-                    errorBody.includes('loading model')
-                ) {
+                if (response.status === 500 && errorBody.includes('loading model')) {
                     await new Promise(resolve => setTimeout(resolve, retryDelay));
                     continue;
                 }
@@ -187,11 +145,7 @@ const API = {
                     throw error;
                 }
 
-                if (
-                    apiType === Config.apiTypes.OLLAMA &&
-                    error.message.includes('loading model') &&
-                    attempt < maxRetries
-                ) {
+                if (error.message.includes('loading model') && attempt < maxRetries) {
                     await new Promise(resolve => setTimeout(resolve, retryDelay));
                     continue;
                 }
@@ -208,7 +162,6 @@ const API = {
      * 解析流式响应
      */
     async parseStream(stream, onToken, onComplete) {
-        const apiType = this.getApiType();
         const reader = stream.getReader();
         const decoder = new TextDecoder();
 
@@ -227,114 +180,57 @@ const API = {
 
                 const chunk = decoder.decode(value, { stream: true });
 
-                if (apiType === Config.apiTypes.VLLM || apiType === Config.apiTypes.LM_STUDIO) {
-                    const lines = chunk.split('\n');
+                const lines = chunk.split('\n');
 
-                    for (const line of lines) {
-                        if (!line.trim()) {
-                            continue;
-                        }
-
-                        if (line.startsWith('data: [DONE]')) {
-                            const endTime = Date.now();
-                            const totalTime = endTime - startTime;
-                            const ttf = firstTokenTime !== null ? firstTokenTime - startTime : null;
-                            const generationTime = firstTokenTime !== null ? (endTime - firstTokenTime) / 1000 : 0;
-                            const visibleTokens = outputTokens > 0 ? outputTokens : accumulatedContent.length;
-                            const speed = generationTime > 0 ? visibleTokens / generationTime : 0;
-
-                            onComplete({
-                                content: accumulatedContent,
-                                inputTokens: promptTokens,
-                                outputTokens: visibleTokens,
-                                totalTime,
-                                ttf,
-                                speed
-                            });
-                            break;
-                        }
-
-                        if (!line.startsWith('data: ')) {
-                            continue;
-                        }
-
-                        try {
-                            const data = JSON.parse(line.substring(6));
-
-                            if (data.usage) {
-                                promptTokens = data.usage.prompt_tokens || 0;
-                                outputTokens = data.usage.completion_tokens || outputTokens;
-                            }
-
-                            const newContent = data.choices?.[0]?.delta?.content;
-                            if (!newContent) {
-                                continue;
-                            }
-
-                            accumulatedContent += newContent;
-                            if (firstTokenTime === null) {
-                                firstTokenTime = Date.now();
-                            }
-
-                            onToken(accumulatedContent, accumulatedContent.length, 'content');
-                        } catch (_) {
-                            // Ignore malformed stream chunks.
-                        }
+                for (const line of lines) {
+                    if (!line.trim()) {
+                        continue;
                     }
-                } else {
-                    const lines = chunk.split('\n');
 
-                    for (const line of lines) {
-                        if (!line.trim()) {
+                    if (line.startsWith('data: [DONE]')) {
+                        const endTime = Date.now();
+                        const totalTime = endTime - startTime;
+                        const ttf = firstTokenTime !== null ? firstTokenTime - startTime : null;
+                        const generationTime = firstTokenTime !== null ? (endTime - firstTokenTime) / 1000 : 0;
+                        const visibleTokens = outputTokens > 0 ? outputTokens : accumulatedContent.length;
+                        const speed = generationTime > 0 ? visibleTokens / generationTime : 0;
+
+                        onComplete({
+                            content: accumulatedContent,
+                            inputTokens: promptTokens,
+                            outputTokens: visibleTokens,
+                            totalTime,
+                            ttf,
+                            speed
+                        });
+                        break;
+                    }
+
+                    if (!line.startsWith('data: ')) {
+                        continue;
+                    }
+
+                    try {
+                        const data = JSON.parse(line.substring(6));
+
+                        if (data.usage) {
+                            promptTokens = data.usage.prompt_tokens || 0;
+                            outputTokens = data.usage.completion_tokens || outputTokens;
+                        }
+
+                        const newContent = data.choices?.[0]?.delta?.content;
+                        if (!newContent) {
                             continue;
                         }
 
-                        try {
-                            const data = JSON.parse(line);
-                            const newContent = data.message?.content;
-
-                            if (newContent) {
-                                accumulatedContent += newContent;
-                                if (firstTokenTime === null) {
-                                    firstTokenTime = Date.now();
-                                }
-
-                                onToken(accumulatedContent, accumulatedContent.length, 'content');
-                            }
-
-                            if (!data.done) {
-                                continue;
-                            }
-
-                            if (data.eval_count !== undefined) {
-                                outputTokens = data.eval_count;
-                            }
-                            if (data.prompt_eval_count !== undefined) {
-                                promptTokens = data.prompt_eval_count;
-                            }
-
-                            const endTime = Date.now();
-                            const totalTime = endTime - startTime;
-                            const ttf = firstTokenTime !== null ? firstTokenTime - startTime : null;
-                            const generationTime = data.eval_duration !== undefined
-                                ? data.eval_duration / 1000000000
-                                : (ttf !== null ? (totalTime - ttf) / 1000 : 0);
-                            const visibleTokens = outputTokens > 0 ? outputTokens : accumulatedContent.length;
-                            const speed = generationTime > 0 ? visibleTokens / generationTime : 0;
-
-                            onComplete({
-                                content: accumulatedContent,
-                                inputTokens: promptTokens,
-                                outputTokens: visibleTokens,
-                                totalTime,
-                                ttf,
-                                speed
-                            });
-
-                            break;
-                        } catch (_) {
-                            // Ignore malformed stream chunks.
+                        accumulatedContent += newContent;
+                        if (firstTokenTime === null) {
+                            firstTokenTime = Date.now();
                         }
+
+                        onToken(accumulatedContent, accumulatedContent.length, 'content');
+                    } catch (_) {
+                        // Ignore malformed stream chunks.
                     }
                 }
             }

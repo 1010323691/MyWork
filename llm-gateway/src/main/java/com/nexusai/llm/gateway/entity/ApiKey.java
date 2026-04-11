@@ -29,17 +29,8 @@ public class ApiKey {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "token_limit")
-    private Long tokenLimit;
-
     @Column(nullable = false)
     private Long usedTokens = 0L;
-
-    @Column(name = "input_tokens")
-    private Long inputTokens;  // 输入 Token 累计统计
-
-    @Column(name = "output_tokens")
-    private Long outputTokens;  // 输出 Token 累计统计
 
     @Builder.Default
     @Column(nullable = false)
@@ -72,13 +63,6 @@ public class ApiKey {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
-    }
-
-    public Long getRemainingTokens() {
-        if (tokenLimit == null) {
-            return null; // 无限制
-        }
-        return Math.max(0, tokenLimit - usedTokens);
     }
 
     public void useTokens(long count) {

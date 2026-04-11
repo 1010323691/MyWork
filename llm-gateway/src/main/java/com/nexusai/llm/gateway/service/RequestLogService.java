@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -30,6 +31,7 @@ public class RequestLogService {
     public void asyncLogRequest(Long apiKeyId, Long userId, String requestId,
                                 Long inputTokens, Long outputTokens,
                                 String modelName, Long latencyMs,
+                                BigDecimal costAmount,
                                 RequestLog.RequestStatus status,
                                 String requestBody, String responseBody) {
         try {
@@ -50,6 +52,7 @@ public class RequestLogService {
                     .outputTokens(defaultLong(outputTokens))
                     .modelName(modelName)
                     .latencyMs(latencyMs)
+                    .costAmount(costAmount)
                     .status(status)
                     .build();
             requestLogRepository.save(log);
@@ -62,9 +65,29 @@ public class RequestLogService {
     @Transactional
     public void asyncLogRequest(Long apiKeyId, Long inputTokens, Long outputTokens,
                                 String modelName, Long latencyMs,
+                                BigDecimal costAmount,
                                 RequestLog.RequestStatus status,
                                 String requestBody, String responseBody) {
-        asyncLogRequest(apiKeyId, null, null, inputTokens, outputTokens, modelName, latencyMs, status, requestBody, responseBody);
+        asyncLogRequest(apiKeyId, null, null, inputTokens, outputTokens, modelName, latencyMs, costAmount, status, requestBody, responseBody);
+    }
+
+    @Async
+    @Transactional
+    public void asyncLogRequest(Long apiKeyId, Long inputTokens, Long outputTokens,
+                                String modelName, Long latencyMs,
+                                RequestLog.RequestStatus status,
+                                String requestBody, String responseBody) {
+        asyncLogRequest(apiKeyId, null, null, inputTokens, outputTokens, modelName, latencyMs, null, status, requestBody, responseBody);
+    }
+
+    @Async
+    @Transactional
+    public void asyncLogRequest(Long apiKeyId, Long userId, String requestId,
+                                Long inputTokens, Long outputTokens,
+                                String modelName, Long latencyMs,
+                                RequestLog.RequestStatus status,
+                                String requestBody, String responseBody) {
+        asyncLogRequest(apiKeyId, userId, requestId, inputTokens, outputTokens, modelName, latencyMs, null, status, requestBody, responseBody);
     }
 
     @Async

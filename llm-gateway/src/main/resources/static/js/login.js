@@ -12,6 +12,8 @@
             return;
         }
 
+        showRedirectToastFromQuery();
+
         const loginForm = document.getElementById('loginForm');
         if (!loginForm) {
             return;
@@ -39,6 +41,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({ username, password })
                 });
 
@@ -57,4 +60,22 @@
             }
         });
     });
+
+    function showRedirectToastFromQuery() {
+        const params = new URLSearchParams(window.location.search);
+        const toastMessage = params.get('toastMessage');
+        const toastType = params.get('toastType') || 'warning';
+
+        if (!toastMessage) {
+            return;
+        }
+
+        UI.showAlert(toastMessage, toastType);
+
+        params.delete('toastMessage');
+        params.delete('toastType');
+        const nextQuery = params.toString();
+        const nextUrl = nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname;
+        window.history.replaceState({}, document.title, nextUrl);
+    }
 })();

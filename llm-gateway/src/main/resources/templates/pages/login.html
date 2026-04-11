@@ -4,40 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>登录 - LLM Gateway</title>
-    <!-- 公共样式 - Tech Theme -->
     <link rel="stylesheet" th:href="@{/css/common-tech-theme.css}">
     <link rel="stylesheet" th:href="@{/css/login.css}">
 </head>
 <body>
-    <!-- Tech theme floating orb for login page -->
     <div class="tech-orb-2"></div>
 
     <div class="login-container">
-        <div class="login-card" role="main">
-            <h1 class="login-logo">LLM Gateway</h1>
-            <p class="login-subtitle">API 网关管理后台</p>
+        <div class="login-card" role="main" aria-labelledby="loginTitle">
+            <div class="auth-badge">Secure Access</div>
+            <h1 id="loginTitle" class="login-logo">LLM Gateway</h1>
+            <p class="login-subtitle">统一模型接入、鉴权与监控的科技风控制台入口。</p>
+            <div id="uiToastHost" class="toast-host" aria-live="polite" aria-atomic="false"></div>
 
-            <!-- 服务端错误信息 (ARIA live region) -->
-            <div th:if="${error}" class="alert alert-error" style="margin-bottom:15px;" role="alert" th:text="${error}"></div>
+            <div th:if="${error}" class="alert alert-error" role="alert" th:text="${error}"></div>
 
-            <!-- 登录表单：通过 AJAX 提交到 API -->
-            <!-- 说明：登录表单不需要 CSRF token，因为攻击者无法知道用户的密码 -->
             <form id="loginForm">
                 <div class="form-group">
                     <label for="username">用户名</label>
-                    <input type="text" id="username" name="username" required placeholder="请输入用户名" autofocus autocomplete="username">
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        required
+                        placeholder="请输入用户名"
+                        autofocus
+                        autocomplete="username">
                 </div>
 
                 <div class="form-group">
                     <label for="password">密码</label>
-                    <input type="password" id="password" name="password" required placeholder="请输入密码" autocomplete="current-password">
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        required
+                        placeholder="请输入密码"
+                        autocomplete="current-password">
                 </div>
 
-                <button type="submit" class="btn btn-primary">登录</button>
+                <button type="submit" class="btn btn-primary">进入控制台</button>
             </form>
 
-            <p style="text-align:center; margin-top:20px; font-size:14px; color:#a0aec0;">
-                还没有账号？<a href="/register" style="color:#00d4ff; text-decoration:none;">立即注册</a>
+            <p class="auth-footer">
+                还没有账号？<a href="/register">立即注册</a>
             </p>
         </div>
     </div>

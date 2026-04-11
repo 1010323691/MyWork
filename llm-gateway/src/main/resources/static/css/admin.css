@@ -27,25 +27,81 @@
     color: #8B7D6C;
 }
 
-.filter-item input,
-.filter-item select {
+.filter-item input {
     padding: 8px 12px;
-    border: 1px solid rgba(232, 220, 196, 0.5);  /* Was 0.8 鈫?more subtle */
-    border-radius: 6px;
+    min-height: 44px;
+    border: 1px solid rgba(168, 85, 247, 0.25);   /* 紫色边框 */
+    border-radius: 8px;
     font-size: 14px;
-    color: #3D3934;
-    background: rgba(255, 255, 255, 0.2);       /* Was 0.5 鈫?more transparent */
-    backdrop-filter: blur(16px);                /* Was 10px 鈫?stronger glass effect */
+    color: #e8ecf1;                                /* 亮白文字 */
+    background: rgba(10, 14, 39, 0.92);           /* 深紫背景 */
+    backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     min-width: 180px;
-    transition: all 0.3s ease;
+    transition: all 0.25s ease;
 }
 
-.filter-item input:focus,
+.filter-item select {
+    height: 44px;
+    padding: 8px 36px 8px 12px;
+    border: 1px solid rgba(168, 85, 247, 0.25);   /* 紫色边框 */
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #e8ecf1;                                /* 亮白文字 */
+    background-color: rgba(10, 14, 39, 0.92);     /* 深紫背景 */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    min-width: 180px;
+    transition: all 0.25s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a855f7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    cursor: pointer;
+}
+
+/* 自定义 option 样式 - 仅在部分浏览器有效 */
+.filter-item select option {
+    background-color: rgba(10, 14, 39, 0.98);
+    color: #e8ecf1;
+    padding: 10px 12px;
+}
+
+.filter-item input:hover {
+    background: rgba(15, 20, 60, 0.98);
+    border-color: rgba(168, 85, 247, 0.55);
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.15);
+}
+
+.filter-item select:hover {
+    background-color: rgba(15, 20, 60, 0.98);
+    border-color: rgba(168, 85, 247, 0.55);
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.15);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23c084fc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.filter-item input:focus {
+    outline: none;
+    background: rgba(10, 14, 39, 0.98);
+    border-color: var(--accent-purple);
+    box-shadow:
+        0 0 0 3px rgba(168, 85, 247, 0.12),
+        0 0 0 6px rgba(168, 85, 247, 0.06),
+        0 0 20px rgba(168, 85, 247, 0.2);
+}
+
 .filter-item select:focus {
     outline: none;
-    border-color: #C9A86C;
-    box-shadow: 0 0 0 3px rgba(201, 168, 108, 0.1);
+    background-color: rgba(10, 14, 39, 0.98);
+    border-color: var(--accent-purple);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e879f9' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    box-shadow:
+        0 0 0 3px rgba(168, 85, 247, 0.12),
+        0 0 0 6px rgba(168, 85, 247, 0.06),
+        0 0 20px rgba(168, 85, 247, 0.2);
 }
 
 .filter-btn {
@@ -172,14 +228,14 @@
     max-width: 860px;
     max-height: min(88vh, 960px);
     border-radius: 22px;
-    border: 1px solid rgba(0, 212, 255, 0.22);
+    border: 1px solid rgba(168, 85, 247, 0.22);
     background:
         linear-gradient(180deg, rgba(18, 26, 68, 0.98), rgba(11, 17, 48, 0.97)),
-        radial-gradient(circle at top right, rgba(0, 212, 255, 0.12), transparent 40%);
+        radial-gradient(circle at top right, rgba(168, 85, 247, 0.12), transparent 40%);
     box-shadow:
         0 16px 40px rgba(2, 6, 23, 0.42),
         0 0 0 1px rgba(255, 255, 255, 0.03) inset,
-        0 0 18px rgba(0, 212, 255, 0.08);
+        0 0 18px rgba(168, 85, 247, 0.08);
     overflow: hidden;
 }
 
@@ -191,7 +247,7 @@
     background:
         linear-gradient(180deg, rgba(14, 22, 58, 0.98), rgba(14, 22, 58, 0.94)),
         rgba(14, 22, 58, 0.96);
-    border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+    border-bottom: 1px solid rgba(168, 85, 247, 0.12);
 }
 
 .modal-header h3 {
@@ -216,7 +272,7 @@
     padding: 24px 28px 20px;
     overflow: auto;
     scrollbar-width: thin;
-    scrollbar-color: rgba(0, 212, 255, 0.55) rgba(255, 255, 255, 0.06);
+    scrollbar-color: rgba(168, 85, 247, 0.55) rgba(255, 255, 255, 0.06);
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
 }
@@ -238,7 +294,7 @@
 .modal-body::-webkit-scrollbar-thumb,
 .modal-content::-webkit-scrollbar-thumb,
 .modal-body textarea::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, rgba(0, 212, 255, 0.75), rgba(168, 85, 247, 0.68));
+    background: linear-gradient(180deg, rgba(168, 85, 247, 0.75), rgba(192, 132, 252, 0.68));
     border-radius: 999px;
     border: 2px solid rgba(10, 14, 39, 0.55);
 }
@@ -246,7 +302,7 @@
 .modal-body::-webkit-scrollbar-thumb:hover,
 .modal-content::-webkit-scrollbar-thumb:hover,
 .modal-body textarea::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, rgba(34, 211, 238, 0.95), rgba(192, 132, 252, 0.9));
+    background: linear-gradient(180deg, rgba(192, 132, 252, 0.95), rgba(216, 180, 254, 0.9));
 }
 
 .modal-footer {
@@ -257,15 +313,15 @@
     background:
         linear-gradient(180deg, rgba(10, 16, 44, 0.9), rgba(10, 16, 44, 0.98)),
         rgba(10, 16, 44, 0.96);
-    border-top: 1px solid rgba(0, 212, 255, 0.12);
+    border-top: 1px solid rgba(168, 85, 247, 0.12);
 }
 
 .modal-body .form-group {
     margin-bottom: 18px;
     padding: 16px 18px;
     border-radius: 16px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(0, 212, 255, 0.025));
-    border: 1px solid rgba(0, 212, 255, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(168, 85, 247, 0.025));
+    border: 1px solid rgba(168, 85, 247, 0.08);
     box-shadow: 0 4px 14px rgba(2, 6, 23, 0.12);
 }
 
@@ -282,15 +338,31 @@
 .modal-body .form-group input,
 .modal-body .form-group select,
 .modal-body .form-group textarea {
-    background: rgba(7, 12, 36, 0.88);
-    border: 1px solid rgba(0, 212, 255, 0.14);
+    background: rgba(10, 14, 39, 0.85);            /* 深紫背景 */
+    border: 1px solid rgba(168, 85, 247, 0.25);   /* 紫色边框 */
+    color: #e8ecf1;                                /* 亮白文字 */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    transition: all 0.25s ease;
+}
+
+.modal-body .form-group input:hover,
+.modal-body .form-group select:hover,
+.modal-body .form-group textarea:hover {
+    background: rgba(15, 20, 60, 0.95);
+    border-color: rgba(168, 85, 247, 0.45);
 }
 
 .modal-body .form-group input:focus,
 .modal-body .form-group select:focus,
 .modal-body .form-group textarea:focus {
-    border-color: rgba(34, 211, 238, 0.85);
-    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12), 0 0 10px rgba(34, 211, 238, 0.08);
+    outline: none;
+    background: rgba(10, 14, 39, 0.95);
+    border-color: var(--accent-purple);
+    box-shadow:
+        0 0 0 3px rgba(168, 85, 247, 0.15),
+        0 0 0 6px rgba(168, 85, 247, 0.08),
+        0 0 16px rgba(168, 85, 247, 0.18);
 }
 
 .modal-body .form-group textarea {
@@ -305,7 +377,7 @@
     width: 18px;
     height: 18px;
     min-width: 18px;
-    accent-color: #00d4ff;
+    accent-color: #a855f7;
     margin-right: 8px;
     vertical-align: middle;
 }
@@ -321,8 +393,8 @@
     margin-top: 10px;
     padding: 12px 14px;
     border-radius: 12px;
-    background: rgba(0, 212, 255, 0.06);
-    border: 1px solid rgba(0, 212, 255, 0.12);
+    background: rgba(168, 85, 247, 0.06);
+    border: 1px solid rgba(168, 85, 247, 0.12);
     color: #9db5d4;
     font-size: 12px;
     line-height: 1.7;
@@ -343,7 +415,7 @@
     padding: 14px 16px;
     border-radius: 14px;
     background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(0, 212, 255, 0.1);
+    border: 1px solid rgba(168, 85, 247, 0.12);
     min-height: 52px;
 }
 
@@ -521,17 +593,57 @@
 .api-key-cell {
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-width: 220px;
+    gap: 12px;
+    min-width: 260px;
+    flex-wrap: wrap;
 }
 
 .api-key-cell code {
-    display: inline-block;
-    padding: 6px 10px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.35);
-    border: 1px solid rgba(232, 220, 196, 0.5);
-    color: #3D3934;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    max-width: 260px;
+    padding: 0 16px;
+    border-radius: 14px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015)),
+        rgba(9, 14, 38, 0.9);
+    border: 1px solid rgba(96, 122, 186, 0.24);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 8px 18px rgba(0, 0, 0, 0.14);
+    color: #d9e7ff;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.api-key-cell .btn {
+    min-width: 88px;
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 14px;
+    flex: 0 0 auto;
+}
+
+.api-key-cell .btn.btn-primary {
+    box-shadow:
+        0 0 0 1px rgba(0, 212, 255, 0.2),
+        0 10px 22px rgba(0, 212, 255, 0.12);
+}
+
+@media (max-width: 1200px) {
+    .api-key-cell {
+        min-width: 0;
+    }
+
+    .api-key-cell code {
+        max-width: 220px;
+    }
 }
 
 /* ============================================

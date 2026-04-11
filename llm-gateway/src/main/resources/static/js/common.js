@@ -6,6 +6,13 @@
 // ============================================
 // API 配置
 // ============================================
+(function() {
+if (window.__LLM_GATEWAY_COMMON_JS_LOADED__) {
+    console.warn('common.js has already been loaded once; skipping duplicate execution.');
+    return;
+}
+window.__LLM_GATEWAY_COMMON_JS_LOADED__ = true;
+
 const API_CONFIG = {
     BASE_URL: '/api',
     TIMEOUT: 30000
@@ -211,12 +218,138 @@ class UI {
     }
 
     /**
-     * 复制到剪贴板
+     * 复制到剪贴板（带降级方案）
+     * 优先使用 Clipboard API，失败时降级到 execCommand 或手动复制
      */
-    static copyToClipboard(text) {
-        navigator.clipboard.writeText(text)
-            .then(() => this.showSuccessMessage('已复制到剪贴板'))
-            .catch(err => this.showErrorMessage('复制失败：' + err.message));
+    static async copyToClipboard(text) {
+        // 方案 1：使用现代 Clipboard API（需要安全上下文）
+        if (navigator.clipboard && window.isSecureContext) {
+            try {
+                await navigator.clipboard.writeText(text);
+                this.showSuccessMessage('已复制到剪贴板');
+                return;
+            } catch (err) {
+                console.warn('Clipboard API 失败，尝试降级方案:', err);
+            }
+        }
+
+        // 方案 2：使用 execCommand（兼容旧浏览器和非安全上下文）
+        if (this._copyWithExecCommand(text)) {
+            this.showSuccessMessage('已复制到剪贴板');
+            return;
+        }
+
+        // 方案 3：提供手动复制界面
+        this._showManualCopy(text);
+    }
+
+    /**
+     * 使用 execCommand 方式复制（降级方案）
+     */
+    static _copyWithExecCommand(text) {
+        try {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.top = '0';
+            textarea.style.left = '0';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+
+            textarea.select();
+            textarea.setSelectionRange(0, 999999); // 兼容移动端
+
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            return successful;
+        } catch (err) {
+            console.warn('execCommand 复制失败:', err);
+            return false;
+        }
+    }
+
+    /**
+     * 显示手动复制界面（最终降级方案）
+     */
+    static _showManualCopy(text) {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.background = 'rgba(0, 0, 0, 0.5)';
+        overlay.style.zIndex = '9999';
+        overlay.onclick = () => this._removeManualCopy(overlay);
+
+        const content = document.createElement('div');
+        content.style.background = '#fff';
+        content.style.borderRadius = '8px';
+        content.style.padding = '24px';
+        content.style.maxWidth = '600px';
+        content.style.margin = '100px auto';
+        content.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.3)';
+
+        const title = document.createElement('h3');
+        title.textContent = '手动复制 API Key';
+        title.style.marginBottom = '16px';
+        title.style.color = '#333';
+
+        const tip = document.createElement('p');
+        tip.textContent = '由于浏览器安全限制，无法自动复制。请手动选中下方内容并复制：';
+        tip.style.color = '#666';
+        tip.style.marginBottom = '12px';
+        tip.style.fontSize = '14px';
+
+        const code = document.createElement('code');
+        code.textContent = text;
+        code.style.display = 'block';
+        code.style.padding = '16px';
+        code.style.background = '#f5f5f5';
+        code.style.borderRadius = '4px';
+        code.style.fontFamily = 'monospace';
+        code.style.fontSize = '14px';
+        code.style.wordBreak = 'break-all';
+        code.style.marginBottom = '16px';
+
+        const steps = document.createElement('ul');
+        steps.style.marginBottom = '16px';
+        steps.style.color = '#666';
+        steps.style.fontSize = '14px';
+        steps.innerHTML = `
+            <li>点击下方代码块</li>
+            <li>按 Ctrl+A (Windows) 或 Cmd+A (Mac) 全选</li>
+            <li>按 Ctrl+C (Windows) 或 Cmd+C (Mac) 复制</li>
+        `;
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '关闭';
+        closeBtn.className = 'btn btn-primary';
+        closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            this._removeManualCopy(overlay);
+        };
+
+        content.appendChild(title);
+        content.appendChild(tip);
+        content.appendChild(code);
+        content.appendChild(steps);
+        content.appendChild(closeBtn);
+        overlay.appendChild(content);
+        document.body.appendChild(overlay);
+
+        // 点击代码块自动选中
+        code.onclick = () => {
+            code.select();
+        };
+    }
+
+    static _removeManualCopy(overlay) {
+        if (overlay && overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay);
+        }
     }
 
     /**
@@ -382,3 +515,4 @@ window.API = API;
 window.UI = UI;
 window.FormValidation = FormValidation;
 window.API_CONFIG = API_CONFIG;
+})();

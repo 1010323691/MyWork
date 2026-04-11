@@ -116,6 +116,7 @@ body::before {
     z-index: -2;
     mask-image: radial-gradient(circle at center, black 40%, transparent 70%);
     -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 70%);
+    contain: paint;
 }
 
 /* Decorative background orbs for depth */
@@ -131,6 +132,7 @@ body::after {
     pointer-events: none;
     z-index: -1;
     animation: float-orb1 20s ease-in-out infinite;
+    contain: paint;
 }
 
 @keyframes float-orb1 {
@@ -156,6 +158,7 @@ body > .tech-orb-2 {
     pointer-events: none;
     z-index: -1;
     animation: float-orb2 25s ease-in-out infinite reverse;
+    contain: paint;
 }
 
 @keyframes float-orb2 {
@@ -175,6 +178,7 @@ body > .tech-orb-2 {
     border: 1px solid var(--glass-border);
     box-shadow: var(--shadow-soft);
     transition: all 0.3s ease;
+    contain: paint;
 }
 
 .glass-surface:hover {
@@ -206,6 +210,7 @@ body > .tech-orb-2 {
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    contain: paint;
 }
 
 /* Sidebar top accent line */
@@ -480,6 +485,7 @@ body > .tech-orb-2 {
     border: 1px solid rgba(0, 212, 255, 0.1);
     box-shadow: var(--shadow-soft);
     transition: all 0.3s ease;
+    contain: paint;
 }
 
 .card:hover {
@@ -518,6 +524,7 @@ body > .tech-orb-2 {
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    contain: paint;
 }
 
 .stat-card::before {
@@ -642,33 +649,382 @@ body > .tech-orb-2 {
     font-weight: 500;
 }
 
+/* ============================================
+   Forms - Purple Glass Style Inputs
+   暗紫色主题输入框 | Dark Purple Glass
+   ============================================ */
 .form-group input,
-.form-group select,
 .form-group textarea {
     width: 100%;
     padding: 10px 14px;
-    border: 1px solid rgba(0, 212, 255, 0.15);
+    min-height: 44px;
+    border: 1px solid rgba(168, 85, 247, 0.25);    /* 紫色边框默认 */
     border-radius: var(--radius-sm);
     font-size: var(--font-size-base);
-    transition: all 0.3s ease;
-    background: rgba(15, 20, 60, 0.6);
+    transition: all 0.25s ease;
+    background: rgba(10, 14, 39, 0.85);            /* 更深背景 */
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    color: var(--text-primary);
+    color: #e8ecf1;                                 /* 亮白文字 */
 }
 
+.form-group input:hover,
+.form-group textarea:hover {
+    background: rgba(15, 20, 60, 0.95);
+    border-color: rgba(168, 85, 247, 0.45);
+}
+
+/* Focus 状态 - 紫色霓虹光晕 */
 .form-group input:focus,
-.form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: var(--accent-cyan);
-    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15), 0 0 12px rgba(0, 212, 255, 0.2);
-    background: rgba(15, 20, 60, 0.8);
+    background: rgba(10, 14, 39, 0.95);
+    border-color: var(--accent-purple);
+    box-shadow:
+        0 0 0 3px rgba(168, 85, 247, 0.15),      /* 内层光晕 */
+        0 0 0 6px rgba(168, 85, 247, 0.08),      /* 外层光晕 */
+        0 0 16px rgba(168, 85, 247, 0.18);       /* 霓虹扩散 */
 }
 
 .form-group input::placeholder,
 .form-group textarea::placeholder {
+    color: rgba(148, 163, 195, 0.6);              /* 浅灰紫色占位符 */
+}
+
+/* ============================================
+   Custom Dropdown - Neon Tech Style
+   霓虹科技风格自定义下拉菜单
+   ============================================ */
+
+/* Dropdown 容器 */
+.custom-dropdown {
+    position: relative;
+    width: 100%;
+    user-select: none;
+}
+
+/* Dropdown 触发按钮 */
+.custom-dropdown-trigger {
+    position: relative;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 10px 10px 16px;
+    background: rgba(10, 14, 39, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 212, 255, 0.18);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.25s ease;
+    overflow: hidden;
+}
+
+/* 左侧装饰线 */
+.custom-dropdown-trigger::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--accent-cyan), var(--accent-purple));
+    opacity: 0.5;
+    transition: opacity 0.25s ease;
+}
+
+/* 显示当前选中值的容器 */
+.custom-dropdown-value {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.custom-dropdown-value.empty {
     color: var(--text-muted);
+    font-style: italic;
+}
+
+/* 下拉箭头图标 - 霓虹渐变 */
+.custom-dropdown-arrow {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding-right: 6px;
+    transition: transform 0.3s ease;
+}
+
+.custom-dropdown-arrow svg {
+    width: 16px;
+    height: 16px;
+    stroke: var(--accent-cyan);
+    stroke-width: 2;
+    fill: none;
+    filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.4));
+}
+
+/* 展开状态 - 箭头旋转 + 霓虹增强 */
+.custom-dropdown.open .custom-dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.custom-dropdown.open .custom-dropdown-arrow svg {
+    stroke: var(--accent-purple);
+    filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.6));
+}
+
+/* 悬停状态 - 边框提亮 */
+.custom-dropdown-trigger:hover {
+    background: rgba(15, 20, 60, 0.95);
+    border-color: rgba(0, 212, 255, 0.35);
+}
+
+.custom-dropdown-trigger:hover::before {
+    opacity: 0.8;
+}
+
+/* 展开时的触发按钮 - 霓虹光晕增强 */
+.custom-dropdown.open .custom-dropdown-trigger {
+    background: rgba(10, 14, 39, 0.96);
+    border-color: var(--accent-cyan);
+    box-shadow:
+        0 0 0 3px rgba(0, 212, 255, 0.12),
+        0 0 0 6px rgba(0, 212, 255, 0.06),
+        0 0 20px rgba(0, 212, 255, 0.15);
+}
+
+.custom-dropdown.open .custom-dropdown-trigger::before {
+    opacity: 1;
+}
+
+/* 焦点状态 - 键盘导航可见 */
+.custom-dropdown-trigger:focus {
+    outline: none;
+}
+
+.custom-dropdown-trigger:focus-visible {
+    outline: 2px solid var(--accent-cyan);
+    outline-offset: 2px;
+}
+
+/* 禁用状态 */
+.custom-dropdown.disabled .custom-dropdown-trigger {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: rgba(10, 14, 39, 0.7);
+}
+
+.custom-dropdown.disabled .custom-dropdown-trigger::before {
+    display: none;
+}
+
+/* 下拉选项面板 */
+.custom-dropdown-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: rgba(15, 20, 60, 0.96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 212, 255, 0.25);
+    border-radius: var(--radius-sm);
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.4),
+        0 0 0 3px rgba(0, 212, 255, 0.08),
+        0 0 16px rgba(0, 212, 255, 0.1);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
+}
+
+/* 展开面板 */
+.custom-dropdown.open .custom-dropdown-panel {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* 下拉选项列表 */
+.custom-dropdown-list {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+}
+
+/* 单个选项 */
+.custom-dropdown-item {
+    position: relative;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.custom-dropdown-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--accent-cyan);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+/* 选项文本 */
+.custom-dropdown-item-text {
+    flex: 1;
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+    text-align: left;
+}
+
+/* 选中项标记 */
+.custom-dropdown-item.selected::after {
+    content: '✓';
+    color: var(--accent-cyan);
+    font-weight: bold;
+    filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.5));
+}
+
+/* 悬停选项 */
+.custom-dropdown-item:hover {
+    background: rgba(0, 212, 255, 0.12);
+    color: var(--text-primary);
+}
+
+.custom-dropdown-item:hover::before {
+    opacity: 1;
+}
+
+.custom-dropdown-item:hover .custom-dropdown-item-text {
+    color: var(--text-primary);
+}
+
+/* 键盘导航高亮项 */
+.custom-dropdown-item.highlighted {
+    background: rgba(0, 212, 255, 0.18);
+    border-left: 2px solid var(--accent-cyan);
+}
+
+.custom-dropdown-item.highlighted::before {
+    opacity: 1;
+}
+
+.custom-dropdown-item.highlighted .custom-dropdown-item-text {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* 选中项 */
+.custom-dropdown-item.selected {
+    background: rgba(0, 212, 255, 0.08);
+}
+
+.custom-dropdown-item.selected .custom-dropdown-item-text {
+    color: var(--accent-cyan);
+    font-weight: 500;
+}
+
+/* 分隔符 */
+.custom-dropdown-divider {
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(0, 212, 255, 0.2) 50%,
+        transparent);
+    margin: 4px 0;
+}
+
+/* 空选项提示 */
+.custom-dropdown-empty {
+    padding: 12px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--font-size-small);
+}
+
+/* 下拉菜单滚动条样式 */
+.custom-dropdown-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-dropdown-panel::-webkit-scrollbar-track {
+    background: rgba(0, 212, 255, 0.05);
+    border-radius: 3px;
+}
+
+.custom-dropdown-panel::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--accent-cyan), var(--accent-purple));
+    border-radius: 3px;
+}
+
+.custom-dropdown-panel::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--accent-cyan), var(--accent-magenta));
+}
+
+/* 分组标题 */
+.custom-dropdown-group-label {
+    padding: 6px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    background: rgba(0, 212, 255, 0.05);
+    border-left: 2px solid rgba(0, 212, 255, 0.2);
+}
+
+/* 多列下拉（特殊变体） */
+.custom-dropdown.multi-column .custom-dropdown-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 2px;
+    padding: 4px;
+}
+
+/* 小尺寸变体 */
+.custom-dropdown.sm .custom-dropdown-trigger {
+    min-height: 36px;
+    padding: 8px 36px 8px 12px;
+    font-size: var(--font-size-small);
+}
+
+.custom-dropdown.sm .custom-dropdown-arrow {
+    width: 16px;
+    height: 16px;
+}
+
+.custom-dropdown.sm .custom-dropdown-arrow svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* 标签式下拉（显示为徽章） */
+.custom-dropdown.badge-style .custom-dropdown-value {
+    padding: 2px 8px;
+    background: rgba(0, 212, 255, 0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 212, 255, 0.2);
 }
 
 /* ============================================
@@ -678,17 +1034,42 @@ body > .tech-orb-2 {
 .btn {
     padding: 12px 24px;
     min-height: 44px;
-    border: none;
+    border: 1px solid rgba(0, 212, 255, 0.28);
     border-radius: var(--radius-sm);
     font-size: var(--font-size-base);
     font-weight: 600;
+    letter-spacing: 0.4px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.25s ease;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
+    position: relative;
+    overflow: hidden;
+    background: rgba(10, 14, 39, 0.82);
+    color: var(--accent-cyan);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow:
+        0 8px 18px rgba(0, 0, 0, 0.22),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 120%;
+    height: 100%;
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(0, 212, 255, 0.18),
+        transparent);
+    transition: left 0.55s ease;
+    pointer-events: none;
 }
 
 .btn:focus-visible {
@@ -700,69 +1081,131 @@ body > .tech-orb-2 {
     transform: translateY(-2px);
 }
 
+.btn:hover::before {
+    left: 120%;
+}
+
 /* Primary Button - Cyan Gradient with Glow */
 .btn-primary {
-    background: linear-gradient(135deg, var(--accent-cyan), #0891b2);
-    color: white;
-    box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
-    border: 1px solid rgba(0, 212, 255, 0.4);
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.26), rgba(8, 145, 178, 0.18));
+    color: #dffcff;
+    border-color: rgba(0, 212, 255, 0.42);
+    box-shadow:
+        0 0 14px rgba(0, 212, 255, 0.22),
+        inset 0 0 0 1px rgba(0, 212, 255, 0.08);
 }
 
 .btn-primary:hover {
-    box-shadow: 0 6px 20px rgba(0, 212, 255, 0.5), var(--glow-cyan);
-    border-color: rgba(0, 212, 255, 0.6);
+    background: rgba(0, 212, 255, 0.15);
+    border-color: var(--accent-cyan);
+    box-shadow:
+        0 0 18px rgba(0, 212, 255, 0.34),
+        inset 0 0 0 1px rgba(0, 212, 255, 0.12);
+    text-shadow: 0 0 8px rgba(0, 212, 255, 0.45);
 }
 
 /* Secondary Button - Gray */
 .btn-secondary {
-    background: linear-gradient(135deg, #4a5568, #2d3748);
-    color: white;
-    box-shadow: var(--shadow-soft);
-    border: 1px solid rgba(74, 85, 104, 0.5);
+    background: rgba(10, 14, 39, 0.82);
+    color: #c084fc;
+    border-color: rgba(168, 85, 247, 0.34);
+    box-shadow:
+        0 8px 18px rgba(0, 0, 0, 0.22),
+        inset 0 0 0 1px rgba(168, 85, 247, 0.04);
+}
+
+.btn-secondary::before {
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(168, 85, 247, 0.2),
+        transparent);
 }
 
 .btn-secondary:hover {
-    box-shadow: var(--shadow-deep);
-    border-color: rgba(100, 116, 139, 0.7);
+    background: rgba(168, 85, 247, 0.14);
+    border-color: var(--accent-purple);
+    box-shadow:
+        0 0 18px rgba(168, 85, 247, 0.28),
+        inset 0 0 0 1px rgba(168, 85, 247, 0.1);
+    text-shadow: 0 0 8px rgba(168, 85, 247, 0.42);
 }
 
 /* Success Button - Green */
 .btn-success {
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: white;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    border: 1px solid rgba(16, 185, 129, 0.4);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.14));
+    color: #d8fff1;
+    border-color: rgba(16, 185, 129, 0.38);
+    box-shadow:
+        0 0 14px rgba(16, 185, 129, 0.18),
+        inset 0 0 0 1px rgba(16, 185, 129, 0.07);
+}
+
+.btn-success::before {
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(16, 185, 129, 0.2),
+        transparent);
 }
 
 .btn-success:hover {
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5), var(--glow-cyan);
-    border-color: rgba(16, 185, 129, 0.6);
+    background: rgba(16, 185, 129, 0.14);
+    border-color: #10b981;
+    box-shadow:
+        0 0 18px rgba(16, 185, 129, 0.28),
+        inset 0 0 0 1px rgba(16, 185, 129, 0.1);
+    text-shadow: 0 0 8px rgba(16, 185, 129, 0.35);
 }
 
 /* Danger Button - Magenta */
 .btn-danger {
-    background: linear-gradient(135deg, var(--accent-magenta), #dc2626);
-    color: white;
-    box-shadow: 0 4px 12px rgba(255, 0, 102, 0.3);
-    border: 1px solid rgba(255, 0, 102, 0.4);
+    background: linear-gradient(135deg, rgba(255, 0, 102, 0.24), rgba(220, 38, 38, 0.14));
+    color: #ffd7e8;
+    border-color: rgba(255, 0, 102, 0.4);
+    box-shadow:
+        0 0 14px rgba(255, 0, 102, 0.2),
+        inset 0 0 0 1px rgba(255, 0, 102, 0.08);
+}
+
+.btn-danger::before {
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(255, 0, 102, 0.2),
+        transparent);
 }
 
 .btn-danger:hover {
-    box-shadow: 0 6px 20px rgba(255, 0, 102, 0.5), var(--glow-magenta);
-    border-color: rgba(255, 0, 102, 0.6);
+    background: rgba(255, 0, 102, 0.14);
+    border-color: var(--accent-magenta);
+    box-shadow:
+        0 0 18px rgba(255, 0, 102, 0.3),
+        inset 0 0 0 1px rgba(255, 0, 102, 0.12);
+    text-shadow: 0 0 8px rgba(255, 0, 102, 0.38);
 }
 
 /* Warning Button - Yellow */
 .btn-warning {
-    background: linear-gradient(135deg, #fbbf24, #f59e0b);
-    color: white;
-    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
-    border: 1px solid rgba(251, 191, 36, 0.4);
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.24), rgba(245, 158, 11, 0.14));
+    color: #fff1c4;
+    border-color: rgba(251, 191, 36, 0.38);
+    box-shadow:
+        0 0 14px rgba(251, 191, 36, 0.18),
+        inset 0 0 0 1px rgba(251, 191, 36, 0.08);
+}
+
+.btn-warning::before {
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(251, 191, 36, 0.2),
+        transparent);
 }
 
 .btn-warning:hover {
-    box-shadow: 0 6px 20px rgba(251, 191, 36, 0.5);
-    border-color: rgba(251, 191, 36, 0.6);
+    background: rgba(251, 191, 36, 0.14);
+    border-color: #fbbf24;
+    box-shadow:
+        0 0 18px rgba(251, 191, 36, 0.24),
+        inset 0 0 0 1px rgba(251, 191, 36, 0.12);
+    text-shadow: 0 0 8px rgba(251, 191, 36, 0.3);
 }
 
 .btn-sm {
@@ -845,6 +1288,7 @@ body > .tech-orb-2 {
     transition: opacity 0.22s ease, transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
     overflow: hidden;
     pointer-events: auto;
+    contain: paint;
 }
 
 .toast::before {
@@ -967,7 +1411,13 @@ body > .tech-orb-2 {
 /* ============================================
    Badges - Neon Glow Style
    ============================================ */
-.badge {
+.badge,
+.badge-success,
+.badge-danger,
+.badge-primary,
+.badge-warning,
+.badge-default,
+.badge-secondary {
     padding: 4px 10px;
     border-radius: var(--radius-sm);
     font-size: var(--font-size-small);
@@ -1091,6 +1541,12 @@ body > .tech-orb-2 {
     width: 90%;
     max-height: 90vh;
     overflow: hidden;
+    contain: paint;
+}
+
+.custom-dropdown-panel,
+.date-picker-panel {
+    contain: paint;
 }
 
 .modal-header {
@@ -1366,20 +1822,30 @@ body > .tech-orb-2 {
 .form-control {
     width: 100%;
     padding: 8px 12px;
-    border: 1px solid rgba(0, 212, 255, 0.15);
+    min-height: 44px;
+    border: 1px solid rgba(168, 85, 247, 0.25);    /* 紫色边框默认 */
     border-radius: var(--radius-sm);
     font-size: var(--font-size-base);
-    background: rgba(15, 20, 60, 0.6);
+    background: rgba(10, 14, 39, 0.85);            /* 更深背景 */
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    color: var(--text-primary);
-    transition: all 0.3s ease;
+    color: #e8ecf1;                                 /* 亮白文字 */
+    transition: all 0.25s ease;
+}
+
+.form-control:hover {
+    background: rgba(15, 20, 60, 0.95);
+    border-color: rgba(168, 85, 247, 0.45);
 }
 
 .form-control:focus {
     outline: none;
-    border-color: var(--accent-cyan);
-    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15), 0 0 12px rgba(0, 212, 255, 0.2);
+    background: rgba(10, 14, 39, 0.95);
+    border-color: var(--accent-purple);
+    box-shadow:
+        0 0 0 3px rgba(168, 85, 247, 0.15),
+        0 0 0 6px rgba(168, 85, 247, 0.08),
+        0 0 16px rgba(168, 85, 247, 0.18);
 }
 
 .modal-footer {

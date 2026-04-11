@@ -1,3 +1,16 @@
+server:
+  # 生产环境下信任反向代理转发的协议和来源信息，便于正确识别 HTTPS
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        # 仅允许服务端脚本访问 Session Cookie，降低 XSS 窃取风险
+        http-only: true
+        # 是否仅在 HTTPS 下发送 Session Cookie；当前默认兼容 HTTP，启用 HTTPS 后建议改为 true
+        secure: ${SERVER_SESSION_COOKIE_SECURE:false}
+        # 跨站导航时保留登录态，同时降低被第三方站点滥用的风险
+        same-site: lax
+
 spring:
   jpa:
     hibernate:

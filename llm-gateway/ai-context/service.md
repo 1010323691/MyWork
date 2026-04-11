@@ -31,6 +31,11 @@
 - 根据明文 key 查询并校验 API Key
 - 创建新的 API Key
 
+**文件**: `ApiKeyConcurrencyGuard.java`
+- 统一控制转发请求并发
+- 同时支持总并发限制和单 API Key 并发限制
+- 超出限制时按公平队列等待，不直接返回错误
+
 **文件**: `ApiKeyResponseMapper.java`
 - 统一把 `ApiKey` 映射成 `ApiKeyResponse`
 - 供 `ApiKeyController` 和 `AdminController` 复用，避免重复 DTO 拼装
@@ -81,19 +86,21 @@
 4. `UpstreamProviderService.findByModelName()` 查找上游
 5. `UpstreamProviderService.isCircuitOpen()` 拦截熔断中的上游
 6. `UserBillingService.hasEnoughBalance()` 做余额预检
-7. `OpenAiForwardService` 转发请求
-8. 成功时 `UserBillingService.settleUsage()` 结算并 `recordSuccess()`
-9. `BalanceTransactionService` 写入扣费流水
-10. `RequestLogService` 异步写日志
+7. `ApiKeyConcurrencyGuard` 按总并发和单 key 并发排队获取名额
+8. `OpenAiForwardService` 转发请求
+9. 成功时 `UserBillingService.settleUsage()` 结算并 `recordSuccess()`
+10. `BalanceTransactionService` 写入扣费流水
+11. `RequestLogService` 异步写日志
 
 ### 传统接口
 1. 解析 API Key 对应的 `userId`
 2. `LlmForwardService.estimateInputTokens()` 估算输入 Token
 3. 解析模型并匹配上游
 4. 检查熔断状态和用户余额
-5. 发起请求转发
-6. 按实际输入/输出 Token 结算
-7. 记录余额流水和请求日志
+5. `ApiKeyConcurrencyGuard` 按总并发和单 key 并发排队获取名额
+6. 发起请求转发
+7. 按实际输入/输出 Token 结算
+8. 记录余额流水和请求日志
 
 ## 已清理的遗留项
 - `RequestQueueService` 已删除，不再作为并发扣费方案

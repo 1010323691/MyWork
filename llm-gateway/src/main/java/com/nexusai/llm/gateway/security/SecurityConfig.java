@@ -1,6 +1,8 @@
 package com.nexusai.llm.gateway.security;
 
+import com.nexusai.llm.gateway.config.SecurityProtectionProperties;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -27,19 +29,23 @@ import java.util.stream.Collectors;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@EnableConfigurationProperties(SecurityProtectionProperties.class)
 public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+    private final SecurityProtectionFilter securityProtectionFilter;
     private final boolean swaggerEnabled;
     private final List<String> allowedOriginPatterns;
 
     public SecurityConfig(UserDetailsService userDetailsService,
                           ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
+                          SecurityProtectionFilter securityProtectionFilter,
                           @Value("${app.security.swagger-enabled:false}") boolean swaggerEnabled,
                           @Value("${app.security.allowed-origin-patterns:}") String allowedOriginPatterns) {
         this.userDetailsService = userDetailsService;
         this.apiKeyAuthenticationFilter = apiKeyAuthenticationFilter;
+        this.securityProtectionFilter = securityProtectionFilter;
         this.swaggerEnabled = swaggerEnabled;
         this.allowedOriginPatterns = Arrays.stream(allowedOriginPatterns.split(","))
                 .map(String::trim)
@@ -121,7 +127,8 @@ public class SecurityConfig {
                     auth.anyRequest().permitAll();
                 })
                 .authenticationProvider(daoAuthenticationProvider())
-                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(securityProtectionFilter, ApiKeyAuthenticationFilter.class);
 
         return http.build();
     }

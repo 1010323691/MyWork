@@ -22,13 +22,16 @@
 
 - **网关配置 (gateway.*)**:
   - gateway.default-backend-url: 默认后端 URL
+  - gateway.concurrent.max-requests: 网关总并发上限，超出后排队等待
+  - gateway.apikey.max-concurrent-requests: 单 API Key 并发上限，超出后排队等待
   - gateway.forward.connect-timeout-seconds: 30
-  - gateway.forward.read-timeout-seconds: 300
-  - gateway.async.request-timeout-ms: 300000
+  - gateway.forward.read-timeout-seconds: 60
+  - gateway.async.request-timeout-ms: 180000
 
 - **安全配置 (app.security.*)**:
   - app.security.swagger-enabled: false
   - app.security.allowed-origin-patterns: CORS 允许源列表
+  - app.security.protection.*: 登录/注册/API 写操作的轻量防刷配置
 
 ### application-prod.yml
 **文件**: `src/main/resources/application-prod.yml`
@@ -79,6 +82,26 @@
   4. 如果验证失败：返回 401 Unauthorized
 - **跳过路径**: /api/auth/*, /actuator/*, /login, /register, 静态资源等
 
+### SecurityProtectionFilter
+**文件**: `SecurityProtectionFilter.java`
+- **职责**: 轻量防刷过滤器，优先拦截高频登录、注册和高成本写请求
+- **防护范围**:
+  - `POST /api/auth/login`: 按 IP 做分钟级限流
+  - `POST /api/auth/register`: 按 IP 做更严格限流
+  - `POST /api/llm/chat`、`POST /v1/chat/completions`: 按 API Key / 用户 / IP 限流
+  - 其他 `POST/PUT/PATCH/DELETE` 的 `/api/**`、`/v1/**`: 通用写操作限流
+- **返回**:
+  - 命中限流时返回 `429 Too Many Requests`
+  - 响应体包含 `retryAfterSeconds`
+
+### SecurityThrottleService
+**文件**: `SecurityThrottleService.java`
+- **职责**: 维护单机内存版限流窗口和登录失败锁定状态
+- **登录防爆破**:
+  - 同时按 `IP` 和 `username` 统计失败次数
+  - 达到阈值后在锁定窗口内拒绝登录
+  - 登录成功后清空对应失败计数和锁定
+
 ### WebMvcAsyncConfig
 **文件**: WebMvcAsyncConfig.java
 - **职责**: 异步请求配置
@@ -109,6 +132,7 @@ LlmGatewayApplication (@SpringBootApplication)
        +-> SecurityConfig (安全配置)
        |      |
        |      +-> ApiKeyAuthenticationFilter (API Key 过滤器)
+       |      +-> SecurityProtectionFilter (防刷过滤器)
        |      +-> CustomUserDetailsService (用户详情服务)
        |
        +-> WebMvcAsyncConfig (异步配置)

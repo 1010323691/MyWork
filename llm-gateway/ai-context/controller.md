@@ -10,6 +10,7 @@
 - `POST /api/auth/login` 用户登录
 - `POST /api/auth/register` 用户注册
 - `GET /api/auth/me` 获取当前登录用户
+- 登录接口已接入失败次数统计与临时锁定，防止密码爆破
 
 ### 2. 网关接口
 **文件**: `LlmController.java`

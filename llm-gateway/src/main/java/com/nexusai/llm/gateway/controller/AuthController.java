@@ -4,6 +4,8 @@ import com.nexusai.llm.gateway.dto.AuthRequest;
 import com.nexusai.llm.gateway.dto.RegisterRequest;
 import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.UserRepository;
+import com.nexusai.llm.gateway.security.ClientRequestUtils;
+import com.nexusai.llm.gateway.service.SecurityThrottleService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -34,20 +36,32 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final SecurityThrottleService securityThrottleService;
 
     @Autowired
     public AuthController(AuthenticationManager authenticationManager,
                           UserRepository userRepository,
-                          BCryptPasswordEncoder passwordEncoder) {
+                          BCryptPasswordEncoder passwordEncoder,
+                          SecurityThrottleService securityThrottleService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.securityThrottleService = securityThrottleService;
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request,
                                    HttpServletRequest httpRequest,
                                    HttpServletResponse httpResponse) {
+        String clientIp = ClientRequestUtils.resolveClientIp(httpRequest);
+        var loginDecision = securityThrottleService.checkLoginAllowed(clientIp, request.getUsername());
+        if (!loginDecision.allowed()) {
+            return ResponseEntity.status(429).body(Map.of(
+                    "error", "Too many failed login attempts. Try again later.",
+                    "retryAfterSeconds", loginDecision.retryAfterSeconds()
+            ));
+        }
+
         try {
             UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                     request.getUsername(), request.getPassword()
@@ -67,12 +81,14 @@ public class AuthController {
                     httpResponse
             );
 
+            securityThrottleService.resetLoginFailures(clientIp, request.getUsername());
             log.info("auth_login_success | userId={} | username={} | roles={}",
                     user.getId(),
                     sanitize(user.getUsername()),
                     user.getAuthorities());
             return ResponseEntity.ok(Map.of("message", "登录成功"));
         } catch (BadCredentialsException e) {
+            securityThrottleService.recordLoginFailure(clientIp, request.getUsername());
             return ResponseEntity.badRequest().body(Map.of("error", "用户名或密码错误"));
         }
     }

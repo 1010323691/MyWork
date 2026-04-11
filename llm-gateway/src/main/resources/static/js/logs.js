@@ -61,8 +61,14 @@
         document.getElementById('closeLogDetailBtn')?.addEventListener('click', closeModal);
         document.getElementById('confirmCloseLogDetailBtn')?.addEventListener('click', closeModal);
 
-        ['filterApiKey', 'filterStatus', 'filterPageSize', 'filterStartDate', 'filterEndDate'].forEach(function(id) {
+        ['filterApiKey', 'filterStatus', 'filterPageSize'].forEach(function(id) {
             document.getElementById(id)?.addEventListener('change', function() {
+                loadLogs(0);
+            });
+        });
+
+        ['filterStartDate', 'filterEndDate'].forEach(function(id) {
+            document.getElementById(id)?.addEventListener('datechange', function() {
                 loadLogs(0);
             });
         });
@@ -91,12 +97,19 @@
         try {
             const endpoint = '/apikeys';
             const keys = await API.get(endpoint) || [];
+            const options = [{ value: '', text: '全部 API Keys' }];
 
-            let options = '<option value="">全部 API Keys</option>';
             keys.forEach(function(key) {
-                options += '<option value="' + key.id + '">' + escapeHtml(key.name || ('Key #' + key.id)) + '</option>';
+                options.push({
+                    value: String(key.id),
+                    text: escapeHtml(key.name || ('Key #' + key.id))
+                });
             });
-            select.innerHTML = options;
+
+            const dropdown = window.getDropdownInstance ? window.getDropdownInstance(select) : null;
+            if (dropdown && typeof dropdown.setOptions === 'function') {
+                dropdown.setOptions(options);
+            }
         } catch (error) {
             console.error('加载 API Key 列表失败:', error);
             UI.showErrorMessage('加载 API Key 列表失败: ' + error.message);
@@ -105,7 +118,7 @@
 
     async function loadLogs(page) {
         currentPage = page || 0;
-        currentPageSize = Number(document.getElementById('filterPageSize')?.value || 20);
+        currentPageSize = Number(getDropdownValue('filterPageSize') || 20);
 
         const loading = document.getElementById('logsLoading');
         const container = document.getElementById('logsContainer');
@@ -131,13 +144,46 @@
         }
     }
 
+    function getDropdownValue(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) return null;
+
+        const dropdown = window.getDropdownInstance ? window.getDropdownInstance(element) : null;
+        if (dropdown && typeof dropdown.getValue === 'function') {
+            return dropdown.getValue();
+        }
+
+        if (element.value !== undefined) {
+            return element.value;
+        }
+
+        return null;
+    }
+
+    function setDropdownValue(elementId, value) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+
+        const dropdown = window.getDropdownInstance ? window.getDropdownInstance(element) : null;
+        if (dropdown && typeof dropdown.setValue === 'function') {
+            dropdown.setValue(value);
+            return;
+        }
+
+        if (element.value !== undefined) {
+            element.value = value;
+        }
+    }
+
     function buildQueryParams(page) {
         const params = new URLSearchParams();
-        const apiKeyId = document.getElementById('filterApiKey')?.value || '';
-        const status = document.getElementById('filterStatus')?.value || '';
-        const startDate = document.getElementById('filterStartDate')?.value || '';
-        const endDate = document.getElementById('filterEndDate')?.value || '';
+        const apiKeyId = getDropdownValue('filterApiKey') || '';
+        const status = getDropdownValue('filterStatus') || '';
+        const startDate = normalizeDateValue(document.getElementById('filterStartDate')?.value || '');
+        const endDate = normalizeDateValue(document.getElementById('filterEndDate')?.value || '');
         const userId = document.getElementById('filterUserId')?.value || '';
+
+        validateDateRange(startDate, endDate);
 
         params.set('page', String(page));
         params.set('size', String(currentPageSize));
@@ -148,6 +194,24 @@
         if (endDate) params.set('endDate', endDate);
 
         return params;
+    }
+
+    function normalizeDateValue(value) {
+        if (!value) return '';
+        return String(value).trim().replace(/\//g, '-');
+    }
+
+    function validateDateRange(startDate, endDate) {
+        if (!startDate || !endDate) {
+            return;
+        }
+
+        const start = new Date(startDate + 'T00:00:00');
+        const end = new Date(endDate + 'T00:00:00');
+
+        if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start > end) {
+            throw new Error('开始日期不能晚于结束日期');
+        }
     }
 
     function renderLogsTable(logs) {
@@ -255,12 +319,16 @@
         const outputTokens = numberOrZero(log.outputTokens);
 
         setText('detailTime', formatDateTime(log.createdAt));
+        setText('detailTimeMirror', formatDateTime(log.createdAt));
         setText('detailRequestId', stringValue(log.requestId));
         if (isAdmin) {
             setText('detailUserId', stringValue(log.userId));
+            setText('detailUserIdMirror', stringValue(log.userId));
         }
         setText('detailApiKey', stringValue(log.apiKeyName));
+        setText('detailApiKeyMirror', stringValue(log.apiKeyName));
         setText('detailModel', stringValue(log.modelName));
+        setText('detailModelMirror', stringValue(log.modelName));
         setText('detailInput', UI.formatNumber(inputTokens));
         setText('detailOutput', UI.formatNumber(outputTokens));
         setText('detailTotal', UI.formatNumber(inputTokens + outputTokens));
@@ -278,11 +346,11 @@
     }
 
     function resetFilters() {
-        setValue('filterApiKey', '');
-        setValue('filterStatus', '');
+        setDropdownValue('filterApiKey', '');
+        setDropdownValue('filterStatus', '');
         setValue('filterStartDate', '');
         setValue('filterEndDate', '');
-        setValue('filterPageSize', '20');
+        setDropdownValue('filterPageSize', '20');
         if (isAdmin) {
             setValue('filterUserId', '');
         }
@@ -363,9 +431,23 @@
 
     function setValue(id, value) {
         const element = document.getElementById(id);
-        if (element) {
-            element.value = value;
+        if (!element) return;
+
+        if (element.dataset.neonDatepicker) {
+            if (element._neonDatePicker && typeof element._neonDatePicker.setDate === 'function') {
+                if (value === '') {
+                    element._neonDatePicker.clear();
+                } else {
+                    const date = new Date(value);
+                    if (!isNaN(date.getTime())) {
+                        element._neonDatePicker.setDate(date);
+                    }
+                }
+                return;
+            }
         }
+
+        element.value = value;
     }
 
     function escapeHtml(text) {

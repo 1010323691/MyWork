@@ -23,11 +23,11 @@
                                 <div class="filter-row">
                                     <div class="filter-item" style="flex: 1; min-width: 150px; margin-right: 10px;">
                                         <label>用户 ID</label>
-                                        <input type="number" id="userIdSearch" placeholder="输入用户 ID" style="width: 100%; padding: 8px 12px; border: 1px solid rgba(232, 220, 196, 0.8); border-radius: 6px; background: rgba(255, 255, 255, 0.5);">
+                                        <input type="number" id="userIdSearch" placeholder="输入用户 ID">
                                     </div>
                                     <div class="filter-item" style="flex: 1; min-width: 200px; margin-right: 10px;">
                                         <label>搜索用户名</label>
-                                        <input type="text" id="usernameSearch" placeholder="输入用户名搜索..." style="width: 100%; padding: 8px 12px; border: 1px solid rgba(232, 220, 196, 0.8); border-radius: 6px; background: rgba(255, 255, 255, 0.5);">
+                                        <input type="text" id="usernameSearch" placeholder="输入用户名搜索...">
                                     </div>
                                     <div class="filter-item filter-btn">
                                         <button class="btn btn-primary" type="button" onclick="searchUsers()">搜索</button>
@@ -95,12 +95,12 @@
             </div>
             <div class="modal-body">
                 <p id="balanceAdjustUserInfo" style="margin: 0 0 12px; color: #f4efe6;"></p>
-                <div style="padding: 12px 14px; border-radius: 10px; background: rgba(0, 212, 255, 0.08); border: 1px solid rgba(0, 212, 255, 0.24); color: #d7f7ff; margin-bottom: 16px;">
+                <div style="padding: 12px 14px; border-radius: 10px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.24); color: #eaddff; margin-bottom: 16px;">
                     当前余额：<strong id="balanceAdjustCurrentValue">¥ 0.00</strong>
                 </div>
                 <label for="balanceAdjustAmount" style="display:block; margin-bottom:8px; color:#f4efe6;">调整金额</label>
-                <input id="balanceAdjustAmount" type="number" step="0.01" placeholder="正数为充值，负数为扣减" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(0, 212, 255, 0.28); background: rgba(7, 14, 32, 0.72); color: #f4efe6;">
-                <div style="margin-top:10px; color:#9fc7d8; font-size:13px;">
+                <input id="balanceAdjustAmount" type="number" step="0.01" placeholder="正数为充值，负数为扣减" class="form-control">
+                <div style="margin-top:10px; color:#d1b6ff; font-size:13px;">
                     示例：100 表示增加 100 元，-20.5 表示扣减 20.5 元。
                 </div>
             </div>

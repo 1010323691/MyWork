@@ -34,6 +34,22 @@
         }
     }
 
+    function getDropdownValue(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) return null;
+
+        const dropdown = window.getDropdownInstance ? window.getDropdownInstance(element) : null;
+        if (dropdown && typeof dropdown.getValue === 'function') {
+            return dropdown.getValue();
+        }
+
+        if (element.value !== undefined) {
+            return element.value;
+        }
+
+        return null;
+    }
+
     async function loadProviders() {
         try {
             const response = await fetch('/api/admin/providers', {
@@ -65,12 +81,6 @@
 
         tbody.innerHTML = providers.map(function(provider) {
             const failureCount = provider.failureCount || 0;
-            const circuitClass = failureCount >= 5 ? 'circuit-open'
-                : failureCount >= 3 ? 'circuit-warning'
-                : 'circuit-normal';
-            const circuitText = failureCount >= 5 ? '熔断'
-                : failureCount >= 3 ? '警告'
-                : '正常';
 
             return '<tr>' +
                 '<td>' + provider.id + '</td>' +
@@ -81,8 +91,8 @@
                 '<td>' + formatNumber(provider.sellPriceInput) + '</td>' +
                 '<td>' + formatNumber(provider.sellPriceOutput) + '</td>' +
                 '<td>' + failureCount + '</td>' +
-                '<td>' + (provider.enabled ? '启用' : '禁用') + '</td>' +
-                '<td><span class="circuit-badge ' + circuitClass + '">' + circuitText + '</span></td>' +
+                '<td>' + renderEnabledBadge(provider.enabled) + '</td>' +
+                '<td>' + renderCircuitBadge(failureCount) + '</td>' +
                 '<td>' +
                     '<button class="btn btn-sm" onclick="editProvider(' + provider.id + ')">编辑</button>' +
                     '<button class="btn btn-sm btn-danger" onclick="deleteProvider(' + provider.id + ')">删除</button>' +
@@ -97,6 +107,12 @@
         document.getElementById('providerId').value = '';
         document.getElementById('timeoutSeconds').value = 300;
         document.getElementById('enabled').checked = true;
+
+        const serviceTypeDropdown = window.getDropdownInstance ? window.getDropdownInstance(document.getElementById('serviceType')) : null;
+        if (serviceTypeDropdown && typeof serviceTypeDropdown.setValue === 'function') {
+            serviceTypeDropdown.setValue('OLLAMA');
+        }
+
         setToolsResult('');
         const modal = document.getElementById('providerModal');
         modal.classList.remove('d-none');
@@ -112,7 +128,12 @@
         document.getElementById('name').value = provider.name || '';
         document.getElementById('baseUrl').value = provider.baseUrl || '';
         document.getElementById('supportedModels').value = normalizeSupportedModelsForEditor(provider.supportedModels);
-        document.getElementById('serviceType').value = provider.serviceType || 'OLLAMA';
+
+        const serviceTypeDropdown = window.getDropdownInstance ? window.getDropdownInstance(document.getElementById('serviceType')) : null;
+        if (serviceTypeDropdown && typeof serviceTypeDropdown.setValue === 'function') {
+            serviceTypeDropdown.setValue(provider.serviceType || 'OLLAMA');
+        }
+
         document.getElementById('upstreamKey').value = '';
         document.getElementById('timeoutSeconds').value = provider.timeoutSeconds || 300;
         document.getElementById('buyPriceInput').value = provider.buyPriceInput ?? '';
@@ -258,7 +279,7 @@
             name: document.getElementById('name').value.trim(),
             baseUrl: document.getElementById('baseUrl').value.trim(),
             supportedModels: normalizeSupportedModelsForSubmit(document.getElementById('supportedModels').value),
-            serviceType: document.getElementById('serviceType').value,
+            serviceType: getDropdownValue('serviceType'),
             upstreamKey: document.getElementById('upstreamKey').value.trim(),
             timeoutSeconds: parseInt(document.getElementById('timeoutSeconds').value, 10) || 300,
             buyPriceInput: parseNullableNumber('buyPriceInput'),
@@ -292,6 +313,22 @@
             .map(function(item) { return item.trim(); })
             .filter(function(item) { return item.length > 0; })
             .join('\n');
+    }
+
+    function renderEnabledBadge(enabled) {
+        return enabled
+            ? '<span class="badge badge-success">启用</span>'
+            : '<span class="badge badge-danger">禁用</span>';
+    }
+
+    function renderCircuitBadge(failureCount) {
+        if (failureCount >= 5) {
+            return '<span class="badge badge-danger">熔断</span>';
+        }
+        if (failureCount >= 3) {
+            return '<span class="badge badge-warning">警告</span>';
+        }
+        return '<span class="badge badge-success">正常</span>';
     }
 
     function formatSupportedModels(value) {
@@ -370,5 +407,4 @@
     window.closeModal = closeModal;
     window.testConnectivity = testConnectivity;
     window.discoverModels = discoverModels;
-
 })();

@@ -57,6 +57,24 @@ app:
   security:
     swagger-enabled: ${APP_SECURITY_SWAGGER_ENABLED:false}
     allowed-origin-patterns: ${APP_SECURITY_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*,http://192.168.*:*,http://10.*:*,http://172.16.*:*,http://172.17.*:*,http://172.18.*:*,http://172.19.*:*,http://172.2*.*:*,http://172.30.*:*,http://172.31.*:*}
+    protection:
+      enabled: ${APP_SECURITY_PROTECTION_ENABLED:true}
+      login:
+        ip-max-requests: ${APP_SECURITY_PROTECTION_LOGIN_IP_MAX_REQUESTS:5}
+        ip-window-minutes: ${APP_SECURITY_PROTECTION_LOGIN_IP_WINDOW_MINUTES:1}
+        failure:
+          max-attempts: ${APP_SECURITY_PROTECTION_LOGIN_FAILURE_MAX_ATTEMPTS:5}
+          window-minutes: ${APP_SECURITY_PROTECTION_LOGIN_FAILURE_WINDOW_MINUTES:10}
+          lock-minutes: ${APP_SECURITY_PROTECTION_LOGIN_FAILURE_LOCK_MINUTES:15}
+      register:
+        ip-max-requests: ${APP_SECURITY_PROTECTION_REGISTER_IP_MAX_REQUESTS:2}
+        ip-window-minutes: ${APP_SECURITY_PROTECTION_REGISTER_IP_WINDOW_MINUTES:10}
+      write:
+        max-requests: ${APP_SECURITY_PROTECTION_WRITE_MAX_REQUESTS:60}
+        window-minutes: ${APP_SECURITY_PROTECTION_WRITE_WINDOW_MINUTES:1}
+      completion:
+        max-requests: ${APP_SECURITY_PROTECTION_COMPLETION_MAX_REQUESTS:30}
+        window-minutes: ${APP_SECURITY_PROTECTION_COMPLETION_WINDOW_MINUTES:1}
 
 management:
   endpoints:

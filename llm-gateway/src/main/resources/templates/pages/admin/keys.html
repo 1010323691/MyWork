@@ -32,17 +32,19 @@
                                 </div>
                                 <div class="filter-item" th:if="${currentUserRole == 'ADMIN'}" style="min-width: 220px;">
                                     <label>所属用户</label>
-                                    <select id="userFilter">
-                                        <option value="">全部用户</option>
-                                    </select>
+                                    <div id="userFilter" class="js-custom-dropdown"
+                                   data-placeholder="全部用户"
+                                   data-options='[{"value": "", "text": "全部用户"}]'
+                                   data-value="">
+                                    </div>
                                 </div>
                                 <div class="filter-item" th:if="${currentUserRole == 'ADMIN'}" style="min-width: 160px;">
                                     <label>状态</label>
-                                    <select id="statusFilter">
-                                        <option value="">全部状态</option>
-                                        <option value="enabled">启用</option>
-                                        <option value="disabled">禁用</option>
-                                    </select>
+                                    <div id="statusFilter" class="js-custom-dropdown"
+                                   data-placeholder="全部状态"
+                                   data-options='[{"value": "", "text": "全部状态"}, {"value": "enabled", "text": "启用"}, {"value": "disabled", "text": "禁用"}]'
+                                   data-value="">
+                                    </div>
                                 </div>
                                 <div class="filter-item filter-btn">
                                     <button class="btn btn-primary" th:if="${currentUserRole == 'ADMIN'}" type="button" onclick="applyFilters()">查询</button>
@@ -105,6 +107,7 @@
     </div>
 
     <script th:src="@{/js/common.js}"></script>
+    <script th:src="@{/js/custom-dropdown.js}"></script>
     <script th:src="@{/js/admin-keys.js}"></script>
 </body>
 </html>

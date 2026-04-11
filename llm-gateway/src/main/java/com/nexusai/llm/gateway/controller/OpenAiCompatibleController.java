@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.nexusai.llm.gateway.entity.ApiKey;
 import com.nexusai.llm.gateway.entity.BackendService;
 import com.nexusai.llm.gateway.entity.RequestLog;
+import com.nexusai.llm.gateway.service.ApiKeyConcurrencyGuard;
 import com.nexusai.llm.gateway.service.OpenAiForwardService;
 import com.nexusai.llm.gateway.service.RequestLogService;
 import com.nexusai.llm.gateway.service.RoutingConfigParser;
@@ -42,19 +43,22 @@ public class OpenAiCompatibleController {
     private final UpstreamProviderService upstreamProviderService;
     private final UserBillingService userBillingService;
     private final ObjectMapper objectMapper;
+    private final ApiKeyConcurrencyGuard apiKeyConcurrencyGuard;
 
     public OpenAiCompatibleController(OpenAiForwardService openAiForwardService,
                                       RequestLogService requestLogService,
                                       RoutingConfigParser routingConfigParser,
                                       UpstreamProviderService upstreamProviderService,
                                       UserBillingService userBillingService,
-                                      ObjectMapper objectMapper) {
+                                      ObjectMapper objectMapper,
+                                      ApiKeyConcurrencyGuard apiKeyConcurrencyGuard) {
         this.openAiForwardService = openAiForwardService;
         this.requestLogService = requestLogService;
         this.routingConfigParser = routingConfigParser;
         this.upstreamProviderService = upstreamProviderService;
         this.userBillingService = userBillingService;
         this.objectMapper = objectMapper;
+        this.apiKeyConcurrencyGuard = apiKeyConcurrencyGuard;
     }
 
     @PostMapping("/v1/chat/completions")
@@ -101,11 +105,12 @@ public class OpenAiCompatibleController {
             return jsonResponse(402, Map.of("error", Map.of("message", "Insufficient balance", "type", "insufficient_balance")));
         }
 
+        ApiKeyConcurrencyGuard.Permit permit = apiKeyConcurrencyGuard.acquire(key);
         if (stream) {
-            return handleStreamingRequest(key, userId, provider, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, estimatedInput, startMs);
+            return handleStreamingRequest(key, userId, provider, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, estimatedInput, startMs, permit);
         }
 
-        return handleNonStreamingRequest(key, userId, provider, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, estimatedInput, startMs);
+        return handleNonStreamingRequest(key, userId, provider, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, estimatedInput, startMs, permit);
     }
 
     @GetMapping("/v1/models")
@@ -151,48 +156,51 @@ public class OpenAiCompatibleController {
                                                                             String upstreamApiKey,
                                                                             JsonNode rewrittenRequest,
                                                                             long estimatedInput,
-                                                                            long startMs) {
-        OpenAiForwardService.ForwardedResponse response;
-        try {
-            response = openAiForwardService.forwardChatRequest(targetUrl, rewrittenRequest, upstreamApiKey);
-        } catch (Exception e) {
-            long latency = System.currentTimeMillis() - startMs;
+                                                                            long startMs,
+                                                                            ApiKeyConcurrencyGuard.Permit permit) {
+        try (permit) {
+            OpenAiForwardService.ForwardedResponse response;
+            try {
+                response = openAiForwardService.forwardChatRequest(targetUrl, rewrittenRequest, upstreamApiKey);
+            } catch (Exception e) {
+                long latency = System.currentTimeMillis() - startMs;
+                if (provider != null) {
+                    upstreamProviderService.recordFailure(provider.getId());
+                }
+                logger.error("OpenAI non-stream upstream failed: requestId={}, latencyMs={}, error={}",
+                        requestId, latency, e.getMessage(), e);
+                requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, 0L,
+                        resolvedModel, latency, BigDecimal.ZERO, RequestLog.RequestStatus.FAIL);
+                return jsonResponse(502, Map.of("error", Map.of("message", e.getMessage(), "type", "upstream_error")));
+            }
+
+            long latencyMs = System.currentTimeMillis() - startMs;
+            long outputTokens = openAiForwardService.estimateTokenUsage(openAiForwardService.extractResponseText(response.body()));
+            RequestLog.RequestStatus status = response.statusCode() >= 400 ? RequestLog.RequestStatus.FAIL : RequestLog.RequestStatus.SUCCESS;
+            BigDecimal actualCost = status == RequestLog.RequestStatus.SUCCESS
+                    ? userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens, requestId, resolvedModel)
+                    : BigDecimal.ZERO;
+
             if (provider != null) {
-                upstreamProviderService.recordFailure(provider.getId());
+                if (response.statusCode() >= 500) {
+                    upstreamProviderService.recordFailure(provider.getId());
+                } else {
+                    upstreamProviderService.recordSuccess(provider.getId());
+                }
             }
-            logger.error("OpenAI non-stream upstream failed: requestId={}, latencyMs={}, error={}",
-                    requestId, latency, e.getMessage(), e);
-            requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, 0L,
-                    resolvedModel, latency, BigDecimal.ZERO, RequestLog.RequestStatus.FAIL);
-            return jsonResponse(502, Map.of("error", Map.of("message", e.getMessage(), "type", "upstream_error")));
-        }
-
-        long latencyMs = System.currentTimeMillis() - startMs;
-        long outputTokens = openAiForwardService.estimateTokenUsage(openAiForwardService.extractResponseText(response.body()));
-        RequestLog.RequestStatus status = response.statusCode() >= 400 ? RequestLog.RequestStatus.FAIL : RequestLog.RequestStatus.SUCCESS;
-        BigDecimal actualCost = status == RequestLog.RequestStatus.SUCCESS
-                ? userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens, requestId, resolvedModel)
-                : BigDecimal.ZERO;
-
-        if (provider != null) {
-            if (response.statusCode() >= 500) {
-                upstreamProviderService.recordFailure(provider.getId());
-            } else {
-                upstreamProviderService.recordSuccess(provider.getId());
+            if (status == RequestLog.RequestStatus.SUCCESS) {
+                requestLogService.asyncRecordUsage(key.getId(), estimatedInput + outputTokens);
             }
-        }
-        if (status == RequestLog.RequestStatus.SUCCESS) {
-            requestLogService.asyncRecordUsage(key.getId(), estimatedInput + outputTokens);
-        }
-        requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, outputTokens,
-                resolvedModel, latencyMs, actualCost, status);
+            requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, outputTokens,
+                    resolvedModel, latencyMs, actualCost, status);
 
-        StreamingResponseBody responseBody = outputStream ->
-                outputStream.write(response.body().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StreamingResponseBody responseBody = outputStream ->
+                    outputStream.write(response.body().getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
-        return ResponseEntity.status(response.statusCode())
-                .contentType(parseMediaType(response.contentType(), MediaType.APPLICATION_JSON))
-                .body(responseBody);
+            return ResponseEntity.status(response.statusCode())
+                    .contentType(parseMediaType(response.contentType(), MediaType.APPLICATION_JSON))
+                    .body(responseBody);
+        }
     }
 
     private ResponseEntity<StreamingResponseBody> handleStreamingRequest(ApiKey key,
@@ -204,11 +212,13 @@ public class OpenAiCompatibleController {
                                                                          String upstreamApiKey,
                                                                          JsonNode rewrittenRequest,
                                                                          long estimatedInput,
-                                                                         long startMs) {
+                                                                         long startMs,
+                                                                         ApiKeyConcurrencyGuard.Permit permit) {
         OpenAiForwardService.PreparedStreamingResponse response;
         try {
             response = openAiForwardService.openStreamingChatRequest(targetUrl, rewrittenRequest, upstreamApiKey);
         } catch (Exception e) {
+            permit.close();
             long latency = System.currentTimeMillis() - startMs;
             if (provider != null) {
                 upstreamProviderService.recordFailure(provider.getId());
@@ -259,6 +269,7 @@ public class OpenAiCompatibleController {
                 }
                 requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, outputTokens,
                         resolvedModel, latencyMs, actualCost, finalStatus);
+                permit.close();
             }
         };
 

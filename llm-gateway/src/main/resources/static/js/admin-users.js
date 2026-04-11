@@ -87,11 +87,11 @@
 
         tbody.innerHTML = users.map(function(user) {
             const statusBadge = user.enabled
-                ? '<span class="badge-success">正常</span>'
-                : '<span class="badge-danger">已禁用</span>';
+                ? '<span class="badge badge-success">正常</span>'
+                : '<span class="badge badge-danger">已禁用</span>';
             const roleBadge = user.userRole === 'ADMIN'
-                ? '<span class="badge-secondary">ADMIN</span>'
-                : '<span class="badge-default">USER</span>';
+                ? '<span class="badge badge-secondary">ADMIN</span>'
+                : '<span class="badge badge-default">USER</span>';
             const escapedUsername = escapeJsString(user.username);
             const escapedEmail = escapeJsString(user.email || '');
 

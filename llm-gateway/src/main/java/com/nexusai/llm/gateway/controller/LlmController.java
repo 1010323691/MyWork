@@ -5,6 +5,7 @@ import com.nexusai.llm.gateway.dto.ChatRequest;
 import com.nexusai.llm.gateway.entity.ApiKey;
 import com.nexusai.llm.gateway.entity.BackendService;
 import com.nexusai.llm.gateway.entity.RequestLog;
+import com.nexusai.llm.gateway.service.ApiKeyConcurrencyGuard;
 import com.nexusai.llm.gateway.service.LlmForwardService;
 import com.nexusai.llm.gateway.service.RequestLogService;
 import com.nexusai.llm.gateway.service.RoutingConfigParser;
@@ -32,18 +33,21 @@ public class LlmController {
     private final RoutingConfigParser routingConfigParser;
     private final UpstreamProviderService upstreamProviderService;
     private final UserBillingService userBillingService;
+    private final ApiKeyConcurrencyGuard apiKeyConcurrencyGuard;
 
     @Autowired
     public LlmController(LlmForwardService llmForwardService,
                          RequestLogService requestLogService,
                          RoutingConfigParser routingConfigParser,
                          UpstreamProviderService upstreamProviderService,
-                         UserBillingService userBillingService) {
+                         UserBillingService userBillingService,
+                         ApiKeyConcurrencyGuard apiKeyConcurrencyGuard) {
         this.llmForwardService = llmForwardService;
         this.requestLogService = requestLogService;
         this.routingConfigParser = routingConfigParser;
         this.upstreamProviderService = upstreamProviderService;
         this.userBillingService = userBillingService;
+        this.apiKeyConcurrencyGuard = apiKeyConcurrencyGuard;
     }
 
     @PostMapping({"/api/llm/chat", "/api/chat"})
@@ -82,35 +86,37 @@ public class LlmController {
             return ResponseEntity.status(502).body("{\"error\": \"No backend target configured\"}");
         }
 
-        long startMs = System.currentTimeMillis();
-        String response;
-        RequestLog.RequestStatus status = RequestLog.RequestStatus.SUCCESS;
-        try {
-            response = llmForwardService.forwardChatRequest(targetUrl, resolvedModel, messagesStr);
-            if (provider != null) {
-                upstreamProviderService.recordSuccess(provider.getId());
+        try (ApiKeyConcurrencyGuard.Permit ignored = apiKeyConcurrencyGuard.acquire(key)) {
+            long startMs = System.currentTimeMillis();
+            String response;
+            RequestLog.RequestStatus status = RequestLog.RequestStatus.SUCCESS;
+            try {
+                response = llmForwardService.forwardChatRequest(targetUrl, resolvedModel, messagesStr);
+                if (provider != null) {
+                    upstreamProviderService.recordSuccess(provider.getId());
+                }
+            } catch (Exception e) {
+                status = RequestLog.RequestStatus.FAIL;
+                long latency = System.currentTimeMillis() - startMs;
+                if (provider != null) {
+                    upstreamProviderService.recordFailure(provider.getId());
+                }
+                requestLogService.asyncLogRequest(key.getId(), userId, null, estimatedInput, 0L,
+                        resolvedModel, latency, BigDecimal.ZERO, status);
+                return ResponseEntity.status(502).body("{\"error\": \"Upstream request failed\"}");
             }
-        } catch (Exception e) {
-            status = RequestLog.RequestStatus.FAIL;
-            long latency = System.currentTimeMillis() - startMs;
-            if (provider != null) {
-                upstreamProviderService.recordFailure(provider.getId());
-            }
-            requestLogService.asyncLogRequest(key.getId(), userId, null, estimatedInput, 0L,
-                    resolvedModel, latency, BigDecimal.ZERO, status);
-            return ResponseEntity.status(502).body("{\"error\": \"Upstream request failed\"}");
+            long latencyMs = System.currentTimeMillis() - startMs;
+
+            long outputTokens = llmForwardService.estimateTokenUsage(response);
+            long totalTokens = estimatedInput + outputTokens;
+            BigDecimal actualCost = userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens, null, resolvedModel);
+
+            requestLogService.asyncRecordUsage(key.getId(), totalTokens);
+            requestLogService.asyncLogRequest(key.getId(), userId, null, estimatedInput, outputTokens,
+                    resolvedModel, latencyMs, actualCost, status);
+
+            return ResponseEntity.ok(response);
         }
-        long latencyMs = System.currentTimeMillis() - startMs;
-
-        long outputTokens = llmForwardService.estimateTokenUsage(response);
-        long totalTokens = estimatedInput + outputTokens;
-        BigDecimal actualCost = userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens, null, resolvedModel);
-
-        requestLogService.asyncRecordUsage(key.getId(), totalTokens);
-        requestLogService.asyncLogRequest(key.getId(), userId, null, estimatedInput, outputTokens,
-                resolvedModel, latencyMs, actualCost, status);
-
-        return ResponseEntity.ok(response);
     }
 
     @GetMapping({"/api/llm/models", "/api/models"})

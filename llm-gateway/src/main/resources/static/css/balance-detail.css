@@ -176,19 +176,29 @@
 .balance-request-preview {
     width: 100%;
     border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-primary);
+    border: 1px solid rgba(168, 85, 247, 0.25);  /* 紫色边框 */
+    background: rgba(10, 14, 39, 0.85);         /* 深紫背景 */
+    color: #e8ecf1;                              /* 亮白文字 */
     padding: 14px 16px;
     box-sizing: border-box;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    transition: all 0.25s ease;
+}
+
+.balance-amount-input:hover,
+.balance-request-preview:hover {
+    background: rgba(15, 20, 60, 0.95);
+    border-color: rgba(168, 85, 247, 0.45);
 }
 
 .balance-amount-input:focus,
 .balance-request-preview:focus {
     outline: none;
-    border-color: rgba(240, 183, 90, 0.55);
-    box-shadow: 0 0 0 4px rgba(240, 183, 90, 0.1);
+    background: rgba(10, 14, 39, 0.95);
+    border-color: rgba(168, 85, 247, 0.85);
+    box-shadow:
+        0 0 0 4px rgba(168, 85, 247, 0.12),
+        0 0 0 8px rgba(168, 85, 247, 0.06),
+        0 0 20px rgba(168, 85, 247, 0.15);
 }
 
 .balance-action-card__buttons {

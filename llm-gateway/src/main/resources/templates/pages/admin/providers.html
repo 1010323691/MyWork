@@ -85,10 +85,11 @@
 
                     <div class="form-group">
                         <label for="serviceType">服务类型</label>
-                        <select id="serviceType">
-                            <option value="OLLAMA">Ollama</option>
-                            <option value="VLLM">vLLM</option>
-                        </select>
+                        <div id="serviceType" class="js-custom-dropdown"
+                             data-placeholder="请选择服务类型"
+                             data-options='[{"value": "OLLAMA", "text": "Ollama"}, {"value": "VLLM", "text": "vLLM"}]'
+                             data-value="OLLAMA">
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -140,6 +141,7 @@
     </div>
 
     <script th:src="@{/js/common.js}"></script>
+    <script th:src="@{/js/custom-dropdown.js}"></script>
     <script th:src="@{/js/admin-providers.js}"></script>
 </body>
 </html>

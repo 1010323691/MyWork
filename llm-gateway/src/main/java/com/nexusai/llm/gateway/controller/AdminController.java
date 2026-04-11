@@ -51,15 +51,11 @@ public class AdminController {
     public ResponseEntity<Page<AdminUserResponse>> listUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String username) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<User> users;
-        if (username != null && !username.isBlank()) {
-            users = userRepository.findByUsernameContainingIgnoreCase(username, pageable);
-        } else {
-            users = userRepository.findAll(pageable);
-        }
+        Page<User> users = userRepository.searchUsers(userId, username, pageable);
 
         return ResponseEntity.ok(users.map(this::toUserResponse));
     }
@@ -77,10 +73,14 @@ public class AdminController {
     @DeleteMapping("/users/{id}")
     @Transactional
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        if (!userRepository.existsById(id)) {
+        User user = userRepository.findById(id)
+                .orElse(null);
+        if (user == null) {
             return ResponseEntity.notFound().build();
         }
-        userRepository.deleteById(id);
+
+        requestLogRepository.deleteByUserId(id);
+        userRepository.delete(user);
         return ResponseEntity.noContent().build();
     }
 

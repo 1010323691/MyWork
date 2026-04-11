@@ -1,20 +1,21 @@
 /**
  * LLM Gateway - Admin Users Page
- * Session/Cookie 认证模式
+ * Session/Cookie authentication mode
  */
 (function() {
     'use strict';
 
-    let currentSearch = '';
+    let currentUserId = '';
+    let currentUsername = '';
     let currentPage = 0;
-    let roleChartInstance = null;
-    let registerTrendInstance = null;
+    let dangerModalResolver = null;
 
     document.addEventListener('DOMContentLoaded', async function() {
         if (!(await API.isAuthenticated())) {
             window.location.href = '/login';
             return;
         }
+
         const user = await API.getCurrentUser();
         if (!user || user.role !== 'ADMIN') {
             window.location.href = '/dashboard';
@@ -22,13 +23,15 @@
         }
 
         initSidebarUserInfo(user);
-        loadUsers(0, '');
-        initCharts();
+        bindSearchEvents();
+        bindDangerModalEvents();
+        loadUsers(0, null, '');
     });
 
     function initSidebarUserInfo(user) {
         const usernameEl = document.getElementById('sidebarUsername');
         const avatarEl = document.getElementById('sidebarUserAvatar');
+
         if (user && usernameEl) {
             usernameEl.textContent = user.username;
         }
@@ -37,24 +40,34 @@
         }
     }
 
-    async function loadUsers(page, username) {
+    async function loadUsers(page, userId, username) {
         currentPage = page;
         const loading = document.getElementById('usersLoading');
         const container = document.getElementById('usersContainer');
+
         if (loading) loading.classList.remove('d-none');
         if (container) container.classList.add('d-none');
 
-        const params = 'page=' + page + '&size=20';
-        if (username) params += '&username=' + encodeURIComponent(username);
+        const params = new URLSearchParams({
+            page: String(page),
+            size: '20'
+        });
+
+        if (userId) params.set('userId', String(userId));
+        if (username) params.set('username', username);
 
         try {
-            const data = await API.get('/admin/users?' + params);
+            const data = await API.get('/admin/users?' + params.toString());
             renderTable(data.content || []);
-            renderPagination(data.number || 0, data.totalPages || 0, data.totalElements || 0, username);
+            renderPagination(
+                data.number || 0,
+                data.totalPages || 0,
+                data.totalElements || 0
+            );
             if (container) container.classList.remove('d-none');
-        } catch (e) {
-            console.error('加载用户失败', e);
-            UI.showErrorMessage('加载失败：' + e.message);
+        } catch (error) {
+            console.error('Failed to load users', error);
+            UI.showErrorMessage('加载用户失败：' + error.message);
         } finally {
             if (loading) loading.classList.add('d-none');
         }
@@ -69,179 +82,213 @@
             return;
         }
 
-        tbody.innerHTML = users.map(function(u) {
-            const statusBadge = u.enabled
+        tbody.innerHTML = users.map(function(user) {
+            const statusBadge = user.enabled
                 ? '<span class="badge-success">正常</span>'
                 : '<span class="badge-danger">已禁用</span>';
-            const roleBadge = u.userRole === 'ADMIN'
+            const roleBadge = user.userRole === 'ADMIN'
                 ? '<span class="badge-secondary">ADMIN</span>'
                 : '<span class="badge-default">USER</span>';
-            const createdAt = u.createdAt ? new Date(u.createdAt).toLocaleString('zh-CN') : '-';
+            const createdAt = user.createdAt
+                ? new Date(user.createdAt).toLocaleString('zh-CN')
+                : '-';
+            const toggleText = user.enabled ? '禁用' : '启用';
+            const toggleClass = user.enabled ? 'btn-warning' : 'btn-success';
+            const escapedUsername = escapeJsString(user.username);
+
             return '<tr>' +
-                '<td>' + u.id + '</td>' +
-                '<td>' + escapeHtml(u.username) + '</td>' +
-                '<td>' + escapeHtml(u.email || '-') + '</td>' +
+                '<td>' + user.id + '</td>' +
+                '<td>' + escapeHtml(user.username) + '</td>' +
+                '<td>' + escapeHtml(user.email || '-') + '</td>' +
                 '<td>' + roleBadge + '</td>' +
                 '<td>' + createdAt + '</td>' +
-                '<td>' + (u.apiKeyCount || 0) + '</td>' +
+                '<td>' + (user.apiKeyCount || 0) + '</td>' +
+                '<td>' + statusBadge + '</td>' +
                 '<td>' +
-                    '<button class="btn btn-sm btn-success" style="margin-right:6px;" onclick="toggleUser(' + u.id + ', ' + u.enabled + ')">' +
-                        (u.enabled ? '禁用' : '启用') +
+                    '<button class="btn btn-sm ' + toggleClass + '" type="button" style="margin-right:6px;" onclick="toggleUser(' + user.id + ', ' + user.enabled + ', \'' + escapedUsername + '\')">' +
+                        toggleText +
                     '</button>' +
-                    '<button class="btn btn-sm btn-danger" onclick="deleteUser(' + u.id + ')">删除</button>' +
+                    '<button class="btn btn-sm btn-danger" type="button" onclick="deleteUser(' + user.id + ', \'' + escapedUsername + '\')">删除</button>' +
                 '</td>' +
                 '</tr>';
         }).join('');
     }
 
-    function renderPagination(page, total, totalElements, username) {
+    function renderPagination(page, totalPages, totalElements) {
         const el = document.getElementById('usersPagination');
         if (!el) return;
 
-        if (total <= 1) {
+        if (totalPages <= 1) {
             el.innerHTML = '<span class="page-info">共 ' + totalElements + ' 条</span>';
             return;
         }
+
         el.innerHTML =
             '<button ' + (page === 0 ? 'disabled' : '') + ' onclick="goPage(' + (page - 1) + ')">上一页</button>' +
-            '<span class="page-info">第 ' + (page + 1) + ' / ' + total + ' 页，共 ' + totalElements + ' 条</span>' +
-            '<button ' + (page >= total - 1 ? 'disabled' : '') + ' onclick="goPage(' + (page + 1) + ')">下一页</button>';
+            '<span class="page-info">第 ' + (page + 1) + ' / ' + totalPages + ' 页，共 ' + totalElements + ' 条</span>' +
+            '<button ' + (page >= totalPages - 1 ? 'disabled' : '') + ' onclick="goPage(' + (page + 1) + ')">下一页</button>';
+    }
+
+    function bindSearchEvents() {
+        ['userIdSearch', 'usernameSearch'].forEach(function(id) {
+            const input = document.getElementById(id);
+            if (!input) return;
+
+            input.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    window.searchUsers();
+                }
+            });
+        });
+    }
+
+    function bindDangerModalEvents() {
+        const modal = document.getElementById('dangerActionModal');
+        if (!modal) return;
+
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeDangerModal(false);
+            }
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && modal.classList.contains('show')) {
+                closeDangerModal(false);
+            }
+        });
+    }
+
+    function openDangerModal(options) {
+        const modal = document.getElementById('dangerActionModal');
+        if (!modal) {
+            return Promise.resolve(window.confirm(options.message || '确认继续此操作吗？'));
+        }
+
+        document.getElementById('dangerActionTitle').textContent = options.title || '高危操作确认';
+        document.getElementById('dangerActionMessage').textContent = options.message || '';
+        document.getElementById('dangerActionHint').textContent = options.hint || '此操作执行后将立即生效，请再次确认。';
+
+        const confirmButton = document.getElementById('dangerActionConfirmBtn');
+        confirmButton.textContent = options.confirmText || '确认';
+        confirmButton.className = 'btn btn-danger';
+
+        modal.classList.add('show');
+        modal.style.display = 'flex';
+
+        return new Promise(function(resolve) {
+            dangerModalResolver = resolve;
+        });
+    }
+
+    function closeDangerModal(confirmed) {
+        const modal = document.getElementById('dangerActionModal');
+        if (modal) {
+            modal.classList.remove('show');
+            modal.style.display = 'none';
+        }
+
+        if (dangerModalResolver) {
+            const resolve = dangerModalResolver;
+            dangerModalResolver = null;
+            resolve(Boolean(confirmed));
+        }
     }
 
     function escapeHtml(text) {
-        if (!text) return '';
+        if (text === null || text === undefined) return '';
         const div = document.createElement('div');
         div.textContent = String(text);
         return div.innerHTML;
     }
 
+    function escapeJsString(text) {
+        return String(text || '')
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, '\\\'')
+            .replace(/\r/g, '\\r')
+            .replace(/\n/g, '\\n');
+    }
+
     window.searchUsers = function() {
-        currentSearch = document.getElementById('usernameSearch').value.trim();
-        loadUsers(0, currentSearch);
+        currentUserId = document.getElementById('userIdSearch').value.trim();
+        currentUsername = document.getElementById('usernameSearch').value.trim();
+
+        if (currentUserId && !/^\d+$/.test(currentUserId)) {
+            UI.showErrorMessage('用户 ID 必须为数字');
+            return;
+        }
+
+        loadUsers(0, currentUserId || null, currentUsername);
     };
 
     window.resetSearch = function() {
+        document.getElementById('userIdSearch').value = '';
         document.getElementById('usernameSearch').value = '';
-        currentSearch = '';
-        loadUsers(0, '');
+        currentUserId = '';
+        currentUsername = '';
+        loadUsers(0, null, '');
     };
 
     window.goPage = function(page) {
-        loadUsers(page, currentSearch);
+        loadUsers(page, currentUserId || null, currentUsername);
     };
 
-    window.toggleUser = async function(id, currentEnabled) {
+    window.toggleUser = async function(id, currentEnabled, username) {
+        const actionText = currentEnabled ? '禁用' : '启用';
+
+        if (currentEnabled) {
+            const confirmed = await openDangerModal({
+                title: '确认禁用用户',
+                message: '即将禁用用户 “' + username + '” (ID: ' + id + ')。',
+                hint: '禁用后该用户将无法继续调用系统功能，你可以稍后重新启用。',
+                confirmText: '确认禁用'
+            });
+            if (!confirmed) return;
+        }
+
         try {
             await API.put('/admin/users/' + id + '/toggle');
-            UI.showSuccessMessage('操作成功');
-            loadUsers(currentPage, currentSearch);
-        } catch (e) {
-            UI.showErrorMessage('操作失败：' + e.message);
+            UI.showSuccessMessage(actionText + '成功');
+            loadUsers(currentPage, currentUserId || null, currentUsername);
+        } catch (error) {
+            UI.showErrorMessage(actionText + '失败：' + error.message);
         }
     };
 
-    window.deleteUser = async function(id) {
-        if (!confirm('确定要删除该用户吗？此操作将同时删除其所有 API Key，不可恢复。')) return;
+    window.deleteUser = async function(id, username) {
+        const confirmed = await openDangerModal({
+            title: '确认删除用户',
+            message: '即将删除用户 “' + username + '” (ID: ' + id + ')。',
+            hint: '删除后将同时清理该用户关联的 API Key 和请求日志，且无法恢复。',
+            confirmText: '确认删除'
+        });
+        if (!confirmed) return;
+
         try {
             await API.delete('/admin/users/' + id);
             UI.showSuccessMessage('删除成功');
-            loadUsers(currentPage, currentSearch);
-        } catch (e) {
-            UI.showErrorMessage('删除失败：' + e.message);
+
+            const currentRows = document.querySelectorAll('#usersTableBody tr').length;
+            const nextPage = currentPage > 0 && currentRows === 1 ? currentPage - 1 : currentPage;
+            loadUsers(nextPage, currentUserId || null, currentUsername);
+        } catch (error) {
+            UI.showErrorMessage('删除失败：' + error.message);
         }
     };
 
-    // ===============================
-    // 初始化图表 - 用户角色分布 + 注册趋势
-    // ===============================
-    function initCharts() {
-        initRoleDistributionChart();
-        initRegisterTrendChart();
-    }
+    window.confirmDangerAction = function() {
+        closeDangerModal(true);
+    };
 
-    function initRoleDistributionChart() {
-        const chartDom = document.getElementById('roleDistributionChart');
-        if (!chartDom) return;
-
-        roleChartInstance = echarts.init(chartDom, 'tech');
-
-        // 模拟数据 - 后端需返回真实统计
-        const roleData = [
-            { value: 85, name: 'USER', itemStyle: { color: '#00d4ff' } },
-            { value: 15, name: 'ADMIN', itemStyle: { color: '#a855f7' } }
-        ];
-
-        const option = {
-            title: { text: '用户角色分布', left: 'center', textStyle: { color: '#e8ecf1' } },
-            tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
-            legend: { top: 'bottom', textStyle: { color: '#a0aec0' } },
-            series: [{
-                type: 'pie',
-                radius: ['40%', '70%'],
-                center: ['50%', '55%'],
-                avoidLabelOverlap: false,
-                itemStyle: {
-                    borderRadius: 8,
-                    borderColor: '#151942',
-                    borderWidth: 3
-                },
-                label: { show: false },
-                emphasis: {
-                    label: { show: true, fontSize: '16', fontWeight: 'bold' }
-                },
-                data: roleData
-            }]
-        };
-
-        roleChartInstance.setOption(option);
-
-        window.addEventListener('resize', function() {
-            roleChartInstance.resize();
-        });
-    }
-
-    function initRegisterTrendChart() {
-        const chartDom = document.getElementById('registerTrendChart');
-        if (!chartDom) return;
-
-        registerTrendInstance = echarts.init(chartDom, 'tech');
-
-        // 模拟数据 - 后端需返回近 7 日注册趋势
-        const days = ['前 7 天', '前 6 天', '前 5 天', '前 4 天', '前 3 天', '前 2 天', '今天'];
-        const values = [3, 5, 2, 8, 4, 6, 9];
-
-        const baseOption = {
-            title: { text: '近 7 日用户注册趋势', left: 'center' },
-            tooltip: { trigger: 'axis' },
-            xAxis: { type: 'category', data: days },
-            yAxis: { type: 'value', name: '用户数' },
-            series: [{
-                name: '新用户',
-                type: 'line',
-                data: values,
-                smooth: true
-            }]
-        };
-
-        const option = window.TechChartTheme?.createLineChart ?
-            window.TechChartTheme.createLineChart(baseOption) : baseOption;
-
-        registerTrendInstance.setOption(option);
-
-        window.addEventListener('resize', function() {
-            registerTrendInstance.resize();
-        });
-    }
+    window.cancelDangerAction = function() {
+        closeDangerModal(false);
+    };
 
     window.logout = function() {
         fetch('/logout', { method: 'POST', credentials: 'same-origin' })
             .then(() => window.location.href = '/login')
             .catch(() => window.location.href = '/login');
     };
-
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', function() {
-        if (roleChartInstance) roleChartInstance.dispose();
-        if (registerTrendInstance) registerTrendInstance.dispose();
-    });
 })();

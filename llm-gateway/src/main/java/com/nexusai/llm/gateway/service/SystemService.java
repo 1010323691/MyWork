@@ -8,6 +8,7 @@ import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.GraphicsCard;
 import oshi.hardware.HardwareAbstractionLayer;
+import oshi.util.GlobalConfig;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -39,6 +40,14 @@ public class SystemService {
     private static final Logger logger = LoggerFactory.getLogger(SystemService.class);
     private static final Pattern LINUX_CARD_PATTERN = Pattern.compile("card(\\d+)");
     private static final long REFRESH_INTERVAL_MS = 1000L;
+    private static final long CPU_WARMUP_SAMPLE_MS = 500L;
+
+    static {
+        if (isWindowsOs()) {
+            // Match the CPU percentage shown by Windows Task Manager more closely.
+            GlobalConfig.set(GlobalConfig.OSHI_OS_WINDOWS_CPU_UTILITY, true);
+        }
+    }
 
     private final SystemInfo systemInfo = new SystemInfo();
     private final HardwareAbstractionLayer hal = systemInfo.getHardware();
@@ -47,7 +56,7 @@ public class SystemService {
         thread.setDaemon(true);
         return thread;
     });
-    private volatile long[] previousCpuTicks = hal.getProcessor().getSystemCpuLoadTicks();
+    private volatile long[] previousCpuTicks;
     private volatile SystemResourceData cachedResources;
 
     @PostConstruct
@@ -90,14 +99,15 @@ public class SystemService {
     private synchronized Double getCpuUsage() {
         try {
             CentralProcessor processor = hal.getProcessor();
-            long[] currentTicks = processor.getSystemCpuLoadTicks();
-            double load = processor.getSystemCpuLoadBetweenTicks(previousCpuTicks) * 100.0;
-            previousCpuTicks = currentTicks;
-
-            if (Double.isNaN(load) || Double.isInfinite(load) || load < 0) {
-                return null;
+            if (previousCpuTicks == null || previousCpuTicks.length == 0) {
+                double initialLoad = processor.getSystemCpuLoad(CPU_WARMUP_SAMPLE_MS) * 100.0;
+                previousCpuTicks = processor.getSystemCpuLoadTicks();
+                return sanitizePercent(initialLoad);
             }
-            return round1(Math.min(load, 100.0));
+
+            double load = processor.getSystemCpuLoadBetweenTicks(previousCpuTicks) * 100.0;
+            previousCpuTicks = processor.getSystemCpuLoadTicks();
+            return sanitizePercent(load);
         } catch (Exception e) {
             logger.warn("Failed to read CPU usage", e);
             return null;
@@ -211,17 +221,37 @@ public class SystemService {
         String script = String.join("\n",
                 "$ErrorActionPreference = 'SilentlyContinue'",
                 "$engine = @{}",
+                "$engineTotals = @{}",
                 "$adapter = @{}",
                 "function Get-LuidKey([string]$name) {",
                 "  if ($name -match '(luid_0x[0-9a-fA-F]+_0x[0-9a-fA-F]+)') { return $matches[1].ToLower() }",
                 "  return $null",
                 "}",
+                "function Get-EngineKey([string]$name) {",
+                "  $luid = Get-LuidKey $name",
+                "  if (-not $luid) { return $null }",
+                "  $phys = if ($name -match '(phys_\\d+)') { $matches[1].ToLower() } else { 'phys_0' }",
+                "  $engine = if ($name -match '(eng_\\d+)') { $matches[1].ToLower() } else { 'eng_unknown' }",
+                "  $engineType = if ($name -match '(engtype_[a-zA-Z0-9]+)') { $matches[1].ToLower() } else { 'engtype_unknown' }",
+                "  return \"$luid|$phys|$engine|$engineType\"",
+                "}",
                 "Get-CimInstance -Namespace root\\cimv2 -ClassName Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine | ForEach-Object {",
                 "  $key = Get-LuidKey $_.Name",
-                "  if ($key) {",
+                "  $engineKey = Get-EngineKey $_.Name",
+                "  if ($key -and $engineKey) {",
                 "    $value = [double]$_.UtilizationPercentage",
-                "    if (-not $engine.ContainsKey($key) -or $value -gt $engine[$key]) { $engine[$key] = $value }",
+                "    if ($engineTotals.ContainsKey($engineKey)) {",
+                "      $engineTotals[$engineKey] += $value",
+                "    } else {",
+                "      $engineTotals[$engineKey] = $value",
+                "    }",
                 "  }",
+                "}",
+                "$engineTotals.GetEnumerator() | ForEach-Object {",
+                "  $parts = $_.Key -split '\\|', 2",
+                "  $key = $parts[0]",
+                "  $value = [math]::Min([double]$_.Value, 100.0)",
+                "  if (-not $engine.ContainsKey($key) -or $value -gt $engine[$key]) { $engine[$key] = $value }",
                 "}",
                 "Get-CimInstance -Namespace root\\cimv2 -ClassName Win32_PerfFormattedData_GPUPerformanceCounters_GPUAdapterMemory | ForEach-Object {",
                 "  $key = Get-LuidKey $_.Name",
@@ -639,6 +669,17 @@ public class SystemService {
 
     private Double round1(double value) {
         return Math.round(value * 10.0) / 10.0;
+    }
+
+    private Double sanitizePercent(double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value) || value < 0) {
+            return null;
+        }
+        return round1(Math.min(value, 100.0));
+    }
+
+    private static boolean isWindowsOs() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
     }
 
     @lombok.Data

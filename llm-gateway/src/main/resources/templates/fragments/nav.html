@@ -68,32 +68,7 @@
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                 </svg>
             </span>
-            <span>用户与用量</span>
-        </a>
-
-        <a href="/admin/pricing" class="nav-item admin-only"
-           th:if="${currentUserRole == 'ADMIN'}"
-           th:classappend="${currentPage == 'admin/pricing'} ? 'active'"
-           aria-current="${currentPage == 'admin/pricing'} ? 'page' : null">
-            <span class="nav-icon svg-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-                    <line x1="1" y1="10" x2="23" y2="10"/>
-                </svg>
-            </span>
-            <span>计费与财务</span>
-        </a>
-
-        <a href="/admin/security" class="nav-item admin-only"
-           th:if="${currentUserRole == 'ADMIN'}"
-           th:classappend="${currentPage == 'admin/security'} ? 'active'"
-           aria-current="${currentPage == 'admin/security'} ? 'page' : null">
-            <span class="nav-icon svg-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
-            </span>
-            <span>风控与安全</span>
+            <span>用户管理</span>
         </a>
 
         <a href="/admin/providers" class="nav-item admin-only"
@@ -108,7 +83,7 @@
                     <line x1="6" y1="18" x2="6.01" y2="18"/>
                 </svg>
             </span>
-            <span>系统与模型</span>
+            <span>上游供应商</span>
         </a>
     </nav>
 </th:block>

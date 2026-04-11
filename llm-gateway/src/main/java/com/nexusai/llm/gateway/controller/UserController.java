@@ -4,53 +4,40 @@ import com.nexusai.llm.gateway.dto.DailyTokenStat;
 import com.nexusai.llm.gateway.dto.RequestLogResponse;
 import com.nexusai.llm.gateway.dto.UserStatsResponse;
 import com.nexusai.llm.gateway.entity.ApiKey;
-import com.nexusai.llm.gateway.entity.RequestLog;
 import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.ApiKeyRepository;
 import com.nexusai.llm.gateway.repository.RequestLogRepository;
-import jakarta.persistence.criteria.Predicate;
+import com.nexusai.llm.gateway.service.LogQueryService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/user")
 public class UserController {
 
+    private final LogQueryService logQueryService;
     private final RequestLogRepository requestLogRepository;
     private final ApiKeyRepository apiKeyRepository;
 
-    public UserController(RequestLogRepository requestLogRepository, ApiKeyRepository apiKeyRepository) {
+    public UserController(LogQueryService logQueryService,
+                          RequestLogRepository requestLogRepository,
+                          ApiKeyRepository apiKeyRepository) {
+        this.logQueryService = logQueryService;
         this.requestLogRepository = requestLogRepository;
         this.apiKeyRepository = apiKeyRepository;
-    }
-
-    private Long getCurrentUserId(HttpServletRequest request, Authentication authentication) {
-        ApiKey apiKey = (ApiKey) request.getAttribute("apiKey");
-        if (apiKey != null) {
-            return apiKey.getUser().getId();
-        }
-
-        if (authentication != null && authentication.getPrincipal() instanceof User) {
-            return ((User) authentication.getPrincipal()).getId();
-        }
-
-        return null;
     }
 
     @GetMapping("/logs")
@@ -70,47 +57,9 @@ public class UserController {
         if (userId == null) {
             return ResponseEntity.status(401).build();
         }
-        if (filterUserId != null && !userId.equals(filterUserId)) {
-            return ResponseEntity.status(403).build();
-        }
-        if (apiKeyId != null && !apiKeyRepository.existsByIdAndUser_Id(apiKeyId, userId)) {
-            return ResponseEntity.status(403).build();
-        }
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-
-        Specification<RequestLog> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("apiKey").get("user").get("id"), userId));
-
-            if (filterUserId != null) {
-                predicates.add(cb.equal(root.get("userId"), filterUserId));
-            }
-            if (apiKeyId != null) {
-                predicates.add(cb.equal(root.get("apiKey").get("id"), apiKeyId));
-            }
-            if (startDate != null && !startDate.isBlank()) {
-                LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
-                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), start));
-            }
-            if (endDate != null && !endDate.isBlank()) {
-                LocalDateTime end = LocalDate.parse(endDate).plusDays(1).atStartOfDay();
-                predicates.add(cb.lessThan(root.get("createdAt"), end));
-            }
-            if (status != null && !status.isBlank()) {
-                try {
-                    RequestLog.RequestStatus s = RequestLog.RequestStatus.valueOf(status.toUpperCase());
-                    predicates.add(cb.equal(root.get("status"), s));
-                } catch (IllegalArgumentException ignored) {
-                }
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        Page<RequestLogResponse> result = requestLogRepository.findAll(spec, pageable)
-                .map(this::toResponse);
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(logQueryService.getUserLogs(
+                userId, page, size, filterUserId, apiKeyId, startDate, endDate, status));
     }
 
     @GetMapping("/logs/{id}")
@@ -125,39 +74,7 @@ public class UserController {
             return ResponseEntity.status(401).build();
         }
 
-        RequestLog log = requestLogRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Log not found: " + id));
-
-        if (!log.getApiKey().getUser().getId().equals(userId)) {
-            return ResponseEntity.status(403).build();
-        }
-
-        return ResponseEntity.ok(toResponse(log));
-    }
-
-    @GetMapping("/apikeys")
-    @Transactional(readOnly = true)
-    public ResponseEntity<List<Map<String, Object>>> listMyApiKeys(
-            HttpServletRequest request,
-            Authentication authentication) {
-        Long userId = getCurrentUserId(request, authentication);
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
-
-        List<ApiKey> apiKeys = apiKeyRepository.findByUserId(userId);
-        List<Map<String, Object>> response = apiKeys.stream().map(key -> {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", key.getId());
-            map.put("name", key.getName());
-            map.put("usedTokens", key.getUsedTokens());
-            map.put("enabled", key.getEnabled());
-            map.put("expiresAt", key.getExpiresAt());
-            map.put("createdAt", key.getCreatedAt());
-            return map;
-        }).collect(Collectors.toList());
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(logQueryService.getUserLogDetail(userId, id));
     }
 
     @GetMapping("/stats")
@@ -203,20 +120,16 @@ public class UserController {
         return ResponseEntity.ok(stats);
     }
 
-    private RequestLogResponse toResponse(RequestLog log) {
-        return RequestLogResponse.builder()
-                .id(log.getId())
-                .requestId(log.getRequestId())
-                .userId(log.getUserId())
-                .apiKeyId(log.getApiKey().getId())
-                .apiKeyName(log.getApiKey().getName())
-                .inputTokens(log.getInputTokens())
-                .outputTokens(log.getOutputTokens())
-                .modelName(log.getModelName())
-                .latencyMs(log.getLatencyMs())
-                .costAmount(log.getCostAmount())
-                .status(log.getStatus() != null ? log.getStatus().name() : null)
-                .createdAt(log.getCreatedAt())
-                .build();
+    private Long getCurrentUserId(HttpServletRequest request, Authentication authentication) {
+        ApiKey apiKey = (ApiKey) request.getAttribute("apiKey");
+        if (apiKey != null) {
+            return apiKey.getUser().getId();
+        }
+
+        if (authentication != null && authentication.getPrincipal() instanceof User) {
+            return ((User) authentication.getPrincipal()).getId();
+        }
+
+        return null;
     }
 }

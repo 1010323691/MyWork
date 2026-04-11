@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LLM Gateway - Admin Monitor Page
  */
 (function() {
@@ -7,8 +7,12 @@
     const charts = {};
     const chartSeriesHistory = {};
     const MAX_DATA_POINTS = 60;
-    let refreshTimer = null;
+    const MONITOR_REFRESH_INTERVAL = 1000;
+    const SUMMARY_REFRESH_INTERVAL = 30000;
+    let monitorRefreshTimer = null;
+    let summaryRefreshTimer = null;
     let renderedGpuKeys = [];
+    let resizeTimeout = null;
 
     document.addEventListener('DOMContentLoaded', async function() {
         if (!(await API.isAuthenticated())) {
@@ -23,61 +27,81 @@
             return;
         }
 
+        initSidebarUserInfo(user);
         initCharts();
-        await loadMonitorData();
-        refreshTimer = setInterval(loadMonitorData, 1000);
+
+        await Promise.all([
+            loadMonitorData(),
+            loadSummaryData()
+        ]);
+
+        monitorRefreshTimer = setInterval(loadMonitorData, MONITOR_REFRESH_INTERVAL);
+        summaryRefreshTimer = setInterval(loadSummaryData, SUMMARY_REFRESH_INTERVAL);
     });
 
+    function initSidebarUserInfo(user) {
+        setText('sidebarUsername', user.username || '-');
+        setText('sidebarUserAvatar', (user.username || 'U').substring(0, 1).toUpperCase());
+    }
+
     function initCharts() {
-        const realtimeData = getMockRealtimeData();
+        setText('currentQps', '0');
+        setText('tokenRate', '0');
+        setText('concurrentRequests', '0');
+        setText('avgResponseTime', '0 ms');
 
-        setText('currentQps', realtimeData.failRequests);
-        setText('tokenRate', realtimeData.totalTokens.toLocaleString());
-        setText('concurrentRequests', realtimeData.totalApiKeys);
-        setText('avgResponseTime', realtimeData.avgLatency + 'ms');
-
-        initChart('modelDistributionPieChart', {
-            title: { text: '模型请求占比', left: 'center', textStyle: { color: '#e8ecf1' } },
-            tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-            series: [{
-                type: 'pie',
-                radius: ['40%', '75%'],
-                center: ['50%', '52%'],
-                data: realtimeData.models.distribution,
-                itemStyle: { borderRadius: 6, borderColor: '#151942', borderWidth: 3 },
-                label: { show: true, position: 'outside', color: '#a0aec0', formatter: '{b}\n{d}%' }
-            }]
-        });
-
-        initChart('modelTokenUsageChart', {
-            title: { text: '模型 Token 消耗', left: 'left', textStyle: { color: '#e8ecf1' } },
-            tooltip: { trigger: 'axis' },
-            xAxis: { type: 'category', data: realtimeData.models.tokenUsage.map(item => item.name), axisLabel: { color: '#a0aec0' } },
-            yAxis: { type: 'value', name: 'Tokens', axisLabel: { color: '#a0aec0' }, splitLine: { lineStyle: { color: '#2d3748' } } },
-            series: [{ type: 'bar', data: realtimeData.models.tokenUsage, itemStyle: { color: '#fbbf24', borderRadius: [4, 4, 0, 0] } }]
-        });
-
-        initChart('modelLatencyChart', {
-            title: { text: '模型延迟', left: 'left', textStyle: { color: '#e8ecf1' } },
-            tooltip: { trigger: 'axis', formatter: '{b}: {c}ms' },
-            xAxis: { type: 'category', data: realtimeData.models.latency.map(item => item.name), axisLabel: { color: '#a0aec0' } },
-            yAxis: { type: 'value', name: 'ms', axisLabel: { color: '#a0aec0' }, splitLine: { lineStyle: { color: '#2d3748' } } },
-            series: [{ type: 'bar', data: realtimeData.models.latency, itemStyle: { color: '#ec4899', borderRadius: [4, 4, 0, 0] } }]
-        });
-
-        initLineChart('cpuUsageChart', 'CPU (%)', '#00d4ff');
-        initLineChart('memoryUsageChart', 'Memory (%)', '#10b981');
+        initChart('modelDistributionPieChart', buildDonutChartOption([], '暂无模型请求数据'));
+        initChart('modelTokenUsageChart', buildBarChartOption([], [], 'Tokens', '#fbbf24', '暂无模型 Token 数据'));
+        initChart('modelLatencyChart', buildBarChartOption([], [], 'ms', '#ec4899', '暂无模型延迟数据'));
+        initLineChart('cpuUsageChart', 'CPU 使用率 (%)', '#00d4ff');
+        initLineChart('memoryUsageChart', '内存使用率 (%)', '#10b981');
     }
 
     async function loadMonitorData() {
         try {
             const data = await API.get('/admin/monitor');
-            updateKpiCards(data);
-            updateSystemResourceCharts(data);
+            updateKpiCards(data || {});
+            updateSystemResourceCharts(data || {});
         } catch (error) {
             console.error('Failed to load monitor data', error);
-            updateWithMockData();
         }
+    }
+
+    async function loadSummaryData() {
+        try {
+            const summary = await API.get('/dashboard/summary');
+            updateModelCharts(summary && Array.isArray(summary.modelMetrics) ? summary.modelMetrics : []);
+        } catch (error) {
+            console.error('Failed to load dashboard summary', error);
+        }
+    }
+
+    function updateKpiCards(data) {
+        setText('avgResponseTime', formatLatency(data.avgLatencyMs));
+        setText('tokenRate', formatNumber(data.totalTokens));
+        setText('currentQps', formatNumber(data.failRequests));
+        setText('concurrentRequests', formatNumber(data.totalApiKeys));
+    }
+
+    function updateModelCharts(modelMetrics) {
+        const metrics = (Array.isArray(modelMetrics) ? modelMetrics : []).map(item => ({
+            name: item && item.name ? item.name : 'Unknown',
+            requests: Number(item && item.requests ? item.requests : 0),
+            tokens: Number(item && item.tokens ? item.tokens : 0),
+            avgLatencyMs: Number(item && item.avgLatencyMs ? item.avgLatencyMs : 0)
+        }));
+
+        const distributionData = metrics
+            .filter(item => item.requests > 0)
+            .map(item => ({ name: item.name, value: item.requests }));
+
+        const names = metrics.map(item => item.name);
+        const tokenValues = metrics.map(item => item.tokens);
+        const latencyValues = metrics.map(item => item.avgLatencyMs);
+
+        initChart('modelDistributionPieChart', buildDonutChartOption(distributionData, '暂无模型请求数据'));
+        initChart('modelTokenUsageChart', buildBarChartOption(names, tokenValues, 'Tokens', '#fbbf24', '暂无模型 Token 数据'));
+        initChart('modelLatencyChart', buildBarChartOption(names, latencyValues, 'ms', '#ec4899', '暂无模型延迟数据'));
     }
 
     function updateSystemResourceCharts(data) {
@@ -166,7 +190,7 @@
         const gpuKeys = gpus.map(getGpuKey);
         removeStaleGpuRows(gpuKeys);
 
-        gpus.forEach((gpu) => {
+        gpus.forEach(gpu => {
             const gpuKey = getGpuKey(gpu);
             const utilId = `gpu-${gpuKey}-util`;
             const memId = `gpu-${gpuKey}-mem`;
@@ -269,7 +293,7 @@
 
     function initLineChart(domId, label, color) {
         const dom = document.getElementById(domId);
-        if (!dom) {
+        if (!dom || !window.echarts) {
             return;
         }
 
@@ -282,7 +306,7 @@
 
     function initCompactLineChart(domId, label, color) {
         const dom = document.getElementById(domId);
-        if (!dom) {
+        if (!dom || !window.echarts) {
             return;
         }
 
@@ -332,6 +356,82 @@
         };
     }
 
+    function buildDonutChartOption(data, emptyText) {
+        return {
+            tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '75%'],
+                center: ['50%', '52%'],
+                data: data,
+                itemStyle: { borderRadius: 6, borderColor: '#151942', borderWidth: 3 },
+                label: {
+                    show: data.length > 0,
+                    position: 'outside',
+                    color: '#a0aec0',
+                    formatter: '{b}\n{d}%'
+                }
+            }],
+            graphic: buildEmptyGraphic(data.length === 0, emptyText)
+        };
+    }
+
+    function buildBarChartOption(names, values, yAxisName, color, emptyText) {
+        const hasData = Array.isArray(names) && names.length > 0;
+
+        return {
+            tooltip: {
+                trigger: 'axis',
+                formatter: function(params) {
+                    if (!params || !params.length) {
+                        return '';
+                    }
+                    const point = params[0];
+                    return `${point.name}: ${formatNumber(point.value)} ${yAxisName}`;
+                }
+            },
+            grid: { left: '3%', right: '4%', bottom: '3%', top: '8%', containLabel: true },
+            xAxis: {
+                type: 'category',
+                data: hasData ? names : [],
+                axisLabel: {
+                    color: '#a0aec0',
+                    interval: 0,
+                    rotate: hasData && names.length > 4 ? 20 : 0
+                }
+            },
+            yAxis: {
+                type: 'value',
+                name: yAxisName,
+                axisLabel: { color: '#a0aec0' },
+                splitLine: { lineStyle: { color: '#2d3748' } }
+            },
+            series: [{
+                type: 'bar',
+                data: hasData ? values : [],
+                itemStyle: { color: color, borderRadius: [4, 4, 0, 0] }
+            }],
+            graphic: buildEmptyGraphic(!hasData, emptyText)
+        };
+    }
+
+    function buildEmptyGraphic(show, text) {
+        if (!show) {
+            return [];
+        }
+        return [{
+            type: 'text',
+            left: 'center',
+            top: 'middle',
+            silent: true,
+            style: {
+                text: text,
+                fill: '#8b98aa',
+                fontSize: 14
+            }
+        }];
+    }
+
     function updateLineChart(domId, value) {
         const chart = charts[domId];
         if (!chart || !isNumber(value)) {
@@ -341,7 +441,7 @@
         const history = chartSeriesHistory[domId] || (chartSeriesHistory[domId] = []);
         if (history.length === 0) {
             const seed = round1(value);
-            for (let i = MAX_DATA_POINTS - 1; i >= 0; i--) {
+            for (let i = MAX_DATA_POINTS - 1; i >= 0; i -= 1) {
                 history.push([Date.now() - i * 1000, seed]);
             }
         } else {
@@ -356,31 +456,9 @@
         });
     }
 
-    function updateKpiCards(data) {
-        const avgLatency = getRealtimeValue(data, 'avgLatencyMs', () => randomRange(200, 300));
-        const totalTokens = getRealtimeValue(data, 'totalTokens', () => 0);
-        const failRequests = getRealtimeValue(data, 'failRequests', () => 0);
-        const totalApiKeys = getRealtimeValue(data, 'totalApiKeys', () => 0);
-
-        setText('avgResponseTime', Math.round(avgLatency) + 'ms');
-        setText('tokenRate', Number(totalTokens).toLocaleString());
-        setText('currentQps', failRequests);
-        setText('concurrentRequests', totalApiKeys);
-
-    }
-
-    function getRealtimeValue(data, field, fallback) {
-        const value = data ? data[field] : null;
-        return value !== null && value !== undefined ? value : fallback();
-    }
-
-    function updateWithMockData() {
-        setText('avgResponseTime', Math.round(randomRange(200, 300)) + 'ms');
-    }
-
     function initChart(domId, option) {
         const dom = document.getElementById(domId);
-        if (!dom) {
+        if (!dom || !window.echarts) {
             return;
         }
 
@@ -396,12 +474,13 @@
             charts[domId].dispose();
             delete charts[domId];
         }
+        delete chartSeriesHistory[domId];
     }
 
     function scheduleChartsResize(delay) {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
-            Object.values(charts).forEach((chart) => {
+            Object.values(charts).forEach(chart => {
                 if (chart && typeof chart.resize === 'function') {
                     chart.resize();
                 }
@@ -411,12 +490,14 @@
 
     function normalizeGpus(gpus) {
         return (Array.isArray(gpus) ? gpus : [])
-            .map((gpu) => {
+            .map(gpu => {
                 const memoryTotalMb = toNumber(gpu.memoryTotalMb);
                 const memoryUsedMb = toNumber(gpu.memoryUsedMb);
                 const memoryUsagePercent = isNumber(gpu.memoryUsagePercent)
                     ? round1(gpu.memoryUsagePercent)
-                    : (memoryTotalMb > 0 && isNumber(memoryUsedMb) ? round1((memoryUsedMb / memoryTotalMb) * 100) : null);
+                    : (memoryTotalMb > 0 && isNumber(memoryUsedMb)
+                        ? round1(memoryUsedMb / memoryTotalMb * 100)
+                        : null);
 
                 return {
                     index: gpu.index,
@@ -445,51 +526,6 @@
         return parts.join(' | ');
     }
 
-    function getMockRealtimeData() {
-        return {
-            failRequests: 0,
-            totalTokens: 0,
-            totalApiKeys: 0,
-            avgLatency: Math.round(randomRange(150, 350)),
-            models: {
-                distribution: [
-                    { name: 'Qwen-7B', value: 450 },
-                    { name: 'Qwen-13B', value: 320 },
-                    { name: 'Qwen-70B', value: 180 }
-                ],
-                tokenUsage: [
-                    { name: 'Qwen-7B', value: 1234567 },
-                    { name: 'Qwen-13B', value: 890123 },
-                    { name: 'Qwen-70B', value: 456789 }
-                ],
-                latency: [
-                    { name: 'Qwen-7B', value: 120 },
-                    { name: 'Qwen-13B', value: 280 },
-                    { name: 'Qwen-70B', value: 650 }
-                ]
-            }
-        };
-    }
-
-    function buildRecentSeriesData(values, endTime) {
-        const safeValues = Array.isArray(values) ? values : [];
-        const resolvedEndTime = isNumber(endTime) ? endTime : Date.now();
-        return safeValues.map((value, index) => {
-            const timestamp = resolvedEndTime - (safeValues.length - 1 - index) * 1000;
-            return [timestamp, round1(value)];
-        });
-    }
-
-    function formatTimestamp(timestamp) {
-        const date = new Date(timestamp);
-        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
-    }
-
-    function formatTooltipTimestamp(timestamp) {
-        const date = new Date(timestamp);
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${formatTimestamp(timestamp)}`;
-    }
-
     function buildTimeSeriesTooltipFormatter(label, color, suffix) {
         return function(params) {
             if (!params || !params.length) {
@@ -500,8 +536,24 @@
             const value = Array.isArray(point.data) ? point.data[1] : point.value;
             const timestamp = Array.isArray(point.data) ? point.data[0] : point.axisValue;
             const displayValue = isNumber(value) ? round1(value) + (suffix || '') : '-';
-            return formatTooltipTimestamp(timestamp) + '<br/><span style="display:inline-block;width:10px;height:10px;background-color:' + color + ';"></span> ' + label + ': ' + displayValue;
+            return formatTooltipTimestamp(timestamp) +
+                '<br/><span style="display:inline-block;width:10px;height:10px;background-color:' + color + ';"></span> ' +
+                label + ': ' + displayValue;
         };
+    }
+
+    function formatTooltipTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ` +
+            `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+    }
+
+    function formatNumber(value) {
+        return UI.formatNumber(Number(value || 0));
+    }
+
+    function formatLatency(value) {
+        return Math.round(Number(value || 0)) + ' ms';
     }
 
     function setText(id, value) {
@@ -516,10 +568,6 @@
         const g = parseInt(hex.slice(3, 5), 16);
         const b = parseInt(hex.slice(5, 7), 16);
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-
-    function randomRange(min, max) {
-        return Math.random() * (max - min) + min;
     }
 
     function round1(value) {
@@ -538,14 +586,23 @@
         return Number.isFinite(result) ? result : null;
     }
 
+    window.logout = function() {
+        fetch('/logout', { method: 'POST', credentials: 'same-origin' })
+            .then(() => window.location.href = '/login')
+            .catch(() => window.location.href = '/login');
+    };
+
     window.addEventListener('beforeunload', function() {
-        if (refreshTimer) {
-            clearInterval(refreshTimer);
+        if (monitorRefreshTimer) {
+            clearInterval(monitorRefreshTimer);
         }
+        if (summaryRefreshTimer) {
+            clearInterval(summaryRefreshTimer);
+        }
+        clearTimeout(resizeTimeout);
         Object.keys(charts).forEach(disposeChart);
     });
 
-    let resizeTimeout = null;
     window.addEventListener('resize', function() {
         scheduleChartsResize();
     });

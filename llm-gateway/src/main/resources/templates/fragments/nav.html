@@ -30,6 +30,18 @@
             <span>实时监控</span>
         </a>
 
+
+        <a href="/apikeys" class="nav-item"
+           th:classappend="${currentPage == 'apikeys'} ? 'active'"
+           aria-current="${currentPage == 'apikeys'} ? 'page' : null">
+            <span class="nav-icon svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3 5l1 1"/>
+                </svg>
+            </span>
+            <span>API Key</span>
+        </a>
+
         <a href="/logs" class="nav-item"
            th:classappend="${currentPage == 'logs'} ? 'active'"
            aria-current="${currentPage == 'logs'} ? 'page' : null">
@@ -43,15 +55,18 @@
             <span>请求日志</span>
         </a>
 
-        <a href="/apikeys" class="nav-item"
-           th:classappend="${currentPage == 'apikeys'} ? 'active'"
-           aria-current="${currentPage == 'apikeys'} ? 'page' : null">
+        <a href="/user/balance" class="nav-item"
+           th:if="${currentUserRole == 'USER'}"
+           th:classappend="${currentPage == 'user/balance'} ? 'active'"
+           aria-current="${currentPage == 'user/balance'} ? 'page' : null">
             <span class="nav-icon svg-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3 5l1 1"/>
+                    <rect x="2" y="5" width="20" height="14" rx="2"/>
+                    <path d="M16 12h.01"/>
+                    <path d="M2 10h20"/>
                 </svg>
             </span>
-            <span>API Key</span>
+            <span>余额明细</span>
         </a>
 
         <div class="nav-section-label" th:if="${currentUserRole == 'ADMIN'}">管理与配置</div>

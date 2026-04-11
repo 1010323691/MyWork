@@ -10,7 +10,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Map;
 
@@ -20,7 +19,6 @@ public class LlmForwardService {
     private static final Logger logger = LoggerFactory.getLogger(LlmForwardService.class);
 
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient;
     private final WebClient webClient;
     private final Duration readTimeout;
 
@@ -30,29 +28,22 @@ public class LlmForwardService {
                              @Value("${gateway.forward.read-timeout-seconds:300}") long readTimeoutSeconds,
                              @Value("${gateway.forward.max-in-memory-size-bytes:16777216}") int maxInMemorySizeBytes) {
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(connectTimeoutSeconds))
-                .build();
         this.readTimeout = Duration.ofSeconds(readTimeoutSeconds);
         this.webClient = WebClient.builder()
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(maxInMemorySizeBytes))
                 .build();
     }
 
-    public String forwardChatRequest(String backendUrl, String model, String messages, boolean stream) {
+    public String forwardChatRequest(String backendUrl, String model, String messages) {
         String apiUrl = buildChatApiUrl(backendUrl);
 
         Map<String, Object> requestBody = Map.of(
                 "model", model,
                 "messages", parseMessages(messages),
-                "stream", stream
+                "stream", false
         );
 
-        if (stream) {
-            return forwardStreaming(apiUrl, requestBody);
-        } else {
-            return forwardNonStreaming(apiUrl, requestBody);
-        }
+        return forwardNonStreaming(apiUrl, requestBody);
     }
 
     private String buildChatApiUrl(String backendUrl) {
@@ -94,47 +85,6 @@ public class LlmForwardService {
         } catch (Exception e) {
             logger.error("Forward request failed: {}", e.getMessage());
             throw new RuntimeException("Backend service error: " + e.getMessage());
-        }
-    }
-
-    public String forwardStreaming(String url, Map<String, Object> body) {
-        StringBuilder result = new StringBuilder();
-        result.append("{\"stream\": true, \"data\": \"");
-
-        try {
-            webClient.post()
-                    .uri(url)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToFlux(String.class)
-                    .timeout(readTimeout)
-                    .subscribe(
-                            data -> {
-                                if (data != null && !data.isBlank()) {
-                                    String escaped = data.replace("\"", "\\\"").replace("\n", "\\n");
-                                    synchronized (result) {
-                                        if (result.length() > "{\"stream\": true, \"data\": \"".length()) {
-                                            result.append("\\\";\"");
-                                        }
-                                        result.append(escaped);
-                                    }
-                                }
-                            },
-                            error -> logger.error("Stream error: {}", error.getMessage()),
-                            () -> {
-                                synchronized (result) {
-                                    if (result.length() > "{\"stream\": true, \"data\": \"".length()) {
-                                        result.append("\\\"}\"");
-                                    }
-                                }
-                            }
-                    );
-
-            return result.toString();
-        } catch (Exception e) {
-            logger.error("Forward streaming request failed: {}", e.getMessage());
-            return "{\"error\": \"Backend service error: " + e.getMessage() + "\"}";
         }
     }
 

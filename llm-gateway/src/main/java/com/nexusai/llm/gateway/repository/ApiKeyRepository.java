@@ -19,16 +19,10 @@ public interface ApiKeyRepository extends JpaRepository<ApiKey, Long> {
     Optional<ApiKey> findByApiKeyValue(String apiKeyValue);
 
     @EntityGraph(attributePaths = {"user"})
-    List<ApiKey> findByUserId(Long userId);
-
-    @EntityGraph(attributePaths = {"user"})
     List<ApiKey> findAllByOrderByCreatedAtDesc();
 
     @EntityGraph(attributePaths = {"user"})
     List<ApiKey> findByUserIdOrderByCreatedAtDesc(Long userId);
-
-    @EntityGraph(attributePaths = {"user"})
-    List<ApiKey> findByEnabled(Boolean enabled);
 
     @EntityGraph(attributePaths = {"user"})
     Optional<ApiKey> findWithUserById(Long id);

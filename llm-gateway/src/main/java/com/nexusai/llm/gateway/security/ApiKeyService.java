@@ -15,9 +15,10 @@ import java.util.Optional;
 @Service
 public class ApiKeyService {
 
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     private final ApiKeyRepository apiKeyRepository;
     private final UserRepository userRepository;
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     @Autowired
     public ApiKeyService(ApiKeyRepository apiKeyRepository, UserRepository userRepository) {
@@ -26,10 +27,6 @@ public class ApiKeyService {
     }
 
     public Optional<ApiKey> findByKey(String apiKeyValue) {
-        return apiKeyRepository.findByApiKeyValue(apiKeyValue);
-    }
-
-    public Optional<ApiKey> findByKeyNoCache(String apiKeyValue) {
         return apiKeyRepository.findByApiKeyValue(apiKeyValue);
     }
 
@@ -54,10 +51,5 @@ public class ApiKeyService {
         byte[] randomBytes = new byte[32];
         RANDOM.nextBytes(randomBytes);
         return "nkey_" + Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
-    }
-
-    @Transactional
-    public void recordUsage(ApiKey apiKey, long tokensUsed) {
-        apiKey.useTokens(tokensUsed);
     }
 }

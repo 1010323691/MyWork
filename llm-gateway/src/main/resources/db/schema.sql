@@ -72,3 +72,20 @@ CREATE TABLE IF NOT EXISTS `request_logs` (
     INDEX `idx_request_log_request_id` (`request_id`),
     CONSTRAINT `fk_request_logs_api_key` FOREIGN KEY (`api_key_id`) REFERENCES `api_keys` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `balance_transactions` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT NOT NULL,
+    `transaction_type` VARCHAR(20) NOT NULL,
+    `amount` DECIMAL(18,8) NOT NULL,
+    `balance_before` DECIMAL(18,8) NOT NULL,
+    `balance_after` DECIMAL(18,8) NOT NULL,
+    `title` VARCHAR(120) NOT NULL,
+    `detail` VARCHAR(255) NULL,
+    `reference_id` VARCHAR(80) NULL,
+    `created_by` VARCHAR(80) NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_balance_transactions_user_id` (`user_id`),
+    INDEX `idx_balance_transactions_created_at` (`created_at`),
+    CONSTRAINT `fk_balance_transactions_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

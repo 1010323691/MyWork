@@ -89,7 +89,7 @@
         if (!select) return;
 
         try {
-            const endpoint = isAdmin ? '/admin/apikeys' : '/user/apikeys';
+            const endpoint = '/apikeys';
             const keys = await API.get(endpoint) || [];
 
             let options = '<option value="">全部 API Keys</option>';

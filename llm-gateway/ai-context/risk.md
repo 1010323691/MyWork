@@ -2,40 +2,47 @@
 
 ## 高风险区域
 
-### 1. 用户余额预检与结算
+### 1. 余额预检与实际结算存在时间差
 **文件**: `UserBillingService.java`, `UserBalanceService.java`
-- 风险: 预检基于估算输入 Token，实际输出过高时可能导致结算阶段余额不足
-- 建议: 后续可引入预冻结余额或更保守的预估策略
+- 风险：预检基于输入 Token 估算，实际输出过高时，结算阶段仍可能出现余额不足
+- 当前保护：结算时实际扣费，余额扣减有乐观锁重试
+- 建议：如果后续账务要求更严格，可以考虑引入预占额度或更保守的估算策略
 
 ### 2. 并发扣费
-**文件**: `UserBalanceService.java`, `RequestQueueService.java`
-- 风险: 同一用户并发请求可能同时通过预检
-- 当前保护: `User` 上有 `@Version`，扣款有重试
-- 建议: 如并发较高，可把主扣费流程接入 `RequestQueueService`
+**文件**: `UserBalanceService.java`
+- 风险：同一用户并发请求时，多个请求可能先后通过余额预检
+- 当前保护：`User` 使用 `@Version`，扣费逻辑带有限次重试
+- 现状：`RequestQueueService` 已删除，当前方案完全依赖数据库乐观锁
 
-### 3. 日志与账单一致性
+### 3. 账务与日志异步写入并非同事务
 **文件**: `RequestLogService.java`
-- 风险: 账单已扣但异步日志失败，或日志成功但结算失败
-- 建议: 后续增加对账任务与失败补偿
+- 风险：扣费成功但异步日志失败，或者日志成功而上游结算失败时，可能出现对账偏差
+- 建议：后续如要做财务核对，应补一层补偿任务或对账任务
 
 ## 中风险区域
 
 ### 4. Token 估算偏差
 **文件**: `LlmForwardService.java`, `OpenAiForwardService.java`
-- 风险: 预估 Token 与模型真实 tokenizer 偏差较大
-- 建议: 接入更精确 tokenizer，或增加安全系数
+- 风险：当前不是严格 tokenizer 计数，不同模型下可能和真实 token 有偏差
+- 建议：如果计费精度要求继续提高，可引入模型级 tokenizer 或安全系数
 
-### 5. 上游供应商价格缺失
+### 5. 上游价格缺失
 **文件**: `BackendService.java`, `UpstreamProviderService.java`
-- 风险: 未匹配到供应商或卖价未配置时，当前费用可能为 0
-- 建议: 后台对价格配置做必填校验，或在未配置价格时拒绝转发
+- 风险：当上游卖价未配置时，费用可能为 0 或与预期不符
+- 建议：后台对价格配置做必填校验，或在缺失价格时拒绝转发
 
-### 6. API Key 明文存储
+### 6. 熔断恢复依赖真实流量
+**文件**: `UpstreamProviderService.java`, `LlmController.java`, `OpenAiCompatibleController.java`
+- 风险：熔断状态现在已接入主链路，但恢复成功依赖后续真实请求触发 `recordSuccess()`
+- 建议：如果需要更稳定的恢复策略，可以考虑增加主动健康检查
+
+### 7. API Key 明文存储
 **文件**: `ApiKeyService.java`, `ApiKeyAuthenticationFilter.java`
-- 风险: Key 泄露后可直接调用接口
-- 建议: 后续改为哈希存储并补充速率限制
+- 风险：数据库泄漏后可直接用明文 Key 调接口
+- 建议：后续可改为哈希存储，并补充速率限制与审计
 
 ## 变更检查清单
-- 修改计费逻辑前，确认是“用户余额”还是“API Key 用量统计”
-- 修改日志字段前，确认 Dashboard 查询是否依赖 `costAmount`
-- 修改上游价格字段前，确认前端供应商管理页是否同步
+- 修改计费逻辑前，先确认是“用户余额”还是“API Key 用量统计”
+- 修改日志字段前，确认 `DashboardService` 和日志页是否依赖该字段
+- 修改供应商配置前，确认管理页和网关主链路是否都已同步
+- 修改兼容接口流程前，确认流式和非流式路径都覆盖到了

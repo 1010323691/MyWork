@@ -79,17 +79,9 @@ public class ViewController {
         return "pages/admin/providers";
     }
 
-    @GetMapping("/admin/pricing")
-    public String adminPricingPage(Model model, Authentication authentication) {
-        model.addAttribute("title", "计费规则配置");
-        model.addAttribute("currentPage", "admin/pricing");
-        model.addAttribute("currentUserRole", extractUserRoleFromAuth(authentication));
-        return "pages/admin/pricing";
-    }
-
     @GetMapping("/user/balance")
     public String userBalancePage(Model model, Authentication authentication) {
-        model.addAttribute("title", "我的余额");
+        model.addAttribute("title", "余额明细");
         model.addAttribute("currentPage", "user/balance");
         model.addAttribute("currentUserRole", extractUserRoleFromAuth(authentication));
         return "pages/user/balance";

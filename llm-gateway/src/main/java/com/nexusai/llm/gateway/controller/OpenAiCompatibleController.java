@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.nexusai.llm.gateway.entity.ApiKey;
 import com.nexusai.llm.gateway.entity.BackendService;
 import com.nexusai.llm.gateway.entity.RequestLog;
-import com.nexusai.llm.gateway.security.ApiKeyService;
 import com.nexusai.llm.gateway.service.OpenAiForwardService;
 import com.nexusai.llm.gateway.service.RequestLogService;
 import com.nexusai.llm.gateway.service.RoutingConfigParser;
@@ -23,8 +22,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.util.ArrayList;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +37,6 @@ public class OpenAiCompatibleController {
     private static final Logger logger = LoggerFactory.getLogger(OpenAiCompatibleController.class);
 
     private final OpenAiForwardService openAiForwardService;
-    private final ApiKeyService apiKeyService;
     private final RequestLogService requestLogService;
     private final RoutingConfigParser routingConfigParser;
     private final UpstreamProviderService upstreamProviderService;
@@ -46,14 +44,12 @@ public class OpenAiCompatibleController {
     private final ObjectMapper objectMapper;
 
     public OpenAiCompatibleController(OpenAiForwardService openAiForwardService,
-                                      ApiKeyService apiKeyService,
                                       RequestLogService requestLogService,
                                       RoutingConfigParser routingConfigParser,
                                       UpstreamProviderService upstreamProviderService,
                                       UserBillingService userBillingService,
                                       ObjectMapper objectMapper) {
         this.openAiForwardService = openAiForwardService;
-        this.apiKeyService = apiKeyService;
         this.requestLogService = requestLogService;
         this.routingConfigParser = routingConfigParser;
         this.upstreamProviderService = upstreamProviderService;
@@ -76,11 +72,15 @@ public class OpenAiCompatibleController {
         String requestId = UUID.randomUUID().toString();
         String resolvedModel = routingConfigParser.resolveModel(key.getRoutingConfig(), requestedModel);
         Optional<BackendService> providerOptional = upstreamProviderService.findByModelName(resolvedModel);
+        BackendService provider = providerOptional.orElse(null);
         String configuredTargetUrl = routingConfigParser.resolveConfiguredTargetUrl(key.getRoutingConfig(), key.getTargetUrl());
         String targetUrl = configuredTargetUrl != null && !configuredTargetUrl.isBlank()
                 ? configuredTargetUrl
                 : providerOptional.map(BackendService::getBaseUrl).orElse(null);
 
+        if (provider != null && upstreamProviderService.isCircuitOpen(provider.getId())) {
+            return jsonResponse(503, Map.of("error", Map.of("message", "Upstream provider temporarily unavailable", "type", "provider_unavailable")));
+        }
         if (targetUrl == null || targetUrl.isBlank()) {
             logger.warn("OpenAI request routing failed: requestId={}, resolvedModel={}", requestId, resolvedModel);
             return jsonResponse(502, Map.of("error", Map.of("message", "No backend mapped for model: " + resolvedModel, "type", "routing_error")));
@@ -93,7 +93,6 @@ public class OpenAiCompatibleController {
         boolean stream = rewrittenRequest.path("stream").asBoolean(false);
         long startMs = System.currentTimeMillis();
         Long userId = key.getUser() != null ? key.getUser().getId() : null;
-        BackendService provider = providerOptional.orElse(null);
 
         if (!userBillingService.hasEnoughBalance(userId, provider, estimatedInput)) {
             BigDecimal estimatedCost = userBillingService.estimateInputCost(provider, estimatedInput);
@@ -158,10 +157,13 @@ public class OpenAiCompatibleController {
             response = openAiForwardService.forwardChatRequest(targetUrl, rewrittenRequest, upstreamApiKey);
         } catch (Exception e) {
             long latency = System.currentTimeMillis() - startMs;
+            if (provider != null) {
+                upstreamProviderService.recordFailure(provider.getId());
+            }
             logger.error("OpenAI non-stream upstream failed: requestId={}, latencyMs={}, error={}",
                     requestId, latency, e.getMessage(), e);
             requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, 0L,
-                    resolvedModel, latency, BigDecimal.ZERO, RequestLog.RequestStatus.FAIL, null, null);
+                    resolvedModel, latency, BigDecimal.ZERO, RequestLog.RequestStatus.FAIL);
             return jsonResponse(502, Map.of("error", Map.of("message", e.getMessage(), "type", "upstream_error")));
         }
 
@@ -169,14 +171,21 @@ public class OpenAiCompatibleController {
         long outputTokens = openAiForwardService.estimateTokenUsage(openAiForwardService.extractResponseText(response.body()));
         RequestLog.RequestStatus status = response.statusCode() >= 400 ? RequestLog.RequestStatus.FAIL : RequestLog.RequestStatus.SUCCESS;
         BigDecimal actualCost = status == RequestLog.RequestStatus.SUCCESS
-                ? userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens)
+                ? userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens, requestId, resolvedModel)
                 : BigDecimal.ZERO;
 
+        if (provider != null) {
+            if (response.statusCode() >= 500) {
+                upstreamProviderService.recordFailure(provider.getId());
+            } else {
+                upstreamProviderService.recordSuccess(provider.getId());
+            }
+        }
         if (status == RequestLog.RequestStatus.SUCCESS) {
             requestLogService.asyncRecordUsage(key.getId(), estimatedInput + outputTokens);
         }
         requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, outputTokens,
-                resolvedModel, latencyMs, actualCost, status, null, null);
+                resolvedModel, latencyMs, actualCost, status);
 
         StreamingResponseBody responseBody = outputStream ->
                 outputStream.write(response.body().getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -201,31 +210,33 @@ public class OpenAiCompatibleController {
             response = openAiForwardService.openStreamingChatRequest(targetUrl, rewrittenRequest, upstreamApiKey);
         } catch (Exception e) {
             long latency = System.currentTimeMillis() - startMs;
+            if (provider != null) {
+                upstreamProviderService.recordFailure(provider.getId());
+            }
             logger.error("OpenAI stream upstream open failed: requestId={}, latencyMs={}, error={}",
                     requestId, latency, e.getMessage(), e);
             requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, 0L,
-                    resolvedModel, latency, BigDecimal.ZERO, RequestLog.RequestStatus.FAIL, null, null);
+                    resolvedModel, latency, BigDecimal.ZERO, RequestLog.RequestStatus.FAIL);
             return jsonResponse(502, Map.of("error", Map.of("message", e.getMessage(), "type", "upstream_error")));
         }
 
         RequestLog.RequestStatus initialStatus = response.statusCode() >= 400 ? RequestLog.RequestStatus.FAIL : RequestLog.RequestStatus.SUCCESS;
         StreamingResponseBody responseBody = outputStream -> {
             RequestLog.RequestStatus finalStatus = initialStatus;
-            String capturedBody = "";
             String visibleContent = "";
             long outputTokens = 0L;
+            boolean providerFailure = false;
             try {
                 OpenAiForwardService.StreamSummary summary = openAiForwardService.relayStream(
                         response.connection(),
                         response.inputStream(),
                         outputStream
                 );
-                capturedBody = summary.capturedBody();
                 visibleContent = summary.visibleContent();
                 outputTokens = summary.outputTokens();
             } catch (Exception e) {
                 finalStatus = RequestLog.RequestStatus.FAIL;
-                capturedBody = e.getMessage();
+                providerFailure = true;
                 logger.error("OpenAI stream relay failed: requestId={}, error={}", requestId, e.getMessage(), e);
                 throw e;
             } finally {
@@ -234,13 +245,20 @@ public class OpenAiCompatibleController {
                     outputTokens = openAiForwardService.estimateTokenUsage(visibleContent);
                 }
                 BigDecimal actualCost = finalStatus == RequestLog.RequestStatus.SUCCESS
-                        ? userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens)
+                        ? userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens, requestId, resolvedModel)
                         : BigDecimal.ZERO;
+                if (provider != null) {
+                    if (finalStatus == RequestLog.RequestStatus.SUCCESS) {
+                        upstreamProviderService.recordSuccess(provider.getId());
+                    } else if (providerFailure || response.statusCode() >= 500) {
+                        upstreamProviderService.recordFailure(provider.getId());
+                    }
+                }
                 if (finalStatus == RequestLog.RequestStatus.SUCCESS) {
                     requestLogService.asyncRecordUsage(key.getId(), estimatedInput + outputTokens);
                 }
                 requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, outputTokens,
-                        resolvedModel, latencyMs, actualCost, finalStatus, null, null);
+                        resolvedModel, latencyMs, actualCost, finalStatus);
             }
         };
 

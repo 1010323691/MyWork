@@ -1,33 +1,26 @@
 package com.nexusai.llm.gateway.controller;
 
 import com.nexusai.llm.gateway.dto.RequestLogResponse;
-import com.nexusai.llm.gateway.entity.RequestLog;
-import com.nexusai.llm.gateway.repository.RequestLogRepository;
-import jakarta.persistence.criteria.Predicate;
+import com.nexusai.llm.gateway.service.LogQueryService;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/admin/logs")
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminLogController {
 
-    private final RequestLogRepository requestLogRepository;
+    private final LogQueryService logQueryService;
 
-    public AdminLogController(RequestLogRepository requestLogRepository) {
-        this.requestLogRepository = requestLogRepository;
+    public AdminLogController(LogQueryService logQueryService) {
+        this.logQueryService = logQueryService;
     }
 
     @GetMapping
@@ -40,66 +33,12 @@ public class AdminLogController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String status) {
-
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-
-        Specification<RequestLog> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            if (userId != null) {
-                predicates.add(cb.equal(root.get("userId"), userId));
-            }
-            if (apiKeyId != null) {
-                predicates.add(cb.equal(root.get("apiKey").get("id"), apiKeyId));
-            }
-            if (startDate != null && !startDate.isBlank()) {
-                LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
-                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), start));
-            }
-            if (endDate != null && !endDate.isBlank()) {
-                LocalDateTime end = LocalDate.parse(endDate).plusDays(1).atStartOfDay();
-                predicates.add(cb.lessThan(root.get("createdAt"), end));
-            }
-            if (status != null && !status.isBlank()) {
-                try {
-                    RequestLog.RequestStatus s = RequestLog.RequestStatus.valueOf(status.toUpperCase());
-                    predicates.add(cb.equal(root.get("status"), s));
-                } catch (IllegalArgumentException ignored) {}
-            }
-
-            return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        Page<RequestLogResponse> result = requestLogRepository.findAll(spec, pageable)
-                .map(this::toResponse);
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(logQueryService.getAdminLogs(page, size, userId, apiKeyId, startDate, endDate, status));
     }
 
-    /**
-     * 获取指定日志详情（管理员端点）
-     */
     @GetMapping("/{id}")
     @Transactional(readOnly = true)
     public ResponseEntity<RequestLogResponse> getLogDetail(@PathVariable Long id) {
-        RequestLog log = requestLogRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Log not found: " + id));
-        return ResponseEntity.ok(toResponse(log));
-    }
-
-    private RequestLogResponse toResponse(RequestLog log) {
-        return RequestLogResponse.builder()
-                .id(log.getId())
-                .requestId(log.getRequestId())
-                .userId(log.getUserId())
-                .apiKeyId(log.getApiKey().getId())
-                .apiKeyName(log.getApiKey().getName())
-                .inputTokens(log.getInputTokens())
-                .outputTokens(log.getOutputTokens())
-                .modelName(log.getModelName())
-                .latencyMs(log.getLatencyMs())
-                .costAmount(log.getCostAmount())
-                .status(log.getStatus() != null ? log.getStatus().name() : null)
-                .createdAt(log.getCreatedAt())
-                .build();
+        return ResponseEntity.ok(logQueryService.getAdminLogDetail(id));
     }
 }

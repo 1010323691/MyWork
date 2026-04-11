@@ -39,6 +39,15 @@ public class UserBillingService {
     }
 
     public BigDecimal settleUsage(Long userId, BackendService provider, long inputTokens, long outputTokens) {
+        return settleUsage(userId, provider, inputTokens, outputTokens, null, null);
+    }
+
+    public BigDecimal settleUsage(Long userId,
+                                  BackendService provider,
+                                  long inputTokens,
+                                  long outputTokens,
+                                  String requestId,
+                                  String modelName) {
         BigDecimal actualCost = estimateCost(provider, inputTokens, outputTokens);
         if (actualCost.compareTo(BigDecimal.ZERO) <= 0) {
             logger.info("Usage settlement skipped because actual cost is zero or negative: userId={}, providerId={}, providerName={}, inputTokens={}, outputTokens={}, sellPriceInput={}, sellPriceOutput={}, actualCost={}",
@@ -55,7 +64,7 @@ public class UserBillingService {
             return actualCost;
         }
 
-        boolean deducted = userBalanceService.deductBalance(userId, actualCost);
+        boolean deducted = userBalanceService.deductBalance(userId, actualCost, requestId, modelName);
         if (!deducted) {
             logger.warn("Failed to deduct settled usage cost from user balance: userId={}, cost={}", userId, actualCost);
         }

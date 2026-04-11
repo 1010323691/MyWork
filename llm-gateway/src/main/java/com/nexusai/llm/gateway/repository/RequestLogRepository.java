@@ -1,8 +1,6 @@
 package com.nexusai.llm.gateway.repository;
 
 import com.nexusai.llm.gateway.entity.RequestLog;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -20,8 +18,6 @@ public interface RequestLogRepository extends JpaRepository<RequestLog, Long>, J
     @Modifying
     @Query(value = "DELETE FROM request_logs WHERE api_key_id IN (SELECT id FROM api_keys WHERE user_id = :userId)", nativeQuery = true)
     int deleteByUserId(@Param("userId") Long userId);
-
-    Page<RequestLog> findByApiKey_User_Id(Long userId, Pageable pageable);
 
     @Query(value = "SELECT DATE_FORMAT(r.created_at,'%Y-%m-%d') as date, " +
                    "COALESCE(SUM(r.input_tokens + r.output_tokens), 0) as tokens " +
@@ -44,9 +40,6 @@ public interface RequestLogRepository extends JpaRepository<RequestLog, Long>, J
 
     @Query("SELECT COUNT(r) FROM RequestLog r WHERE r.apiKey.user.id = :userId AND r.status = 'SUCCESS'")
     Long countSuccessByUserId(@Param("userId") Long userId);
-
-    @Query("SELECT COUNT(r) FROM RequestLog r WHERE r.apiKey.user.id = :userId AND r.status = 'SUCCESS' AND r.createdAt >= :since")
-    Long countSuccessByUserIdSince(@Param("userId") Long userId, @Param("since") LocalDateTime since);
 
     @Query("SELECT COUNT(r) FROM RequestLog r WHERE r.status = 'SUCCESS'")
     Long countSuccess();

@@ -32,8 +32,7 @@ public class RequestLogService {
                                 Long inputTokens, Long outputTokens,
                                 String modelName, Long latencyMs,
                                 BigDecimal costAmount,
-                                RequestLog.RequestStatus status,
-                                String requestBody, String responseBody) {
+                                RequestLog.RequestStatus status) {
         try {
             Optional<ApiKey> apiKeyOptional = apiKeyRepository.findWithUserById(apiKeyId);
             if (apiKeyOptional.isEmpty()) {
@@ -70,35 +69,6 @@ public class RequestLogService {
         } catch (Exception e) {
             logger.error("Failed to save request log for apiKeyId={}: {}", apiKeyId, e.getMessage(), e);
         }
-    }
-
-    @Async
-    @Transactional
-    public void asyncLogRequest(Long apiKeyId, Long inputTokens, Long outputTokens,
-                                String modelName, Long latencyMs,
-                                BigDecimal costAmount,
-                                RequestLog.RequestStatus status,
-                                String requestBody, String responseBody) {
-        asyncLogRequest(apiKeyId, null, null, inputTokens, outputTokens, modelName, latencyMs, costAmount, status, requestBody, responseBody);
-    }
-
-    @Async
-    @Transactional
-    public void asyncLogRequest(Long apiKeyId, Long inputTokens, Long outputTokens,
-                                String modelName, Long latencyMs,
-                                RequestLog.RequestStatus status,
-                                String requestBody, String responseBody) {
-        asyncLogRequest(apiKeyId, null, null, inputTokens, outputTokens, modelName, latencyMs, null, status, requestBody, responseBody);
-    }
-
-    @Async
-    @Transactional
-    public void asyncLogRequest(Long apiKeyId, Long userId, String requestId,
-                                Long inputTokens, Long outputTokens,
-                                String modelName, Long latencyMs,
-                                RequestLog.RequestStatus status,
-                                String requestBody, String responseBody) {
-        asyncLogRequest(apiKeyId, userId, requestId, inputTokens, outputTokens, modelName, latencyMs, null, status, requestBody, responseBody);
     }
 
     @Async

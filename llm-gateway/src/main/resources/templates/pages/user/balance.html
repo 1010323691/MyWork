@@ -3,52 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的余额 - LLM Gateway</title>
+    <title>余额明细 - LLM Gateway</title>
 
-    <!-- 公共样式 -->
     <link rel="stylesheet" th:href="@{/css/common-tech-theme.css}">
     <link rel="stylesheet" th:href="@{/css/admin.css}">
+    <link rel="stylesheet" th:href="@{/css/balance-detail.css}">
 </head>
-<body>
+<body class="balance-detail-page">
     <div class="layout-container">
-        <!-- 侧边栏 -->
         <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
 
-        <!-- 主内容区域 -->
         <main class="main-content">
             <div class="page-content">
-                <!-- 提示消息 -->
                 <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
 
-                <!-- 页面内容区域 -->
-                <div class="page-content-wrapper">
-                    <!-- 余额卡片 -->
-                    <div class="balance-card">
-                        <div class="balance-label">当前余额</div>
-                        <div class="balance-amount" id="balanceAmount">¥ 0.00</div>
-                        <div class="balance-label">人民币</div>
-                    </div>
+                <div class="balance-detail-shell">
+                    <section class="balance-hero">
+                        <div class="balance-hero-card">
+                            <div class="balance-hero__eyebrow">Balance Ledger</div>
+                            <div class="balance-hero__headline">
+                                <div>
+                                    <h1>余额明细</h1>
+                                    <p>余额用于模型调用扣费，充值到账后会自动进入金额变动明细。</p>
+                                </div>
+                                <span class="balance-status-pill">人工充值</span>
+                            </div>
 
-                    <!-- 统计卡片 -->
-                    <div class="stats-grid">
+                            <div class="balance-hero__amount">
+                                <span class="balance-currency">CNY</span>
+                                <span class="balance-amount" id="balanceAmount">0.00</span>
+                            </div>
+
+                            <div class="balance-hero__meta">
+                                <div class="balance-meta-card">
+                                    <span class="balance-meta-card__label">最近变动</span>
+                                    <strong id="lastTransactionTime">-</strong>
+                                </div>
+                                <div class="balance-meta-card">
+                                    <span class="balance-meta-card__label">流水状态</span>
+                                    <strong id="transactionStatusText">加载中</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <aside class="balance-action-card">
+                            <div class="balance-action-card__eyebrow">Recharge</div>
+                            <h2>需要补充余额？</h2>
+                            <p>当前版本未接入在线支付，充值由管理员人工处理。填写金额后可复制申请信息发送给管理员。</p>
+
+                            <label class="balance-field-label" for="rechargeAmountInput">建议充值金额</label>
+                            <input id="rechargeAmountInput" class="balance-amount-input" type="number" min="0" step="0.01" placeholder="例如 100.00">
+
+                            <div class="balance-action-card__buttons">
+                                <button id="openRechargeModalBtn" class="btn btn-primary" type="button">申请充值</button>
+                                <a href="/logs" class="btn btn-secondary">查看请求日志</a>
+                            </div>
+
+                            <div class="balance-action-card__tip">到账后会自动出现在下方流水中，不需要手工刷新数据库。</div>
+                        </aside>
+                    </section>
+
+                    <section class="stats-grid balance-summary-grid">
                         <div class="stat-card">
                             <div class="stat-icon svg-icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M12 3v19M5 8l7-5 7 5"/>
                                 </svg>
                             </div>
-                            <div class="stat-value" id="inputTokens">0</div>
-                            <div class="stat-label">输入 Token</div>
+                            <div class="stat-value" id="todayTokens">0</div>
+                            <div class="stat-label">今日 Token</div>
                         </div>
+
                         <div class="stat-card">
                             <div class="stat-icon svg-icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M12 21V3M5 16l7 5 7-5"/>
                                 </svg>
                             </div>
-                            <div class="stat-value" id="outputTokens">0</div>
-                            <div class="stat-label">输出 Token</div>
+                            <div class="stat-value" id="monthTokens">0</div>
+                            <div class="stat-label">本月 Token</div>
                         </div>
+
                         <div class="stat-card">
                             <div class="stat-icon svg-icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -57,79 +92,71 @@
                                 </svg>
                             </div>
                             <div class="stat-value" id="totalRequests">0</div>
-                            <div class="stat-label">请求次数</div>
+                            <div class="stat-label">累计请求</div>
                         </div>
-                    </div>
+                    </section>
 
-                    <!-- 余额历史 -->
-                    <div class="card">
-                        <div class="card-title">余额变更记录</div>
-                        <div id="transactionsLoading" class="spinner">加载中...</div>
-                        <div id="transactionsContainer" class="d-none">
-                            <div id="transactionsList"></div>
+                    <section class="ledger-panel">
+                        <div class="ledger-panel__header">
+                            <div>
+                                <div class="ledger-panel__eyebrow">Transactions</div>
+                                <h2>金额变动明细</h2>
+                                <p>展示模型调用扣费、账户充值和管理员调整记录。</p>
+                            </div>
+                            <button id="refreshTransactionsBtn" class="btn btn-secondary" type="button">刷新</button>
                         </div>
-                    </div>
+
+                        <div id="transactionsLoading" class="spinner">加载中...</div>
+
+                        <div id="transactionsContainer" class="d-none">
+                            <div id="transactionsList" class="ledger-list"></div>
+
+                            <div class="ledger-panel__footer">
+                                <button id="loadMoreTransactionsBtn" class="btn btn-secondary d-none" type="button">加载更多</button>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- 公共脚本 -->
-    <script th:src="@{/js/common.js}"></script>
-    <script>
-        // 加载余额信息
-        async function loadBalance() {
-            try {
-                const response = await fetch('/api/balance/current');
-                const data = await response.json();
-                document.getElementById('balanceAmount').textContent = '¥ ' + UI.formatMoney(data.balance, 2, 8);
-            } catch (error) {
-                console.error('加载余额失败:', error);
-                UI.showAlert('加载余额失败：' + error.message, 'error');
-            }
-        }
+    <div id="rechargeModal" class="modal-overlay" style="display:none;" onclick="if (event.target === this) closeRechargeModal();">
+        <div class="modal-content admin-modal balance-request-modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>充值申请</h3>
+                <button class="modal-close" type="button" onclick="closeRechargeModal()">&times;</button>
+            </div>
 
-        // 加载统计信息
-        async function loadStats() {
-            // TODO: 实现统计 API
-            // 这里使用示例数据
-            document.getElementById('inputTokens').textContent = '12,345';
-            document.getElementById('outputTokens').textContent = '6,789';
-            document.getElementById('totalRequests').textContent = '23';
-        }
+            <div class="modal-body">
+                <p class="balance-request-lead">当前版本暂未接入在线支付。复制以下申请信息并发送给管理员，到账后会自动记录到余额流水。</p>
 
-        // 加载交易历史
-        async function loadTransactions() {
-            // TODO: 实现交易历史 API
-            const transactions = [
-                { type: '充值', amount: 100, time: '2024-01-15 10:30' },
-                { type: 'LLM 请求', amount: -0.0523, time: '2024-01-15 11:20' },
-                { type: 'LLM 请求', amount: -0.0234, time: '2024-01-15 12:45' },
-            ];
+                <label class="balance-field-label" for="rechargeAmountModalInput">申请金额</label>
+                <input id="rechargeAmountModalInput" class="balance-amount-input" type="number" min="0" step="0.01" placeholder="例如 100.00">
 
-            const html = transactions.map(t => `
-                <div class="transaction-item">
+                <div class="balance-request-info">
                     <div>
-                        <div>${t.type}</div>
-                        <div style="font-size: 12px; color: #6c757d;">${t.time}</div>
+                        <span>当前余额</span>
+                        <strong id="modalCurrentBalance">CNY 0.00</strong>
                     </div>
-                    <div class="transaction-amount ${t.amount >= 0 ? 'positive' : 'negative'}">
-                        ${t.amount >= 0 ? '+' : ''}¥ ${UI.formatMoney(t.amount, 2, 8)}
+                    <div>
+                        <span>申请人</span>
+                        <strong id="modalUsername">-</strong>
                     </div>
                 </div>
-            `).join('');
 
-            document.getElementById('transactionsList').innerHTML = html;
-            document.getElementById('transactionsLoading').classList.add('d-none');
-            document.getElementById('transactionsContainer').classList.remove('d-none');
-        }
+                <label class="balance-field-label" for="rechargeRequestPreview">申请信息</label>
+                <textarea id="rechargeRequestPreview" class="balance-request-preview" readonly></textarea>
+            </div>
 
-        // 页面加载时初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            loadBalance();
-            loadStats();
-            loadTransactions();
-        });
-    </script>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" onclick="closeRechargeModal()">关闭</button>
+                <button id="copyRechargeRequestBtn" class="btn btn-primary" type="button">复制申请信息</button>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/common.js}"></script>
+    <script th:src="@{/js/user-balance.js}"></script>
 </body>
 </html>

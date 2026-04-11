@@ -1,88 +1,110 @@
 # Service Layer - Business Logic
 
 ## 概述
-服务层负责认证、路由、转发、计费、日志与统计。
+服务层负责认证辅助、模型路由、上游转发、计费扣费、余额流水、日志查询、仪表板统计和系统监控。
 
 ## 核心服务
 
 ### 1. 转发服务
 **文件**: `LlmForwardService.java`
-- 传统 `/api/llm/chat` 转发
-- 估算输入/输出 Token
+- 处理传统 `/api/llm/chat` 非流式转发
+- 负责简单输入 Token 估算
 
 **文件**: `OpenAiForwardService.java`
-- OpenAI 兼容 `/v1/chat/completions` 转发
-- 支持非流式和流式响应
-- 解析流式响应中的输出 Token
+- 处理 `/v1/chat/completions`
+- 支持非流式与流式响应
+- 负责从响应中提取输出 Token
 
-### 2. 路由服务
+### 2. 路由与上游服务
 **文件**: `RoutingConfigParser.java`
-- 解析 API Key 路由配置
+- 解析 API Key 上的路由配置
 - 解析目标 URL 与模型映射
 
-### 3. 上游服务管理
 **文件**: `UpstreamProviderService.java`
 - 根据模型匹配 `BackendService`
-- 提供供应商卖价读取能力
-- 管理上游可用性、连通性、模型发现
+- 提供上游定价读取
+- 管理上游可用性、连通性和熔断状态
+- 熔断统计已经接入 `LlmController` 和 `OpenAiCompatibleController`
 
-### 4. API Key 认证
+### 3. API Key 与响应映射
 **文件**: `ApiKeyService.java`
-- API Key 查找与认证
-- 记录 API Key 维度 Token 用量
-- API Key 不再作为资金主体
+- 根据明文 key 查询并校验 API Key
+- 创建新的 API Key
 
-### 5. 用户余额计费
+**文件**: `ApiKeyResponseMapper.java`
+- 统一把 `ApiKey` 映射成 `ApiKeyResponse`
+- 供 `ApiKeyController` 和 `AdminController` 复用，避免重复 DTO 拼装
+
+### 4. 用户计费、余额与流水
 **文件**: `UserBillingService.java`
-- 基于 `userId` 做余额预检
-- 按供应商 `sellPriceInput/sellPriceOutput` 计算费用
-- 请求完成后按实际 Token 从用户余额扣款
+- 负责余额预检
+- 根据上游卖价估算和结算请求成本
+- 在请求完成后按实际输入/输出 Token 扣费
 
 **文件**: `UserBalanceService.java`
 - 查询用户余额
-- 高精度费用计算
-- 余额扣减、退款、管理员调账
+- 做高精度费用估算
+- 执行余额扣减和管理员调账
+- 依赖 `User` 的 `@Version` 做乐观锁重试
 
-### 6. 请求日志与统计
+**文件**: `BalanceTransactionService.java`
+- 记录模型调用扣费流水
+- 记录管理员充值与扣减流水
+- 提供用户余额流水分页查询
+
+### 5. 请求日志与查询
 **文件**: `RequestLogService.java`
 - 异步写入 `RequestLog`
 - 异步更新 `ApiKey.usedTokens`
-- 日志包含 `userId`、输入/输出 Token、`costAmount`
+- 当前统一使用精简后的 `asyncLogRequest(...)` 接口
 
-### 7. Dashboard 与监控
+**文件**: `LogQueryService.java`
+- 统一管理员和普通用户的日志筛选逻辑
+- 统一分页、日期解析、状态解析和 `RequestLogResponse` 映射
+- 供 `AdminLogController` 和 `UserController` 复用
+
+### 6. Dashboard 与监控
 **文件**: `DashboardService.java`
-- 仪表板统计与趋势数据
+- 提供仪表板汇总数据
+- 产出 `dailyTrend`、`modelMetrics`、请求状态分布、API Key 状态分布
 
 **文件**: `SystemService.java`
-- 系统资源监控
+- 提供 CPU、内存、GPU 资源数据
+- 供 `/api/admin/monitor` 和 `/api/dashboard/summary` 组合使用
 
-### 8. 并发辅助
-**文件**: `RequestQueueService.java`
-- 提供按用户串行执行能力
-- 当前主计费流程尚未全面接入
-
-## 当前计费链路
+## 当前主链路
 
 ### OpenAI 兼容接口
 1. `ApiKeyAuthenticationFilter` 解析 API Key
-2. 通过 `ApiKey.user.id` 获取 `userId`
+2. 根据 `ApiKey.user.id` 获取 `userId`
 3. `RoutingConfigParser` 解析模型
-4. `UpstreamProviderService.findByModelName()` 获取供应商
-5. `UserBillingService.hasEnoughBalance()` 按输入 Token 预检余额
-6. `OpenAiForwardService` 转发请求
-7. 请求完成后 `UserBillingService.settleUsage()` 按实际输入/输出 Token 扣款
-8. `RequestLogService` 异步写日志并记录 API Key 用量
+4. `UpstreamProviderService.findByModelName()` 查找上游
+5. `UpstreamProviderService.isCircuitOpen()` 拦截熔断中的上游
+6. `UserBillingService.hasEnoughBalance()` 做余额预检
+7. `OpenAiForwardService` 转发请求
+8. 成功时 `UserBillingService.settleUsage()` 结算并 `recordSuccess()`
+9. `BalanceTransactionService` 写入扣费流水
+10. `RequestLogService` 异步写日志
 
 ### 传统接口
-1. 解析 API Key 与 `userId`
-2. 估算输入 Token
-3. 解析模型并匹配供应商
-4. 用户余额预检
-5. 请求转发
-6. 根据实际输入/输出 Token 结算并记录日志
+1. 解析 API Key 对应的 `userId`
+2. `LlmForwardService.estimateInputTokens()` 估算输入 Token
+3. 解析模型并匹配上游
+4. 检查熔断状态和用户余额
+5. 发起请求转发
+6. 按实际输入/输出 Token 结算
+7. 记录余额流水和请求日志
+
+## 已清理的遗留项
+- `RequestQueueService` 已删除，不再作为并发扣费方案
+- `AuthResponse` 已删除
+- `LlmForwardService.forwardStreaming()` 已删除
+- `ApiKeyService.findByKeyNoCache()` 已删除
+- `UserBalanceService` 中未接入主链路的冻结、退款、结算初始化方法已移除
+- `pricing` 页面及其脚本已从前端链路删除
 
 ## 修改指南
-- 调整计费规则：优先修改 `UserBillingService` / `UserBalanceService`
-- 调整上游卖价来源：修改 `BackendService` / `UpstreamProviderService`
-- 调整日志统计字段：修改 `RequestLogService` / `RequestLog`
-- 调整路由行为：修改 `RoutingConfigParser`
+- 调整计费规则：优先查看 `UserBillingService`、`UserBalanceService`
+- 调整资金明细展示：查看 `BalanceTransactionService`
+- 调整上游路由或熔断：查看 `RoutingConfigParser`、`UpstreamProviderService`
+- 调整日志查询：查看 `LogQueryService`、`RequestLogService` 和 `RequestLogRepository`

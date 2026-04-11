@@ -1,9 +1,12 @@
 package com.nexusai.llm.gateway.controller;
 
+import com.nexusai.llm.gateway.dto.BalanceTransactionResponse;
 import com.nexusai.llm.gateway.entity.User;
+import com.nexusai.llm.gateway.service.BalanceTransactionService;
 import com.nexusai.llm.gateway.service.UserBalanceService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -23,10 +26,13 @@ import java.math.BigDecimal;
 public class UserBalanceController {
 
     private final UserBalanceService balanceService;
+    private final BalanceTransactionService balanceTransactionService;
 
     @Autowired
-    public UserBalanceController(UserBalanceService balanceService) {
+    public UserBalanceController(UserBalanceService balanceService,
+                                 BalanceTransactionService balanceTransactionService) {
         this.balanceService = balanceService;
+        this.balanceTransactionService = balanceTransactionService;
     }
 
     @GetMapping("/current")
@@ -50,7 +56,7 @@ public class UserBalanceController {
             @PathVariable Long userId,
             @RequestBody BalanceAdjustmentRequest request) {
         BigDecimal balanceBefore = balanceService.getBalance(userId);
-        BigDecimal newBalance = balanceService.adjustBalance(userId, request.getAmount());
+        BigDecimal newBalance = balanceService.adjustBalance(userId, request.getAmount(), actor(authentication));
         log.info("audit_user_balance_adjust | actor={} | userId={} | amount={} | balanceBefore={} | balanceAfter={}",
                 actor(authentication),
                 userId,
@@ -69,6 +75,15 @@ public class UserBalanceController {
                 request.getSellPriceOutput()
         );
         return ResponseEntity.ok(new EstimateCostResponse(cost));
+    }
+
+    @GetMapping("/transactions")
+    public ResponseEntity<Page<BalanceTransactionResponse>> getCurrentUserTransactions(
+            Authentication authentication,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int size) {
+        Long userId = extractUserId(authentication);
+        return ResponseEntity.ok(balanceTransactionService.getUserTransactions(userId, page, size));
     }
 
     private Long extractUserId(Authentication authentication) {

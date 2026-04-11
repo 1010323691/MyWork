@@ -3,8 +3,8 @@ package com.nexusai.llm.gateway.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.nexusai.llm.gateway.dto.ChatRequest;
 import com.nexusai.llm.gateway.entity.ApiKey;
+import com.nexusai.llm.gateway.entity.BackendService;
 import com.nexusai.llm.gateway.entity.RequestLog;
-import com.nexusai.llm.gateway.security.ApiKeyService;
 import com.nexusai.llm.gateway.service.LlmForwardService;
 import com.nexusai.llm.gateway.service.RequestLogService;
 import com.nexusai.llm.gateway.service.RoutingConfigParser;
@@ -16,7 +16,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
@@ -29,7 +28,6 @@ import java.util.Set;
 public class LlmController {
 
     private final LlmForwardService llmForwardService;
-    private final ApiKeyService apiKeyService;
     private final RequestLogService requestLogService;
     private final RoutingConfigParser routingConfigParser;
     private final UpstreamProviderService upstreamProviderService;
@@ -37,13 +35,11 @@ public class LlmController {
 
     @Autowired
     public LlmController(LlmForwardService llmForwardService,
-                         ApiKeyService apiKeyService,
                          RequestLogService requestLogService,
                          RoutingConfigParser routingConfigParser,
                          UpstreamProviderService upstreamProviderService,
                          UserBillingService userBillingService) {
         this.llmForwardService = llmForwardService;
-        this.apiKeyService = apiKeyService;
         this.requestLogService = requestLogService;
         this.routingConfigParser = routingConfigParser;
         this.upstreamProviderService = upstreamProviderService;
@@ -72,9 +68,14 @@ public class LlmController {
 
         String targetUrl = routingConfigParser.resolveTargetUrl(key.getRoutingConfig(), key.getTargetUrl());
         String resolvedModel = routingConfigParser.resolveModel(key.getRoutingConfig(), request.getModel());
-        Optional<com.nexusai.llm.gateway.entity.BackendService> providerOptional = upstreamProviderService.findByModelName(resolvedModel);
+        Optional<BackendService> providerOptional = upstreamProviderService.findByModelName(resolvedModel);
+        BackendService provider = providerOptional.orElse(null);
         Long userId = key.getUser() != null ? key.getUser().getId() : null;
-        if (!userBillingService.hasEnoughBalance(userId, providerOptional.orElse(null), estimatedInput)) {
+
+        if (provider != null && upstreamProviderService.isCircuitOpen(provider.getId())) {
+            return ResponseEntity.status(503).body("{\"error\": \"Upstream provider temporarily unavailable\"}");
+        }
+        if (!userBillingService.hasEnoughBalance(userId, provider, estimatedInput)) {
             return ResponseEntity.status(402).body("{\"error\": \"Insufficient balance\"}");
         }
         if (targetUrl == null || targetUrl.isBlank()) {
@@ -85,23 +86,29 @@ public class LlmController {
         String response;
         RequestLog.RequestStatus status = RequestLog.RequestStatus.SUCCESS;
         try {
-            response = llmForwardService.forwardChatRequest(targetUrl, resolvedModel, messagesStr, false);
+            response = llmForwardService.forwardChatRequest(targetUrl, resolvedModel, messagesStr);
+            if (provider != null) {
+                upstreamProviderService.recordSuccess(provider.getId());
+            }
         } catch (Exception e) {
             status = RequestLog.RequestStatus.FAIL;
             long latency = System.currentTimeMillis() - startMs;
-            requestLogService.asyncLogRequest(key.getId(), estimatedInput, 0L,
-                    resolvedModel, latency, BigDecimal.ZERO, status, messagesStr, e.getMessage());
+            if (provider != null) {
+                upstreamProviderService.recordFailure(provider.getId());
+            }
+            requestLogService.asyncLogRequest(key.getId(), userId, null, estimatedInput, 0L,
+                    resolvedModel, latency, BigDecimal.ZERO, status);
             return ResponseEntity.status(502).body("{\"error\": \"Upstream request failed\"}");
         }
         long latencyMs = System.currentTimeMillis() - startMs;
 
         long outputTokens = llmForwardService.estimateTokenUsage(response);
         long totalTokens = estimatedInput + outputTokens;
-        BigDecimal actualCost = userBillingService.settleUsage(userId, providerOptional.orElse(null), estimatedInput, outputTokens);
+        BigDecimal actualCost = userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens, null, resolvedModel);
 
         requestLogService.asyncRecordUsage(key.getId(), totalTokens);
-        requestLogService.asyncLogRequest(key.getId(), estimatedInput, outputTokens,
-                resolvedModel, latencyMs, actualCost, status, messagesStr, response);
+        requestLogService.asyncLogRequest(key.getId(), userId, null, estimatedInput, outputTokens,
+                resolvedModel, latencyMs, actualCost, status);
 
         return ResponseEntity.ok(response);
     }
@@ -127,8 +134,6 @@ public class LlmController {
             }
         });
 
-        return ResponseEntity.ok(Map.of(
-                "models", models
-        ));
+        return ResponseEntity.ok(Map.of("models", models));
     }
 }

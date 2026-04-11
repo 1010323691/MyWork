@@ -55,7 +55,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        var apiKeyOpt = apiKeyService.findByKeyNoCache(apiKey);
+        var apiKeyOpt = apiKeyService.findByKey(apiKey);
         if (apiKeyOpt.isEmpty()) {
             sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
             return;

@@ -7,6 +7,7 @@ import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.ApiKeyRepository;
 import com.nexusai.llm.gateway.repository.UserRepository;
 import com.nexusai.llm.gateway.security.ApiKeyService;
+import com.nexusai.llm.gateway.service.ApiKeyResponseMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,14 +37,17 @@ public class ApiKeyController {
     private final ApiKeyService apiKeyService;
     private final ApiKeyRepository apiKeyRepository;
     private final UserRepository userRepository;
+    private final ApiKeyResponseMapper apiKeyResponseMapper;
 
     @Autowired
     public ApiKeyController(ApiKeyService apiKeyService,
                             ApiKeyRepository apiKeyRepository,
-                            UserRepository userRepository) {
+                            UserRepository userRepository,
+                            ApiKeyResponseMapper apiKeyResponseMapper) {
         this.apiKeyService = apiKeyService;
         this.apiKeyRepository = apiKeyRepository;
         this.userRepository = userRepository;
+        this.apiKeyResponseMapper = apiKeyResponseMapper;
     }
 
     @GetMapping
@@ -65,7 +69,7 @@ public class ApiKeyController {
         }
 
         List<ApiKeyResponse> response = apiKeys.stream()
-                .map(this::toResponse)
+                .map(apiKeyResponseMapper::toResponse)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(response);
     }
@@ -112,7 +116,7 @@ public class ApiKeyController {
                 hasText(apiKey.getTargetUrl()),
                 hasText(apiKey.getRoutingConfig()));
 
-        return ResponseEntity.ok(toResponse(apiKey));
+        return ResponseEntity.ok(apiKeyResponseMapper.toResponse(apiKey));
     }
 
     @DeleteMapping("/{id}")
@@ -173,7 +177,7 @@ public class ApiKeyController {
                 previousEnabled,
                 Boolean.TRUE.equals(apiKey.getEnabled()));
 
-        return ResponseEntity.ok(toResponse(apiKey));
+        return ResponseEntity.ok(apiKeyResponseMapper.toResponse(apiKey));
     }
 
     private Long getCurrentUserId(UserDetails userDetails, HttpServletRequest request) {
@@ -213,22 +217,5 @@ public class ApiKeyController {
             return "-";
         }
         return value.replace('|', '/').replaceAll("[\\r\\n]+", " ").trim();
-    }
-
-    private ApiKeyResponse toResponse(ApiKey apiKey) {
-        return ApiKeyResponse.builder()
-                .id(apiKey.getId())
-                .userId(apiKey.getUser() != null ? apiKey.getUser().getId() : null)
-                .username(apiKey.getUser() != null ? apiKey.getUser().getUsername() : null)
-                .apiKeyValue(apiKey.getApiKeyValue())
-                .name(apiKey.getName())
-                .usedTokens(apiKey.getUsedTokens())
-                .enabled(apiKey.getEnabled())
-                .expiresAt(apiKey.getExpiresAt())
-                .createdAt(apiKey.getCreatedAt())
-                .lastUsedAt(apiKey.getLastUsedAt())
-                .targetUrl(apiKey.getTargetUrl())
-                .routingConfig(apiKey.getRoutingConfig())
-                .build();
     }
 }

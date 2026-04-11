@@ -9,6 +9,7 @@ import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.repository.ApiKeyRepository;
 import com.nexusai.llm.gateway.repository.RequestLogRepository;
 import com.nexusai.llm.gateway.repository.UserRepository;
+import com.nexusai.llm.gateway.service.ApiKeyResponseMapper;
 import com.nexusai.llm.gateway.service.SystemService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -41,15 +42,18 @@ public class AdminController {
     private final ApiKeyRepository apiKeyRepository;
     private final RequestLogRepository requestLogRepository;
     private final SystemService systemService;
+    private final ApiKeyResponseMapper apiKeyResponseMapper;
 
     public AdminController(UserRepository userRepository,
                            ApiKeyRepository apiKeyRepository,
                            RequestLogRepository requestLogRepository,
-                           SystemService systemService) {
+                           SystemService systemService,
+                           ApiKeyResponseMapper apiKeyResponseMapper) {
         this.userRepository = userRepository;
         this.apiKeyRepository = apiKeyRepository;
         this.requestLogRepository = requestLogRepository;
         this.systemService = systemService;
+        this.apiKeyResponseMapper = apiKeyResponseMapper;
     }
 
     @GetMapping("/users")
@@ -147,7 +151,7 @@ public class AdminController {
                 !Objects.equals(previousTargetUrl, key.getTargetUrl()),
                 hasText(key.getRoutingConfig()),
                 !Objects.equals(previousRoutingConfig, key.getRoutingConfig()));
-        return ResponseEntity.ok(toKeyResponse(key));
+        return ResponseEntity.ok(apiKeyResponseMapper.toResponse(key));
     }
 
     @GetMapping("/monitor")
@@ -230,23 +234,6 @@ public class AdminController {
                 .totalUsedTokens(usedTokens != null ? usedTokens : 0L)
                 .balance(user.getBalance())
                 .createdAt(user.getCreatedAt())
-                .build();
-    }
-
-    private ApiKeyResponse toKeyResponse(ApiKey key) {
-        return ApiKeyResponse.builder()
-                .id(key.getId())
-                .userId(key.getUser() != null ? key.getUser().getId() : null)
-                .username(key.getUser() != null ? key.getUser().getUsername() : null)
-                .apiKeyValue(key.getApiKeyValue())
-                .name(key.getName())
-                .usedTokens(key.getUsedTokens())
-                .enabled(key.getEnabled())
-                .expiresAt(key.getExpiresAt())
-                .createdAt(key.getCreatedAt())
-                .lastUsedAt(key.getLastUsedAt())
-                .targetUrl(key.getTargetUrl())
-                .routingConfig(key.getRoutingConfig())
                 .build();
     }
 }

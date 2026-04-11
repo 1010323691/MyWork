@@ -18,7 +18,11 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
@@ -32,14 +36,18 @@ public class AuthController {
     private final BCryptPasswordEncoder passwordEncoder;
 
     @Autowired
-    public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository, BCryptPasswordEncoder passwordEncoder) {
+    public AuthController(AuthenticationManager authenticationManager,
+                          UserRepository userRepository,
+                          BCryptPasswordEncoder passwordEncoder) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request,
+                                   HttpServletRequest httpRequest,
+                                   HttpServletResponse httpResponse) {
         try {
             UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                     request.getUsername(), request.getPassword()
@@ -59,7 +67,10 @@ public class AuthController {
                     httpResponse
             );
 
-            log.info("登录成功 | 用户名：{} | 权限：{}", user.getUsername(), user.getAuthorities());
+            log.info("auth_login_success | userId={} | username={} | roles={}",
+                    user.getId(),
+                    sanitize(user.getUsername()),
+                    user.getAuthorities());
             return ResponseEntity.ok(Map.of("message", "登录成功"));
         } catch (BadCredentialsException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "用户名或密码错误"));
@@ -85,7 +96,11 @@ public class AuthController {
                 .build();
         userRepository.save(user);
 
-        log.info("新用户注册 | 用户名：{}", req.getUsername());
+        log.info("audit_user_create | userId={} | username={} | role={} | enabled={}",
+                user.getId(),
+                sanitize(user.getUsername()),
+                sanitize(user.getUserRole()),
+                Boolean.TRUE.equals(user.getEnabled()));
         return ResponseEntity.ok(Map.of("message", "注册成功"));
     }
 
@@ -105,5 +120,12 @@ public class AuthController {
                 "email", user.getEmail(),
                 "role", role
         ));
+    }
+
+    private String sanitize(String value) {
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+        return value.replace('|', '/').replaceAll("[\\r\\n]+", " ").trim();
     }
 }

@@ -52,10 +52,21 @@ public class RequestLogService {
                     .outputTokens(defaultLong(outputTokens))
                     .modelName(modelName)
                     .latencyMs(latencyMs)
-                    .costAmount(costAmount)
+                    .costAmount(defaultBigDecimal(costAmount))
                     .status(status)
                     .build();
-            requestLogRepository.save(log);
+            RequestLog savedLog = requestLogRepository.save(log);
+            logger.info("gateway_request_log_saved | id={} | requestId={} | userId={} | apiKeyId={} | model={} | inputTokens={} | outputTokens={} | latencyMs={} | costAmount={} | status={}",
+                    savedLog.getId(),
+                    sanitize(savedLog.getRequestId()),
+                    savedLog.getUserId(),
+                    apiKey.getId(),
+                    sanitize(savedLog.getModelName()),
+                    defaultLong(savedLog.getInputTokens()),
+                    defaultLong(savedLog.getOutputTokens()),
+                    defaultLong(savedLog.getLatencyMs()),
+                    defaultBigDecimal(savedLog.getCostAmount()),
+                    savedLog.getStatus());
         } catch (Exception e) {
             logger.error("Failed to save request log for apiKeyId={}: {}", apiKeyId, e.getMessage(), e);
         }
@@ -102,5 +113,16 @@ public class RequestLogService {
 
     private long defaultLong(Long value) {
         return value != null ? value : 0L;
+    }
+
+    private BigDecimal defaultBigDecimal(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private String sanitize(String value) {
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+        return value.replace('|', '/').replaceAll("[\\r\\n]+", " ").trim();
     }
 }

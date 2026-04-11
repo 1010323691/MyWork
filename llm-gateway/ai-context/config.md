@@ -30,6 +30,21 @@
   - app.security.swagger-enabled: false
   - app.security.allowed-origin-patterns: CORS 允许源列表
 
+### application-prod.yml
+**文件**: `src/main/resources/application-prod.yml`
+- `prod` 环境下日志文件根目录为 `/var/log/llm-gateway`
+- 配合 `logback-spring.xml` 自动生成 `yyyy/MM` 目录
+- 应用日志文件格式：`yyyyMMdd_app.log`
+- 错误日志文件格式：`yyyyMMdd_error.log`
+
+### logback-spring.xml
+**文件**: `src/main/resources/logback-spring.xml`
+- 使用 `prod` profile 切换到文件日志
+- 非 `prod` 环境保持控制台输出
+- 非 `prod` 控制台编码默认跟随 `file.encoding`，也可通过 `LOG_CONSOLE_CHARSET` 覆盖
+- 应用日志采用对齐字段格式，便于扫描时间、级别、线程、类名和消息
+- 错误日志独立输出完整异常堆栈，避免主日志文件被堆栈刷屏
+
 ## Java 配置类
 
 ### SecurityConfig

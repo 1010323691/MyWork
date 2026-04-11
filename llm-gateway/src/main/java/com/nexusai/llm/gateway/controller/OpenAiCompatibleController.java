@@ -74,23 +74,12 @@ public class OpenAiCompatibleController {
         }
 
         String requestId = UUID.randomUUID().toString();
-        logger.info("OpenAI request received: requestId={}, apiKeyId={}, requestedModel={}",
-                requestId, key.getId(), requestedModel);
-
         String resolvedModel = routingConfigParser.resolveModel(key.getRoutingConfig(), requestedModel);
         Optional<BackendService> providerOptional = upstreamProviderService.findByModelName(resolvedModel);
         String configuredTargetUrl = routingConfigParser.resolveConfiguredTargetUrl(key.getRoutingConfig(), key.getTargetUrl());
         String targetUrl = configuredTargetUrl != null && !configuredTargetUrl.isBlank()
                 ? configuredTargetUrl
                 : providerOptional.map(BackendService::getBaseUrl).orElse(null);
-
-        logger.info("OpenAI route resolved: requestId={}, resolvedModel={}, providerId={}, providerName={}, configuredTargetUrl={}, finalTargetUrl={}",
-                requestId,
-                resolvedModel,
-                providerOptional.map(BackendService::getId).orElse(null),
-                providerOptional.map(BackendService::getName).orElse(null),
-                configuredTargetUrl,
-                targetUrl);
 
         if (targetUrl == null || targetUrl.isBlank()) {
             logger.warn("OpenAI request routing failed: requestId={}, resolvedModel={}", requestId, resolvedModel);
@@ -112,9 +101,6 @@ public class OpenAiCompatibleController {
                     requestId, userId, key.getId(), estimatedInput, estimatedCost);
             return jsonResponse(402, Map.of("error", Map.of("message", "Insufficient balance", "type", "insufficient_balance")));
         }
-
-        logger.info("OpenAI request forwarding: requestId={}, stream={}, targetUrl={}, upstreamKeyPresent={}, estimatedInput={}",
-                requestId, stream, targetUrl, upstreamApiKey != null && !upstreamApiKey.isBlank(), estimatedInput);
 
         if (stream) {
             return handleStreamingRequest(key, userId, provider, requestId, resolvedModel, targetUrl, upstreamApiKey, rewrittenRequest, estimatedInput, startMs);
@@ -169,10 +155,7 @@ public class OpenAiCompatibleController {
                                                                             long startMs) {
         OpenAiForwardService.ForwardedResponse response;
         try {
-            logger.info("OpenAI non-stream upstream send: requestId={}, targetUrl={}", requestId, targetUrl);
             response = openAiForwardService.forwardChatRequest(targetUrl, rewrittenRequest, upstreamApiKey);
-            logger.info("OpenAI non-stream upstream response: requestId={}, status={}, contentType={}",
-                    requestId, response.statusCode(), response.contentType());
         } catch (Exception e) {
             long latency = System.currentTimeMillis() - startMs;
             logger.error("OpenAI non-stream upstream failed: requestId={}, latencyMs={}, error={}",
@@ -215,10 +198,7 @@ public class OpenAiCompatibleController {
                                                                          long startMs) {
         OpenAiForwardService.PreparedStreamingResponse response;
         try {
-            logger.info("OpenAI stream upstream open: requestId={}, targetUrl={}", requestId, targetUrl);
             response = openAiForwardService.openStreamingChatRequest(targetUrl, rewrittenRequest, upstreamApiKey);
-            logger.info("OpenAI stream upstream opened: requestId={}, status={}, contentType={}",
-                    requestId, response.statusCode(), response.contentType());
         } catch (Exception e) {
             long latency = System.currentTimeMillis() - startMs;
             logger.error("OpenAI stream upstream open failed: requestId={}, latencyMs={}, error={}",
@@ -235,7 +215,6 @@ public class OpenAiCompatibleController {
             String visibleContent = "";
             long outputTokens = 0L;
             try {
-                logger.info("OpenAI stream relay start: requestId={}", requestId);
                 OpenAiForwardService.StreamSummary summary = openAiForwardService.relayStream(
                         response.connection(),
                         response.inputStream(),
@@ -244,8 +223,6 @@ public class OpenAiCompatibleController {
                 capturedBody = summary.capturedBody();
                 visibleContent = summary.visibleContent();
                 outputTokens = summary.outputTokens();
-                logger.info("OpenAI stream relay completed: requestId={}, capturedChars={}",
-                        requestId, capturedBody.length());
             } catch (Exception e) {
                 finalStatus = RequestLog.RequestStatus.FAIL;
                 capturedBody = e.getMessage();

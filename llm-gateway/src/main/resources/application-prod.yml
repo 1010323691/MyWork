@@ -11,6 +11,8 @@ spring:
     cache: true
 
 logging:
+  file:
+    path: /var/log/llm-gateway
   level:
     com.nexusai.llm.gateway: INFO
     org.springframework.security: WARN

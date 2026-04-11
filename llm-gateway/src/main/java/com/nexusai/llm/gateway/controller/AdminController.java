@@ -10,23 +10,31 @@ import com.nexusai.llm.gateway.repository.ApiKeyRepository;
 import com.nexusai.llm.gateway.repository.RequestLogRepository;
 import com.nexusai.llm.gateway.repository.UserRepository;
 import com.nexusai.llm.gateway.service.SystemService;
-import com.nexusai.llm.gateway.service.SystemService.GpuData;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/admin")
 @PreAuthorize("hasRole('ADMIN')")
+@Slf4j
 public class AdminController {
 
     private final UserRepository userRepository;
@@ -44,8 +52,6 @@ public class AdminController {
         this.systemService = systemService;
     }
 
-    // ===== 用户管理 =====
-
     @GetMapping("/users")
     @Transactional(readOnly = true)
     public ResponseEntity<Page<AdminUserResponse>> listUsers(
@@ -56,44 +62,64 @@ public class AdminController {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<User> users = userRepository.searchUsers(userId, username, pageable);
-
         return ResponseEntity.ok(users.map(this::toUserResponse));
     }
 
     @PutMapping("/users/{id}/toggle")
     @Transactional
-    public ResponseEntity<AdminUserResponse> toggleUser(@PathVariable Long id) {
+    public ResponseEntity<AdminUserResponse> toggleUser(Authentication authentication, @PathVariable Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found: " + id));
-        user.setEnabled(!Boolean.TRUE.equals(user.getEnabled()));
+
+        boolean previousEnabled = Boolean.TRUE.equals(user.getEnabled());
+        user.setEnabled(!previousEnabled);
         userRepository.save(user);
+        log.info("audit_user_toggle | actor={} | userId={} | username={} | role={} | enabledBefore={} | enabledAfter={}",
+                actor(authentication),
+                user.getId(),
+                sanitize(user.getUsername()),
+                sanitize(user.getUserRole()),
+                previousEnabled,
+                Boolean.TRUE.equals(user.getEnabled()));
         return ResponseEntity.ok(toUserResponse(user));
     }
 
     @DeleteMapping("/users/{id}")
     @Transactional
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUser(Authentication authentication, @PathVariable Long id) {
         User user = userRepository.findById(id)
                 .orElse(null);
         if (user == null) {
             return ResponseEntity.notFound().build();
         }
 
+        Long keyCount = apiKeyRepository.countByUserId(id);
+        log.info("audit_user_delete | actor={} | userId={} | username={} | role={} | enabled={} | keyCount={} | balance={}",
+                actor(authentication),
+                user.getId(),
+                sanitize(user.getUsername()),
+                sanitize(user.getUserRole()),
+                Boolean.TRUE.equals(user.getEnabled()),
+                keyCount != null ? keyCount : 0L,
+                user.getBalance());
         requestLogRepository.deleteByUserId(id);
         userRepository.delete(user);
         return ResponseEntity.noContent().build();
     }
 
-    // ===== API Key 管理 =====
-
     @PutMapping("/keys/{id}")
     @Transactional
     public ResponseEntity<ApiKeyResponse> updateKey(
+            Authentication authentication,
             @PathVariable Long id,
             @RequestBody AdminKeyUpdateRequest req) {
 
         ApiKey key = apiKeyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("API Key not found: " + id));
+
+        Boolean previousEnabled = key.getEnabled();
+        String previousTargetUrl = key.getTargetUrl();
+        String previousRoutingConfig = key.getRoutingConfig();
 
         if (Boolean.TRUE.equals(req.getClearTargetUrl())) {
             key.setTargetUrl(null);
@@ -105,13 +131,24 @@ public class AdminController {
         } else if (req.getRoutingConfig() != null) {
             key.setRoutingConfig(req.getRoutingConfig());
         }
-        if (req.getEnabled() != null) key.setEnabled(req.getEnabled());
+        if (req.getEnabled() != null) {
+            key.setEnabled(req.getEnabled());
+        }
 
         apiKeyRepository.save(key);
+        log.info("audit_api_key_update | actor={} | apiKeyId={} | ownerUserId={} | keyName={} | enabled={} | enabledChanged={} | targetUrlSet={} | targetUrlChanged={} | routingConfigSet={} | routingConfigChanged={}",
+                actor(authentication),
+                key.getId(),
+                key.getUser() != null ? key.getUser().getId() : null,
+                sanitize(key.getName()),
+                Boolean.TRUE.equals(key.getEnabled()),
+                !Objects.equals(previousEnabled, key.getEnabled()),
+                hasText(key.getTargetUrl()),
+                !Objects.equals(previousTargetUrl, key.getTargetUrl()),
+                hasText(key.getRoutingConfig()),
+                !Objects.equals(previousRoutingConfig, key.getRoutingConfig()));
         return ResponseEntity.ok(toKeyResponse(key));
     }
-
-    // ===== 系统监控 =====
 
     @GetMapping("/monitor")
     @Transactional(readOnly = true)
@@ -128,11 +165,9 @@ public class AdminController {
                 ? (double) (failCount != null ? failCount : 0L) / totalRequests * 100
                 : 0.0;
 
-        // 获取系统资源数据
         SystemService.SystemResourceData resourceData = systemService.getSystemResources();
         java.util.List<SystemService.GpuData> gpuDataList = resourceData.getGpuDataList();
 
-        // 转换为响应格式
         java.util.List<SystemMonitorResponse.GpuInfo> gpuInfoList = null;
         if (gpuDataList != null && !gpuDataList.isEmpty()) {
             gpuInfoList = gpuDataList.stream().map(gpu ->
@@ -144,7 +179,7 @@ public class AdminController {
                     .memoryTotalMb(gpu.getTotalMemoryMb())
                     .memoryUsagePercent(gpu.getMemoryUsagePercent())
                     .build()
-            ).collect(java.util.stream.Collectors.toList());
+            ).toList();
         }
 
         SystemMonitorResponse monitor = SystemMonitorResponse.builder()
@@ -156,7 +191,6 @@ public class AdminController {
                 .avgLatencyMs(avgLatency != null ? avgLatency : 0.0)
                 .totalUsers(totalUsers)
                 .totalApiKeys(totalApiKeys)
-                // 系统资源字段
                 .cpuUsage(resourceData.getCpuUsage())
                 .memoryUsage(resourceData.getMemoryUsage())
                 .gpus(gpuInfoList)
@@ -165,7 +199,23 @@ public class AdminController {
         return ResponseEntity.ok(monitor);
     }
 
-    // ===== 转换器 =====
+    private String actor(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+            return "unknown";
+        }
+        return sanitize(authentication.getName());
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String sanitize(String value) {
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+        return value.replace('|', '/').replaceAll("[\\r\\n]+", " ").trim();
+    }
 
     private AdminUserResponse toUserResponse(User user) {
         Long keyCount = apiKeyRepository.countByUserId(user.getId());

@@ -57,20 +57,10 @@ public class UpstreamProviderService {
 
     public Optional<BackendService> findByModelName(String modelName) {
         List<BackendService> providers = backendServiceRepository.findAll();
-        logger.info("Finding provider by model: modelName={}, totalProviders={}", modelName, providers.size());
-
-        Optional<BackendService> matched = providers.stream()
+        return providers.stream()
                 .filter(BackendService::getEnabled)
                 .filter(provider -> matchesModel(provider, modelName))
                 .findFirst();
-
-        logger.info("Provider match result: modelName={}, providerId={}, providerName={}, providerBaseUrl={}",
-                modelName,
-                matched.map(BackendService::getId).orElse(null),
-                matched.map(BackendService::getName).orElse(null),
-                matched.map(BackendService::getBaseUrl).orElse(null));
-
-        return matched;
     }
 
     public List<BackendService> findAllEnabled() {

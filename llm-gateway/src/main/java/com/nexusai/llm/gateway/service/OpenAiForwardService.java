@@ -3,8 +3,6 @@ package com.nexusai.llm.gateway.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -20,7 +18,6 @@ import java.util.Optional;
 @Service
 public class OpenAiForwardService {
 
-    private static final Logger logger = LoggerFactory.getLogger(OpenAiForwardService.class);
     private static final int MAX_CAPTURED_BODY_LENGTH = 4000;
 
     private final ObjectMapper objectMapper;
@@ -39,18 +36,12 @@ public class OpenAiForwardService {
         HttpURLConnection connection = null;
         try {
             String requestUrl = buildChatCompletionsUrl(backendUrl);
-            logger.info("Sending non-stream request to upstream: url={}, upstreamKeyPresent={}",
-                    requestUrl, upstreamApiKey != null && !upstreamApiKey.isBlank());
-
             connection = openPostConnection(requestUrl, requestBody, upstreamApiKey);
             int statusCode = connection.getResponseCode();
             String contentType = Optional.ofNullable(connection.getContentType()).orElse(MediaType.APPLICATION_JSON_VALUE);
             String responseBody = readResponseBody(connection, statusCode);
-
-            logger.info("Received non-stream response from upstream: url={}, status={}", requestUrl, statusCode);
             return new ForwardedResponse(statusCode, contentType, responseBody);
         } catch (IOException e) {
-            logger.error("Forward request failed: {}", e.getMessage(), e);
             throw new RuntimeException("Backend service error: " + e.getMessage(), e);
         } finally {
             if (connection != null) {
@@ -62,9 +53,6 @@ public class OpenAiForwardService {
     public PreparedStreamingResponse openStreamingChatRequest(String backendUrl, JsonNode requestBody, String upstreamApiKey) {
         try {
             String requestUrl = buildChatCompletionsUrl(backendUrl);
-            logger.info("Opening stream request to upstream: url={}, upstreamKeyPresent={}",
-                    requestUrl, upstreamApiKey != null && !upstreamApiKey.isBlank());
-
             HttpURLConnection connection = openPostConnection(requestUrl, requestBody, upstreamApiKey);
             int statusCode = connection.getResponseCode();
             String contentType = Optional.ofNullable(connection.getContentType()).orElse(MediaType.TEXT_EVENT_STREAM_VALUE);
@@ -74,11 +62,8 @@ public class OpenAiForwardService {
                 connection.disconnect();
                 throw new IOException("Upstream returned no response body");
             }
-
-            logger.info("Upstream stream headers received: url={}, status={}", requestUrl, statusCode);
             return new PreparedStreamingResponse(statusCode, contentType, connection, inputStream);
         } catch (IOException e) {
-            logger.error("Open streaming request failed: {}", e.getMessage(), e);
             throw new RuntimeException("Backend service error: " + e.getMessage(), e);
         }
     }
@@ -88,13 +73,11 @@ public class OpenAiForwardService {
         StringBuilder visibleContent = new StringBuilder();
         StringBuilder eventBuffer = new StringBuilder();
         byte[] buffer = new byte[8192];
-        long totalBytes = 0L;
         long outputTokens = 0L;
 
         try (InputStream upstream = inputStream) {
             int read;
             while ((read = upstream.read(buffer)) != -1) {
-                totalBytes += read;
                 outputStream.write(buffer, 0, read);
                 outputStream.flush();
 
@@ -120,8 +103,6 @@ public class OpenAiForwardService {
                 connection.disconnect();
             }
         }
-
-        logger.info("Completed stream relay from upstream: bytes={}, capturedChars={}", totalBytes, captured.length());
         return new StreamSummary(
                 captured.toString(),
                 visibleContent.toString(),

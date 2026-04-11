@@ -176,7 +176,7 @@ public class UserBalanceService {
         user.setBalance(newBalance);
         userRepository.save(user);
 
-        logger.info("Balance adjusted for user {}: {} -> {} (adjustment: {})",
+        logger.debug("Balance adjusted for user {}: {} -> {} (adjustment: {})",
                 userId, currentBalance, newBalance, amount);
 
         return newBalance;

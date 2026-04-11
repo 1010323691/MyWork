@@ -2,20 +2,24 @@ package com.nexusai.llm.gateway.controller;
 
 import com.nexusai.llm.gateway.entity.User;
 import com.nexusai.llm.gateway.service.UserBalanceService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
 
-/**
- * 用户余额 Controller
- * 提供余额查询、交易历史等接口
- */
 @RestController
 @RequestMapping("/api/balance")
+@Slf4j
 public class UserBalanceController {
 
     private final UserBalanceService balanceService;
@@ -25,9 +29,6 @@ public class UserBalanceController {
         this.balanceService = balanceService;
     }
 
-    /**
-     * 获取当前用户余额
-     */
     @GetMapping("/current")
     public ResponseEntity<BalanceResponse> getCurrentBalance(Authentication authentication) {
         Long userId = extractUserId(authentication);
@@ -35,9 +36,6 @@ public class UserBalanceController {
         return ResponseEntity.ok(new BalanceResponse(balance));
     }
 
-    /**
-     * 获取指定用户余额（管理员）
-     */
     @GetMapping("/user/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BalanceResponse> getUserBalance(@PathVariable Long userId) {
@@ -45,21 +43,23 @@ public class UserBalanceController {
         return ResponseEntity.ok(new BalanceResponse(balance));
     }
 
-    /**
-     * 调整用户余额（管理员充值/扣款）
-     */
     @PutMapping("/admin/user/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BalanceResponse> adjustBalance(
+            Authentication authentication,
             @PathVariable Long userId,
             @RequestBody BalanceAdjustmentRequest request) {
+        BigDecimal balanceBefore = balanceService.getBalance(userId);
         BigDecimal newBalance = balanceService.adjustBalance(userId, request.getAmount());
+        log.info("audit_user_balance_adjust | actor={} | userId={} | amount={} | balanceBefore={} | balanceAfter={}",
+                actor(authentication),
+                userId,
+                request.getAmount(),
+                balanceBefore,
+                newBalance);
         return ResponseEntity.ok(new BalanceResponse(newBalance));
     }
 
-    /**
-     * 估算请求成本
-     */
     @PostMapping("/estimate")
     public ResponseEntity<EstimateCostResponse> estimateCost(@RequestBody CostEstimateRequest request) {
         BigDecimal cost = balanceService.estimateCost(
@@ -79,9 +79,13 @@ public class UserBalanceController {
         return user.getId();
     }
 
-    /**
-     * 余额响应
-     */
+    private String actor(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+            return "unknown";
+        }
+        return authentication.getName().replace('|', '/').replaceAll("[\\r\\n]+", " ").trim();
+    }
+
     public static class BalanceResponse {
         private final BigDecimal balance;
 
@@ -94,9 +98,6 @@ public class UserBalanceController {
         }
     }
 
-    /**
-     * 余额调整请求
-     */
     public static class BalanceAdjustmentRequest {
         private BigDecimal amount;
 
@@ -109,9 +110,6 @@ public class UserBalanceController {
         }
     }
 
-    /**
-     * 成本估算请求
-     */
     public static class CostEstimateRequest {
         private Long inputTokens;
         private Long outputTokens;
@@ -128,9 +126,6 @@ public class UserBalanceController {
         public void setSellPriceOutput(BigDecimal sellPriceOutput) { this.sellPriceOutput = sellPriceOutput; }
     }
 
-    /**
-     * 成本估算响应
-     */
     public static class EstimateCostResponse {
         private final BigDecimal estimatedCost;
 

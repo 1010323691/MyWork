@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artemis II 宇宙模拟</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hud header-card">
+      <div>
+        <p class="eyebrow">Deep Space Mission Simulator</p>
+        <h1>Artemis II 地月往返任务</h1>
+        <p class="subtitle">纯 HTML / CSS / JS 实时演算地球、月球与飞船之间的引力、轨迹、姿态和推进控制。</p>
+      </div>
+      <div class="header-actions">
+        <button id="toggleSim" class="action-btn">暂停</button>
+        <button id="resetSim" class="action-btn ghost">重置任务</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="viewport-card">
+        <canvas id="universeCanvas"></canvas>
+        <div class="canvas-overlay">
+          <div class="overlay-chip">地心惯性系 2D</div>
+          <div class="overlay-chip">时间倍率 <span id="timeScaleLabel">1800x</span></div>
+        </div>
+      </section>
+
+      <aside class="hud sidebar">
+        <section class="panel">
+          <h2>任务阶段</h2>
+          <p id="phaseName" class="phase-name">初始化</p>
+          <p id="phaseDescription" class="phase-description">等待发射。</p>
+          <div class="phase-progress">
+            <div id="phaseProgressBar" class="phase-progress-bar"></div>
+          </div>
+        </section>
+
+        <section class="panel stats-grid">
+          <div>
+            <span>模拟时间</span>
+            <strong id="missionTime">T+00:00:00</strong>
+          </div>
+          <div>
+            <span>飞船速度</span>
+            <strong id="shipSpeed">0 km/s</strong>
+          </div>
+          <div>
+            <span>相对地球</span>
+            <strong id="earthDistance">0 km</strong>
+          </div>
+          <div>
+            <span>相对月球</span>
+            <strong id="moonDistance">0 km</strong>
+          </div>
+          <div>
+            <span>总加速度</span>
+            <strong id="totalAccel">0 m/s²</strong>
+          </div>
+          <div>
+            <span>当前推力</span>
+            <strong id="thrustLevel">0 kN</strong>
+          </div>
+          <div>
+            <span>姿态误差</span>
+            <strong id="attitudeError">0°</strong>
+          </div>
+          <div>
+            <span>推进剂剩余</span>
+            <strong id="fuelRemaining">100%</strong>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>控制说明</h2>
+          <ul class="legend">
+            <li><span class="dot earth"></span> 地球</li>
+            <li><span class="dot moon"></span> 月球</li>
+            <li><span class="dot ship"></span> Artemis II</li>
+            <li><span class="dot track"></span> 航迹尾迹</li>
+          </ul>
+          <p class="small-note">自动驾驶会在发射、近地轨道圆化、地月转移、绕月修正和返地制导阶段持续调整姿态与推力。</p>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

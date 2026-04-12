@@ -38,6 +38,7 @@ logging:
 
 gateway:
   default-backend-url: ${GATEWAY_DEFAULT_BACKEND_URL:}
+  public-base-url: ${GATEWAY_PUBLIC_BASE_URL:http://localhost:8080}
   forward:
     connect-timeout-seconds: ${GATEWAY_FORWARD_CONNECT_TIMEOUT_SECONDS:30}
     read-timeout-seconds: ${GATEWAY_FORWARD_READ_TIMEOUT_SECONDS:300}

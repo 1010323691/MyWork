@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('模型列表 - LLM Gateway', ~{::main-content}, '/css/models.css')}">
+
+<head>
+    <title th:fragment="title">模型列表 - LLM Gateway</title>
+</head>
+
+<body>
+<main th:fragment="main-content">
+    <div class="page-header">
+        <h2>模型列表</h2>
+        <p class="text-muted">展示当前网关可见模型。模型来源仅使用供应商编号与配置的模型名，不暴露真实供应商地址或密钥。</p>
+    </div>
+
+    <section class="card model-catalog-card">
+        <div class="catalog-toolbar">
+            <div>
+                <div class="card-title">模型目录</div>
+                <div id="catalogSummary" class="text-muted">加载中...</div>
+            </div>
+            <div class="catalog-search">
+                <input type="text" id="modelKeywordInput" placeholder="搜索模型名或供应商编号">
+            </div>
+        </div>
+
+        <div id="modelsLoading" class="spinner">加载中...</div>
+
+        <div id="modelsEmpty" class="empty-state d-none">
+            <div class="empty-state-text">当前没有可展示的模型</div>
+        </div>
+
+        <div id="modelsGrid" class="models-grid d-none"></div>
+    </section>
+
+    <div id="modelDetailModal" class="modal-overlay" onclick="if(event.target===this)closeModelDetailModal()">
+        <div class="modal-content model-detail-modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modelDetailTitle">模型调用方式</h3>
+                <button class="modal-close" type="button" onclick="closeModelDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="callout-panel">
+                    <div class="callout-label">接入说明</div>
+                    <p class="callout-text">调用时请填写统一网关地址、模型名以及你自己的 API Key。这里展示的是网关接入方式，不是上游供应商地址。</p>
+                </div>
+
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <label>供应商</label>
+                        <code id="detailProviderId">-</code>
+                    </div>
+                    <div class="detail-item">
+                        <label>状态</label>
+                        <span id="detailStatus" class="badge badge-secondary">-</span>
+                    </div>
+                    <div class="detail-item detail-item-full">
+                        <label>URL</label>
+                        <div class="copy-row">
+                            <code id="detailUrl">-</code>
+                            <button class="btn btn-secondary btn-sm" type="button" onclick="copyModelDetail('url')">复制</button>
+                        </div>
+                    </div>
+                    <div class="detail-item detail-item-full">
+                        <label>模型名</label>
+                        <div class="copy-row">
+                            <code id="detailModelName">-</code>
+                            <button class="btn btn-secondary btn-sm" type="button" onclick="copyModelDetail('model')">复制</button>
+                        </div>
+                    </div>
+                    <div class="detail-item detail-item-full">
+                        <label>API Key</label>
+                        <div class="copy-row">
+                            <code id="detailApiKey">用户自备</code>
+                            <button class="btn btn-secondary btn-sm" type="button" onclick="copyModelDetail('apikey')">复制提示</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sample-panel">
+                    <div class="sample-header">
+                        <span>OpenAI 兼容请求示例</span>
+                        <button class="btn btn-secondary btn-sm" type="button" onclick="copyModelDetail('curl')">复制示例</button>
+                    </div>
+                    <pre id="detailCurl" class="sample-code"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script defer th:src="@{/js/models.js}"></script>
+</main>
+</body>
+</html>

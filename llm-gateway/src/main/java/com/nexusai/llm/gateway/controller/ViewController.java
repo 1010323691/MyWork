@@ -42,6 +42,14 @@ public class ViewController {
         return "pages/admin/keys";
     }
 
+    @GetMapping("/models")
+    public String modelsPage(Model model, Authentication authentication) {
+        model.addAttribute("title", "模型列表");
+        model.addAttribute("currentPage", "models");
+        model.addAttribute("currentUserRole", extractUserRoleFromAuth(authentication));
+        return "pages/models/index";
+    }
+
     @GetMapping("/logs")
     public String logsPage(Model model, Authentication authentication) {
         model.addAttribute("title", "请求日志");

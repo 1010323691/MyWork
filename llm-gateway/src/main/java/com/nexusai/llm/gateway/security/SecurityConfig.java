@@ -116,6 +116,7 @@ public class SecurityConfig {
                     auth.requestMatchers("/v1/**").authenticated();
                     auth.requestMatchers("/api/**").authenticated();
                     auth.requestMatchers("/dashboard").authenticated();
+                    auth.requestMatchers("/models").authenticated();
                     auth.requestMatchers("/apikeys").authenticated();
                     auth.requestMatchers("/logs").authenticated();
                     auth.requestMatchers("/admin/**").hasRole("ADMIN");

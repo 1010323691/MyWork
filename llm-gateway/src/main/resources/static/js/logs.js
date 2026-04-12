@@ -1,4 +1,4 @@
-/**
+﻿/**
  * LLM Gateway - Logs Page
  * Session/Cookie authentication mode
  */
@@ -6,7 +6,7 @@
     'use strict';
 
     let currentPage = 0;
-    let currentPageSize = 20;
+    let currentPageSize = 10;
     let currentUserRole = '';
     let isAdmin = false;
 
@@ -118,7 +118,7 @@
 
     async function loadLogs(page) {
         currentPage = page || 0;
-        currentPageSize = Number(getDropdownValue('filterPageSize') || 20);
+        currentPageSize = Number(getDropdownValue('filterPageSize') || 10);
 
         const loading = document.getElementById('logsLoading');
         const container = document.getElementById('logsContainer');
@@ -129,10 +129,13 @@
             const endpoint = isAdmin ? '/admin/logs' : '/user/logs';
             const data = await API.get(endpoint + '?' + buildQueryParams(currentPage).toString());
             const logs = data?.content || [];
+            const page = data?.page || {};
 
             renderLogsTable(logs);
             renderMeta(data, logs);
-            renderPagination(data?.number || 0, data?.totalPages || 0, data?.totalElements || 0);
+            const totalPages = (page.totalPages || 0) > 0 ? page.totalPages : 1;
+            const totalElements = (page.totalElements || 0) > 0 ? page.totalElements : logs.length;
+            renderPagination(page.number || 0, totalPages, totalElements);
 
             if (container) container.classList.remove('d-none');
         } catch (error) {
@@ -255,7 +258,12 @@
         if (!container) return;
 
         if (totalPages <= 1) {
-            container.innerHTML = '<span class="page-info">共 ' + totalElements + ' 条</span>';
+            container.innerHTML = '<span class="page-info">共 ' + totalElements + ' 条</span>' +
+                '<div style="display:flex;justify-content:center;gap:8px;">' +
+                '<button class="btn btn-sm btn-secondary" disabled="disabled">上一页</button>' +
+                '<button class="btn btn-sm btn-primary active">1</button>' +
+                '<button class="btn btn-sm btn-secondary" disabled="disabled">下一页</button>' +
+                '</div>';
             return;
         }
 
@@ -336,11 +344,11 @@
         setDropdownValue('filterStatus', '');
         setValue('filterStartDate', '');
         setValue('filterEndDate', '');
-        setDropdownValue('filterPageSize', '20');
+        setDropdownValue('filterPageSize', '10');
         if (isAdmin) {
             setValue('filterUserId', '');
         }
-        currentPageSize = 20;
+        currentPageSize = 10;
         loadLogs(0);
     }
 

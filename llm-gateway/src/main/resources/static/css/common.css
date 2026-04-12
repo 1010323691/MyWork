@@ -1691,9 +1691,15 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .pagination {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   justify-content: center;
-  gap: 4px;
-  margin-top: var(--space-4);
+}
+
+.pagination .page-info {
+  color: #525252;
+  font-size: 14px;
 }
 
 .pagination .btn {

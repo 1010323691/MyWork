@@ -7,8 +7,22 @@
 }
 
 .filter-item {
-    min-width: 160px;
+    min-width: 140px;
+    flex: 1 1 140px;
 }
+
+.filter-item.filter-btn {
+    display: flex;
+    gap: 8px;
+    min-width: auto;
+    flex: 0 0 auto;
+}
+
+.filter-item.filter-btn .btn {
+    min-width: 72px;
+    padding: 10px 12px;
+}
+
 
 .filter-item label {
     display: block;
@@ -658,17 +672,6 @@
 
 .log-detail-modal .modal-footer .btn {
     min-width: 132px;
-}
-
-.pagination {
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.pagination .page-info {
-    color: #525252;
-    font-size: 14px;
 }
 
 @media (max-width: 768px) {

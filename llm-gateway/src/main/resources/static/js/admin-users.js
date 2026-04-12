@@ -1,4 +1,4 @@
-/**
+﻿/**
  * LLM Gateway - Admin Users Page
  * Session/Cookie authentication mode
  */
@@ -61,12 +61,12 @@
 
         try {
             const data = await API.get('/admin/users?' + params.toString());
-            renderTable(data.content || []);
-            renderPagination(
-                data.number || 0,
-                data.totalPages || 0,
-                data.totalElements || 0
-            );
+            const users = data.content || [];
+            const page = data.page || {};
+            renderTable(users);
+            const totalPages = (page.totalPages || 0) > 0 ? page.totalPages : 1;
+            const totalElements = (page.totalElements || 0) > 0 ? page.totalElements : users.length;
+            renderPagination(page.number || 0, totalPages, totalElements);
             if (container) container.classList.remove('d-none');
         } catch (error) {
             console.error('Failed to load users', error);
@@ -112,18 +112,38 @@
     }
 
     function renderPagination(page, totalPages, totalElements) {
-        const el = document.getElementById('usersPagination');
-        if (!el) return;
+        const container = document.getElementById('usersPagination');
+        if (!container) return;
 
         if (totalPages <= 1) {
-            el.innerHTML = '<span class="page-info">共 ' + totalElements + ' 条</span>';
+            container.innerHTML = '<span class="page-info">共 ' + totalElements + ' 条</span>' +
+                '<div style="display:flex;justify-content:center;gap:8px;">' +
+                '<button class="btn btn-sm btn-secondary" disabled="disabled">上一页</button>' +
+                '<button class="btn btn-sm btn-primary active">1</button>' +
+                '<button class="btn btn-sm btn-secondary" disabled="disabled">下一页</button>' +
+                '</div>';
             return;
         }
 
-        el.innerHTML =
-            '<button class="btn btn-secondary" type="button" ' + (page === 0 ? 'disabled' : '') + ' onclick="goPage(' + (page - 1) + ')">上一页</button>' +
-            '<span class="page-info">第 ' + (page + 1) + ' / ' + totalPages + ' 页，共 ' + totalElements + ' 条</span>' +
-            '<button class="btn btn-secondary" type="button" ' + (page >= totalPages - 1 ? 'disabled' : '') + ' onclick="goPage(' + (page + 1) + ')">下一页</button>';
+        const startPage = Math.max(0, page - 2);
+        const endPage = Math.min(totalPages, startPage + 5);
+        let html = '';
+
+        html += '<button class="btn btn-sm btn-secondary" ' +
+            (page === 0 ? 'disabled' : '') +
+            ' onclick="goPage(' + (page - 1) + ')">上一页</button>';
+
+        for (let index = startPage; index < endPage; index += 1) {
+            html += '<button class="btn btn-sm ' + (index === page ? 'btn-primary active' : 'btn-secondary') +
+                '" onclick="goPage(' + index + ')">' + (index + 1) + '</button>';
+        }
+
+        html += '<button class="btn btn-sm btn-secondary" ' +
+            (page >= totalPages - 1 ? 'disabled' : '') +
+            ' onclick="goPage(' + (page + 1) + ')">下一页</button>';
+        html += '<span class="page-info">第 ' + (page + 1) + ' / ' + totalPages + ' 页，共 ' + totalElements + ' 条</span>';
+
+        container.innerHTML = html;
     }
 
     function bindSearchEvents() {

@@ -1,4 +1,4 @@
-(function() {
+﻿(function() {
     'use strict';
 
     const PAGE_SIZE = 10;
@@ -8,7 +8,7 @@
     let allKeys = [];
     let filteredKeys = [];
     let allUsers = [];
-    let currentPage = 1;
+    let currentPage = 0;
     let activeActionKey = null;
 
     document.addEventListener('DOMContentLoaded', async function() {
@@ -110,8 +110,9 @@
         while (page < totalPages) {
             const data = await API.get('/admin/users?page=' + page + '&size=200');
             const pageContent = Array.isArray(data.content) ? data.content : [];
+            const pageData = data.page || {};
             loadedUsers.push.apply(loadedUsers, pageContent);
-            totalPages = data.totalPages || 1;
+            totalPages = (pageData.totalPages || 0) > 0 ? pageData.totalPages : 1;
             page += 1;
         }
 
@@ -182,7 +183,7 @@
             });
         }
 
-        currentPage = 1;
+        currentPage = 0;
         renderTable();
         renderPagination();
     }
@@ -193,7 +194,7 @@
         if (!tbody) return;
 
         if (summary) {
-            summary.textContent = '\u5171 ' + UI.formatNumber(filteredKeys.length) + ' \u6761\uff0c\u5f53\u524d\u7b2c ' + currentPage + ' \u9875';
+            summary.textContent = '共 ' + UI.formatNumber(filteredKeys.length) + ' 条，当前第 ' + (currentPage + 1) + ' 页';
         }
 
         if (filteredKeys.length === 0) {
@@ -220,23 +221,45 @@
     }
 
     function renderPagination() {
-        const pagination = document.getElementById('keysPagination');
-        if (!pagination) return;
+        const container = document.getElementById('keysPagination');
+        if (!container) return;
 
         const totalPages = Math.max(1, Math.ceil(filteredKeys.length / PAGE_SIZE));
+        const totalElements = filteredKeys.length;
+
         if (totalPages <= 1) {
-            pagination.innerHTML = '<span class="page-info">\u5171 ' + UI.formatNumber(filteredKeys.length) + ' \u6761</span>';
+            container.innerHTML = '<span class="page-info">共 ' + UI.formatNumber(totalElements) + ' 条</span>' +
+                '<div style="display:flex;justify-content:center;gap:8px;">' +
+                '<button class="btn btn-sm btn-secondary" disabled="disabled">上一页</button>' +
+                '<button class="btn btn-sm btn-primary active">1</button>' +
+                '<button class="btn btn-sm btn-secondary" disabled="disabled">下一页</button>' +
+                '</div>';
             return;
         }
 
-        pagination.innerHTML = '' +
-            '<button class="btn btn-secondary" type="button" ' + (currentPage === 1 ? 'disabled' : '') + ' onclick="goToPage(' + (currentPage - 1) + ')">\u4e0a\u4e00\u9875</button>' +
-            '<span class="page-info">\u7b2c ' + currentPage + ' / ' + totalPages + ' \u9875</span>' +
-            '<button class="btn btn-secondary" type="button" ' + (currentPage === totalPages ? 'disabled' : '') + ' onclick="goToPage(' + (currentPage + 1) + ')">\u4e0b\u4e00\u9875</button>';
+        const startPage = Math.max(0, currentPage - 2);
+        const endPage = Math.min(totalPages, startPage + 5);
+        let html = '';
+
+        html += '<button class="btn btn-sm btn-secondary" ' +
+            (currentPage === 0 ? 'disabled' : '') +
+            ' onclick="goPage(' + (currentPage - 1) + ')">上一页</button>';
+
+        for (let index = startPage; index < endPage; index += 1) {
+            html += '<button class="btn btn-sm ' + (index === currentPage ? 'btn-primary active' : 'btn-secondary') +
+                '" onclick="goPage(' + index + ')">' + (index + 1) + '</button>';
+        }
+
+        html += '<button class="btn btn-sm btn-secondary" ' +
+            (currentPage >= totalPages - 1 ? 'disabled' : '') +
+            ' onclick="goPage(' + (currentPage + 1) + ')">下一页</button>';
+        html += '<span class="page-info">第 ' + (currentPage + 1) + ' / ' + totalPages + ' 页，共 ' + UI.formatNumber(totalElements) + ' 条</span>';
+
+        container.innerHTML = html;
     }
 
     function getCurrentPageItems() {
-        const start = (currentPage - 1) * PAGE_SIZE;
+        const start = currentPage * PAGE_SIZE;
         return filteredKeys.slice(start, start + PAGE_SIZE);
     }
 
@@ -388,9 +411,9 @@
         applyCurrentFilters();
     };
 
-    window.goToPage = function(page) {
+    window.goPage = function(page) {
         const totalPages = Math.max(1, Math.ceil(filteredKeys.length / PAGE_SIZE));
-        currentPage = Math.min(Math.max(1, page), totalPages);
+        currentPage = Math.min(Math.max(0, page), totalPages - 1);
         renderTable();
         renderPagination();
     };

@@ -64,11 +64,12 @@ public class OpenAiCompatibleController {
     @PostMapping("/v1/chat/completions")
     public ResponseEntity<StreamingResponseBody> chatCompletions(HttpServletRequest httpRequest, @RequestBody JsonNode requestBody) {
         ApiKey key = (ApiKey) httpRequest.getAttribute("apiKey");
+        String requestedModel = requestBody.path("model").asText(null);
+
         if (key == null) {
             return jsonResponse(401, Map.of("error", Map.of("message", "API key required", "type", "authentication_error")));
         }
 
-        String requestedModel = requestBody.path("model").asText(null);
         if (requestedModel == null || requestedModel.isBlank()) {
             return jsonResponse(400, Map.of("error", Map.of("message", "model is required", "type", "invalid_request_error")));
         }
@@ -77,10 +78,7 @@ public class OpenAiCompatibleController {
         String resolvedModel = routingConfigParser.resolveModel(key.getRoutingConfig(), requestedModel);
         Optional<BackendService> providerOptional = upstreamProviderService.findByModelName(resolvedModel);
         BackendService provider = providerOptional.orElse(null);
-        String configuredTargetUrl = routingConfigParser.resolveConfiguredTargetUrl(key.getRoutingConfig(), key.getTargetUrl());
-        String targetUrl = configuredTargetUrl != null && !configuredTargetUrl.isBlank()
-                ? configuredTargetUrl
-                : providerOptional.map(BackendService::getBaseUrl).orElse(null);
+        String targetUrl = resolveTargetUrl(key, resolvedModel, providerOptional);
 
         if (provider != null && upstreamProviderService.isCircuitOpen(provider.getId())) {
             return jsonResponse(503, Map.of("error", Map.of("message", "Upstream provider temporarily unavailable", "type", "provider_unavailable")));
@@ -306,4 +304,22 @@ public class OpenAiCompatibleController {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(responseBody);
     }
+
+    private String resolveTargetUrl(ApiKey key, String modelName) {
+        if (key == null) {
+            return null;
+        }
+        String resolvedModel = routingConfigParser.resolveModel(key.getRoutingConfig(), modelName);
+        Optional<BackendService> providerOptional = upstreamProviderService.findByModelName(resolvedModel);
+        return resolveTargetUrl(key, resolvedModel, providerOptional);
+    }
+
+    private String resolveTargetUrl(ApiKey key, String resolvedModel, Optional<BackendService> providerOptional) {
+        String configuredTargetUrl = routingConfigParser.resolveConfiguredTargetUrl(key.getRoutingConfig(), key.getTargetUrl());
+        if (configuredTargetUrl != null && !configuredTargetUrl.isBlank()) {
+            return configuredTargetUrl;
+        }
+        return providerOptional.map(BackendService::getBaseUrl).orElse(null);
+    }
+
 }

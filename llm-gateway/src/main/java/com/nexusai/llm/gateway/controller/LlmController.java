@@ -53,6 +53,10 @@ public class LlmController {
     @PostMapping({"/api/llm/chat", "/api/chat"})
     public ResponseEntity<String> chat(HttpServletRequest httpRequest, @RequestBody ChatRequest request) {
         ApiKey key = (ApiKey) httpRequest.getAttribute("apiKey");
+        String targetUrl = key != null
+                ? routingConfigParser.resolveTargetUrl(key.getRoutingConfig(), key.getTargetUrl())
+                : request != null ? request.getBackendUrl() : null;
+
         if (key == null) {
             return ResponseEntity.status(401).body("{\"error\": \"API key required\"}");
         }
@@ -70,7 +74,6 @@ public class LlmController {
             );
         }
 
-        String targetUrl = routingConfigParser.resolveTargetUrl(key.getRoutingConfig(), key.getTargetUrl());
         String resolvedModel = routingConfigParser.resolveModel(key.getRoutingConfig(), request.getModel());
         Optional<BackendService> providerOptional = upstreamProviderService.findByModelName(resolvedModel);
         BackendService provider = providerOptional.orElse(null);
@@ -144,4 +147,5 @@ public class LlmController {
 
         return ResponseEntity.ok(Map.of("models", models));
     }
+
 }

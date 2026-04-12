@@ -31,15 +31,18 @@ import java.util.stream.Collectors;
 public class SecurityConfig {
 
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+    private final GatewayRequestLoggingFilter gatewayRequestLoggingFilter;
     private final SecurityProtectionFilter securityProtectionFilter;
     private final boolean swaggerEnabled;
     private final List<String> allowedOriginPatterns;
 
     public SecurityConfig(ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
+                          GatewayRequestLoggingFilter gatewayRequestLoggingFilter,
                           SecurityProtectionFilter securityProtectionFilter,
                           @Value("${app.security.swagger-enabled:false}") boolean swaggerEnabled,
                           @Value("${app.security.allowed-origin-patterns:}") String allowedOriginPatterns) {
         this.apiKeyAuthenticationFilter = apiKeyAuthenticationFilter;
+        this.gatewayRequestLoggingFilter = gatewayRequestLoggingFilter;
         this.securityProtectionFilter = securityProtectionFilter;
         this.swaggerEnabled = swaggerEnabled;
         this.allowedOriginPatterns = Arrays.stream(allowedOriginPatterns.split(","))
@@ -94,7 +97,7 @@ public class SecurityConfig {
                     auth.requestMatchers("/fonts/**").permitAll();
                     auth.requestMatchers("/api/chat", "/api/llm/chat").permitAll();
                     auth.requestMatchers("/api/models", "/api/llm/models").permitAll();
-                    auth.requestMatchers("/v1/chat/completions", "/v1/models").permitAll();
+                    auth.requestMatchers("/v1/chat/completions", "/v1/messages", "/v1/models").permitAll();
 
                     if (swaggerEnabled) {
                         auth.requestMatchers("/v3/api-docs/**").hasRole("ADMIN");
@@ -122,7 +125,8 @@ public class SecurityConfig {
                     auth.requestMatchers("/admin/**").hasRole("ADMIN");
                     auth.anyRequest().permitAll();
                 })
-                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(gatewayRequestLoggingFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(apiKeyAuthenticationFilter, GatewayRequestLoggingFilter.class)
                 .addFilterAfter(securityProtectionFilter, ApiKeyAuthenticationFilter.class);
 
         return http.build();
@@ -143,7 +147,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(allowedOriginPatterns);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-API-Key", "X-Requested-With"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-API-Key", "X-Requested-With", "anthropic-version", "anthropic-beta", "x-api-key"));
         configuration.setExposedHeaders(Arrays.asList("X-Remaining-Tokens", "X-Total-Tokens"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);

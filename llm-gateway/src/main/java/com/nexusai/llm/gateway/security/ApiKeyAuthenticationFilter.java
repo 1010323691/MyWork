@@ -1,6 +1,5 @@
 package com.nexusai.llm.gateway.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexusai.llm.gateway.entity.ApiKey;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -17,18 +16,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 @Component
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
+    public static final String REQUEST_ATTR_API_KEY_STATUS = "gatewayApiKeyStatus";
+
     private final ApiKeyService apiKeyService;
-    private final ObjectMapper objectMapper;
     private List<String> skipPaths = List.of();
 
-    public ApiKeyAuthenticationFilter(ApiKeyService apiKeyService, ObjectMapper objectMapper) {
+    public ApiKeyAuthenticationFilter(ApiKeyService apiKeyService) {
         this.apiKeyService = apiKeyService;
-        this.objectMapper = objectMapper;
     }
 
     public void setSkipPaths(List<String> skipPaths) {
@@ -47,33 +45,33 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String apiKey = extractApiKey(request);
-
-        // 如果没有提供 API Key，跳过认证，让 JWT filter 处理
-        if (apiKey == null || apiKey.isBlank()) {
+        String apiKeyValue = extractApiKey(request);
+        if (apiKeyValue == null || apiKeyValue.isBlank()) {
+            request.setAttribute(REQUEST_ATTR_API_KEY_STATUS, "missing");
             filterChain.doFilter(request, response);
             return;
         }
 
-        var apiKeyOpt = apiKeyService.findByKey(apiKey);
+        var apiKeyOpt = apiKeyService.findByKey(apiKeyValue);
         if (apiKeyOpt.isEmpty()) {
-            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
+            request.setAttribute(REQUEST_ATTR_API_KEY_STATUS, "provided_but_rejected");
+            filterChain.doFilter(request, response);
             return;
         }
 
         ApiKey key = apiKeyOpt.get();
-
         if (!Boolean.TRUE.equals(key.getEnabled())) {
-            sendError(response, HttpServletResponse.SC_FORBIDDEN, "API key is disabled");
+            request.setAttribute(REQUEST_ATTR_API_KEY_STATUS, "authenticated_but_disabled");
+            filterChain.doFilter(request, response);
             return;
         }
 
         if (key.getExpiresAt() != null && key.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
-            sendError(response, HttpServletResponse.SC_FORBIDDEN, "API key has expired");
+            request.setAttribute(REQUEST_ATTR_API_KEY_STATUS, "authenticated_but_expired");
+            filterChain.doFilter(request, response);
             return;
         }
 
-        // 设置 SecurityContext
         User principal = new User(
                 key.getId().toString(),
                 "",
@@ -83,40 +81,43 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 principal, null, principal.getAuthorities()
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        // 将 API Key 信息存储到 request 属性中，供后续使用
         request.setAttribute("apiKey", key);
+        request.setAttribute(REQUEST_ATTR_API_KEY_STATUS, "authenticated");
 
         filterChain.doFilter(request, response);
     }
 
-    private void sendError(HttpServletResponse response, int status, String message) throws IOException {
-        response.setStatus(status);
-        response.setContentType("application/json");
-        Map<String, Object> error = Map.of(
-                "error", message,
-                "status", status
-        );
-        response.getWriter().write(objectMapper.writeValueAsString(error));
-    }
-
     private String extractApiKey(HttpServletRequest request) {
+        String path = request.getServletPath();
+        if ("/v1/messages".equals(path)) {
+            String authorizationToken = extractBearerToken(request.getHeader("Authorization"));
+            if (authorizationToken != null) {
+                return authorizationToken;
+            }
+        }
+
         String apiKey = request.getHeader("X-API-Key");
         if (apiKey != null && !apiKey.isBlank()) {
             return apiKey.trim();
         }
 
-        String authorization = request.getHeader("Authorization");
+        apiKey = request.getHeader("x-api-key");
+        if (apiKey != null && !apiKey.isBlank()) {
+            return apiKey.trim();
+        }
+
+        return extractBearerToken(request.getHeader("Authorization"));
+    }
+
+    private String extractBearerToken(String authorization) {
         if (authorization == null || authorization.isBlank()) {
             return null;
         }
-
-        if (authorization.regionMatches(true, 0, "Bearer ", 0, 7)) {
-            String bearerToken = authorization.substring(7).trim();
-            return bearerToken.isBlank() ? null : bearerToken;
+        if (!authorization.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return null;
         }
-
-        return null;
+        String bearerToken = authorization.substring(7).trim();
+        return bearerToken.isBlank() ? null : bearerToken;
     }
 
     private boolean shouldSkip(HttpServletRequest request) {

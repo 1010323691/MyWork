@@ -58,19 +58,17 @@ public class RequestLogService {
                     .status(status)
                     .build();
             RequestLog savedLog = requestLogRepository.save(log);
-            logger.info("gateway_request_log_saved | id={} | requestId={} | userId={} | apiKeyId={} | model={} | inputTokens={} | outputTokens={} | totalInputTokens={} | cachedInputTokens={} | latencyMs={} | costAmount={} | status={}",
-                    savedLog.getId(),
-                    sanitize(savedLog.getRequestId()),
-                    savedLog.getUserId(),
-                    apiKey.getId(),
-                    sanitize(savedLog.getModelName()),
-                    defaultLong(savedLog.getInputTokens()),
-                    defaultLong(savedLog.getOutputTokens()),
-                    defaultLong(savedLog.getTotalInputTokens()),
-                    defaultLong(savedLog.getCachedInputTokens()),
-                    defaultLong(savedLog.getLatencyMs()),
-                    defaultBigDecimal(savedLog.getCostAmount()),
-                    savedLog.getStatus());
+            if (savedLog.getStatus() == RequestLog.RequestStatus.SUCCESS) {
+                logger.info("gateway_request_processed_success | requestId={} | userId={} | apiKeyId={} | model={} | inputTokens={} | outputTokens={} | latencyMs={} | costAmount={}",
+                        sanitize(savedLog.getRequestId()),
+                        savedLog.getUserId(),
+                        apiKey.getId(),
+                        sanitize(savedLog.getModelName()),
+                        defaultLong(savedLog.getInputTokens()),
+                        defaultLong(savedLog.getOutputTokens()),
+                        defaultLong(savedLog.getLatencyMs()),
+                        defaultBigDecimal(savedLog.getCostAmount()));
+            }
         } catch (Exception e) {
             logger.error("Failed to save request log for apiKeyId={}: {}", apiKeyId, e.getMessage(), e);
         }

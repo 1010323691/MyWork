@@ -111,7 +111,7 @@ public class SecurityProtectionFilter extends OncePerRequestFilter {
 
     private boolean isCompletionEndpoint(String path, String method) {
         return HttpMethod.POST.matches(method)
-                && ("/v1/chat/completions".equals(path) || "/api/llm/chat".equals(path));
+                && ("/v1/chat/completions".equals(path) || "/v1/messages".equals(path) || "/api/llm/chat".equals(path));
     }
 
     private boolean isProtectedWriteEndpoint(String path, String method) {

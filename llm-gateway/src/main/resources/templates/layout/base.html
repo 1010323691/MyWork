@@ -7,8 +7,11 @@
         <th:block th:replace="~{fragments/head :: head(${pageTitle})}"></th:block>
         <!-- 页面专用样式 -->
         <link rel="stylesheet" th:if="${extraCss != null}" th:href="@{${extraCss}}">
+        <th:block th:if="${#ctx.containsVariable('extraHead') and extraHead != null}">
+            <th:block th:replace="~{${extraHead}}"></th:block>
+        </th:block>
     </head>
-    <body>
+    <body th:class="${#ctx.containsVariable('bodyClass') ? bodyClass : null}">
         <div class="layout-container">
             <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
             <main class="main-content">
@@ -21,6 +24,9 @@
             </main>
         </div>
         <th:block th:replace="~{fragments/scripts :: scripts}"></th:block>
+        <th:block th:if="${#ctx.containsVariable('extraScripts') and extraScripts != null}">
+            <th:block th:replace="~{${extraScripts}}"></th:block>
+        </th:block>
     </body>
 </th:block>
 

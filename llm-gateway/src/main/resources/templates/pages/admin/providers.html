@@ -1,23 +1,11 @@
 <!DOCTYPE html>
-<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('上游提供商管理 - LLM Gateway', ~{::main-content}, '/css/admin.css')}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>上游提供商管理 - LLM Gateway</title>
-
-    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
-    <link rel="stylesheet" th:href="@{/css/common.css}">
-    <link rel="stylesheet" th:href="@{/css/admin.css}">
 </head>
 <body>
-    <div class="layout-container">
-        <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
-
-        <main class="main-content">
-            <div class="page-content">
-                <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
-
-                <div class="page-content-wrapper">
+<main th:fragment="main-content">
                     <div class="card">
                         <div class="card-header">
                             <div class="card-title">上游提供商管理</div>
@@ -48,9 +36,6 @@
                             </table>
                         </div>
                     </div>
-                </div>
-            </div>
-        </main>
     </div>
 
     <div id="providerModal" class="modal-overlay d-none">
@@ -141,8 +126,8 @@
         </div>
     </div>
 
-    <script th:src="@{/js/common.js}"></script>
     <script th:src="@{/js/custom-dropdown.js}"></script>
     <script th:src="@{/js/admin-providers.js}"></script>
+</main>
 </body>
 </html>

@@ -1,149 +1,135 @@
 <!DOCTYPE html>
-<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"
+      th:with="bodyClass='balance-detail-page'"
+      th:replace="~{layout/base :: layout('余额明细 - LLM Gateway', ~{::main-content}, '/css/user-balance-page.css')}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>余额明细 - LLM Gateway</title>
-
-    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
-    <link rel="stylesheet" th:href="@{/css/common.css}">
-    <link rel="stylesheet" th:href="@{/css/admin.css}">
-    <link rel="stylesheet" th:href="@{/css/balance-detail.css}">
 </head>
-<body class="balance-detail-page">
-    <div class="layout-container">
-        <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
+<body>
+<main th:fragment="main-content">
+    <div class="balance-detail-shell">
+        <section class="balance-hero">
+            <div class="balance-hero-card">
+                <div class="balance-hero__eyebrow">Balance Ledger</div>
+                <div class="balance-hero__headline">
+                    <div>
+                        <h1>余额明细</h1>
+                        <p>余额用于模型调用扣费，充值到账后会自动进入金额变动明细。</p>
+                    </div>
+                    <span class="balance-status-pill">人工充值</span>
+                </div>
 
-        <main class="main-content">
-            <div class="page-content">
-                <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
+                <div class="balance-hero__amount">
+                    <span class="balance-currency">CNY</span>
+                    <span class="balance-amount" id="balanceAmount">0.00</span>
+                </div>
 
-                <div class="balance-detail-shell">
-                    <section class="balance-hero">
-                        <div class="balance-hero-card">
-                            <div class="balance-hero__eyebrow">Balance Ledger</div>
-                            <div class="balance-hero__headline">
-                                <div>
-                                    <h1>余额明细</h1>
-                                    <p>余额用于模型调用扣费，充值到账后会自动进入金额变动明细。</p>
-                                </div>
-                                <span class="balance-status-pill">人工充值</span>
-                            </div>
-
-                            <div class="balance-hero__amount">
-                                <span class="balance-currency">CNY</span>
-                                <span class="balance-amount" id="balanceAmount">0.00</span>
-                            </div>
-
-                            <div class="balance-hero__meta">
-                                <div class="balance-meta-card">
-                                    <span class="balance-meta-card__label">最近变动</span>
-                                    <strong id="lastTransactionTime">-</strong>
-                                </div>
-                                <div class="balance-meta-card">
-                                    <span class="balance-meta-card__label">流水状态</span>
-                                    <strong id="transactionStatusText">加载中</strong>
-                                </div>
-                            </div>
-                        </div>
-
-                        <aside class="balance-action-card">
-                            <div class="balance-action-card__eyebrow">Recharge</div>
-                            <h2>需要补充余额？</h2>
-                            <p>当前版本未接入在线支付，充值由管理员人工处理。填写金额后可复制申请信息发送给管理员。</p>
-
-                            <label class="balance-field-label" for="rechargeAmountInput">建议充值金额</label>
-                            <input id="rechargeAmountInput" class="balance-amount-input" type="number" min="0" step="0.01" placeholder="例如 100.00">
-
-                            <div class="balance-action-card__buttons">
-                                <button id="openRechargeModalBtn" class="btn btn-primary" type="button">申请充值</button>
-                                <a href="/logs" class="btn btn-secondary">查看请求日志</a>
-                            </div>
-
-                            <div class="balance-action-card__tip">到账后会自动出现在下方流水中，不需要手工刷新数据库。</div>
-                        </aside>
-                    </section>
-
-                    <section class="stats-grid balance-summary-grid">
-                        <div class="stat-card">
-                            <div class="stat-icon svg-icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M12 3v19M5 8l7-5 7 5"/>
-                                </svg>
-                            </div>
-                            <div class="stat-value" id="todayTokens">0</div>
-                            <div class="stat-label">今日 Token</div>
-                        </div>
-
-                        <div class="stat-card">
-                            <div class="stat-icon svg-icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M12 21V3M5 16l7 5 7-5"/>
-                                </svg>
-                            </div>
-                            <div class="stat-value" id="monthTokens">0</div>
-                            <div class="stat-label">本月 Token</div>
-                        </div>
-
-                        <div class="stat-card">
-                            <div class="stat-icon svg-icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M4 12h16"/>
-                                    <path d="M4 7h10"/>
-                                    <path d="M4 17h7"/>
-                                </svg>
-                            </div>
-                            <div class="stat-value" id="todayCachedTokens">0</div>
-                            <div class="stat-label">今日缓存命中</div>
-                        </div>
-
-                        <div class="stat-card">
-                            <div class="stat-icon svg-icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M4 12h16"/>
-                                    <path d="M7 7h13"/>
-                                    <path d="M10 17h10"/>
-                                </svg>
-                            </div>
-                            <div class="stat-value" id="monthCachedTokens">0</div>
-                            <div class="stat-label">本月缓存命中</div>
-                        </div>
-
-                        <div class="stat-card">
-                            <div class="stat-icon svg-icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="23,4 23,10 17,10"/>
-                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                                </svg>
-                            </div>
-                            <div class="stat-value" id="totalRequests">0</div>
-                            <div class="stat-label">累计请求</div>
-                        </div>
-                    </section>
-
-                    <section class="ledger-panel">
-                        <div class="ledger-panel__header">
-                            <div>
-                                <div class="ledger-panel__eyebrow">Transactions</div>
-                                <h2>金额变动明细</h2>
-                                <p>展示模型调用扣费、账户充值和管理员调整记录。</p>
-                            </div>
-                            <button id="refreshTransactionsBtn" class="btn btn-secondary" type="button">刷新</button>
-                        </div>
-
-                        <div id="transactionsLoading" class="spinner">加载中...</div>
-
-                        <div id="transactionsContainer" class="d-none">
-                            <div id="transactionsList" class="ledger-list"></div>
-
-                            <div class="ledger-panel__footer">
-                                <button id="loadMoreTransactionsBtn" class="btn btn-secondary d-none" type="button">加载更多</button>
-                            </div>
-                        </div>
-                    </section>
+                <div class="balance-hero__meta">
+                    <div class="balance-meta-card">
+                        <span class="balance-meta-card__label">最近变动</span>
+                        <strong id="lastTransactionTime">-</strong>
+                    </div>
+                    <div class="balance-meta-card">
+                        <span class="balance-meta-card__label">流水状态</span>
+                        <strong id="transactionStatusText">加载中</strong>
+                    </div>
                 </div>
             </div>
-        </main>
+
+            <aside class="balance-action-card">
+                <div class="balance-action-card__eyebrow">Recharge</div>
+                <h2>需要补充余额？</h2>
+                <p>当前版本未接入在线支付，充值由管理员人工处理。填写金额后可复制申请信息发送给管理员。</p>
+
+                <label class="balance-field-label" for="rechargeAmountInput">建议充值金额</label>
+                <input id="rechargeAmountInput" class="balance-amount-input" type="number" min="0" step="0.01" placeholder="例如 100.00">
+
+                <div class="balance-action-card__buttons">
+                    <button id="openRechargeModalBtn" class="btn btn-primary" type="button">申请充值</button>
+                    <a href="/logs" class="btn btn-secondary">查看请求日志</a>
+                </div>
+
+                <div class="balance-action-card__tip">到账后会自动出现在下方流水中，不需要手工刷新数据库。</div>
+            </aside>
+        </section>
+
+        <section class="stats-grid balance-summary-grid">
+            <div class="stat-card">
+                <div class="stat-icon svg-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3v19M5 8l7-5 7 5"/>
+                    </svg>
+                </div>
+                <div class="stat-value" id="todayTokens">0</div>
+                <div class="stat-label">今日 Token</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon svg-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 21V3M5 16l7 5 7-5"/>
+                    </svg>
+                </div>
+                <div class="stat-value" id="monthTokens">0</div>
+                <div class="stat-label">本月 Token</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon svg-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 12h16"/>
+                        <path d="M4 7h10"/>
+                        <path d="M4 17h7"/>
+                    </svg>
+                </div>
+                <div class="stat-value" id="todayCachedTokens">0</div>
+                <div class="stat-label">今日缓存命中</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon svg-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 12h16"/>
+                        <path d="M7 7h13"/>
+                        <path d="M10 17h10"/>
+                    </svg>
+                </div>
+                <div class="stat-value" id="monthCachedTokens">0</div>
+                <div class="stat-label">本月缓存命中</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon svg-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23,4 23,10 17,10"/>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                    </svg>
+                </div>
+                <div class="stat-value" id="totalRequests">0</div>
+                <div class="stat-label">累计请求</div>
+            </div>
+        </section>
+
+        <section class="ledger-panel">
+            <div class="ledger-panel__header">
+                <div>
+                    <div class="ledger-panel__eyebrow">Transactions</div>
+                    <h2>金额变动明细</h2>
+                    <p>展示模型调用扣费、账户充值和管理员调整记录。</p>
+                </div>
+                <button id="refreshTransactionsBtn" class="btn btn-secondary" type="button">刷新</button>
+            </div>
+
+            <div id="transactionsLoading" class="spinner">加载中...</div>
+
+            <div id="transactionsContainer" class="d-none">
+                <div id="transactionsList" class="ledger-list"></div>
+
+                <div class="ledger-panel__footer">
+                    <button id="loadMoreTransactionsBtn" class="btn btn-secondary d-none" type="button">加载更多</button>
+                </div>
+            </div>
+        </section>
     </div>
 
     <div id="rechargeModal" class="modal-overlay" style="display:none;" onclick="if (event.target === this) closeRechargeModal();">
@@ -181,7 +167,7 @@
         </div>
     </div>
 
-    <script th:src="@{/js/common.js}"></script>
     <script th:src="@{/js/user-balance.js}"></script>
+</main>
 </body>
 </html>

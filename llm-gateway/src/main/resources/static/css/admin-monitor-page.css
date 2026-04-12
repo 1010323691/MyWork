@@ -1,5 +1,9 @@
 @import url('/css/admin.css');
 
+body.monitor-page .page-content-wrapper {
+    max-width: none;
+}
+
 :root {
     --resource-card-height: 326px;
 }

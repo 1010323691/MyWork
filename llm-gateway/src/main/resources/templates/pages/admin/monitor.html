@@ -1,176 +1,15 @@
 <!DOCTYPE html>
-<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"
+      th:with="bodyClass='monitor-page'"
+      th:replace="~{layout/base :: layout(${title} + ' - LLM Gateway', ~{::main-content}, '/css/admin-monitor-page.css')}">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title th:text="${title} + ' - LLM Gateway'">系统监控</title>
-
-    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
-    <link rel="stylesheet" th:href="@{/css/common.css}">
-    <link rel="stylesheet" th:href="@{/css/admin.css}">
-    <style>
-        :root {
-            --resource-card-height: 326px;
-        }
-
-        #systemResourceRow {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 12px;
-            overflow: visible;
-            padding-bottom: 0;
-            margin-bottom: 24px;
-        }
-
-        #multiGpuContainer {
-            display: contents;
-            margin-bottom: 0;
-        }
-
-        .gpu-compact-card {
-            display: grid;
-            grid-template-columns: 1fr;
-            grid-template-rows: auto auto;
-            gap: 8px;
-            padding: 12px 14px;
-            min-width: 0;
-            width: 100%;
-            height: var(--resource-card-height);
-            min-height: var(--resource-card-height);
-            box-sizing: border-box;
-            align-items: stretch;
-            margin-bottom: 0;
-            overflow: hidden;
-        }
-
-        .gpu-compact-header {
-            display: flex;
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: baseline;
-            gap: 8px;
-            min-width: 0;
-            margin-bottom: 2px;
-        }
-
-        .gpu-compact-name {
-            color: var(--text-primary);
-            font-weight: 600;
-            font-size: 14px;
-            line-height: 1.2;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .gpu-compact-meta {
-            color: var(--text-secondary);
-            font-size: 12px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .gpu-chart-stack {
-            display: grid;
-            grid-template-columns: 1fr;
-            grid-template-rows: repeat(2, minmax(0, 1fr));
-            gap: 8px;
-            min-width: 0;
-            min-height: 0;
-        }
-
-        .gpu-chart-panel {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 10px;
-            padding: 6px 8px;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-            min-height: 0;
-        }
-
-        .gpu-chart-subtitle {
-            color: var(--text-secondary);
-            font-size: 12px;
-            margin-bottom: 2px;
-        }
-
-        .resource-mini-card {
-            width: 100%;
-            min-width: 0;
-            height: var(--resource-card-height);
-            min-height: var(--resource-card-height);
-            display: flex;
-            flex-direction: column;
-            box-sizing: border-box;
-        }
-
-        .resource-mini-card .card-title {
-            white-space: nowrap;
-        }
-
-        .resource-mini-card #cpuUsageChart,
-        .resource-mini-card #memoryUsageChart,
-        .resource-mini-card #gpuUsageChart,
-        .resource-mini-card #gpuMemoryChart {
-            flex: 1;
-            min-height: 0;
-        }
-
-        .model-load-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-
-        .model-load-grid .card {
-            margin-bottom: 0;
-        }
-
-        @media (max-width: 900px) {
-            #systemResourceRow {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .gpu-chart-stack {
-                grid-template-columns: 1fr;
-            }
-
-            .gpu-compact-header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .model-load-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-        }
-
-        @media (max-width: 768px) {
-            #systemResourceRow {
-                grid-template-columns: 1fr;
-            }
-
-            .model-load-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
 </head>
 
 <body>
-    <div class="layout-container">
-        <th:block th:replace="~{fragments/sidebar :: sidebar}"></th:block>
-
-        <main class="main-content">
-            <div class="page-content">
-                <th:block th:replace="~{fragments/alerts :: alerts}"></th:block>
-
-                <h2 style="color: var(--text-primary); margin-bottom: 24px;">系统监控</h2>
+<main th:fragment="main-content">
+    <h2 style="color: var(--text-primary); margin-bottom: 24px;">系统监控</h2>
 
 
                 <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 16px;">资源趋势（60 秒）</h3>
@@ -217,14 +56,9 @@
                         <div id="modelLatencyChart" style="height: 250px;"></div>
                     </div>
                 </div>
-            </div>
-        </main>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-    <script th:src="@{/js/common.js}"></script>
-    <script th:src="@{/js/echarts-tech-theme.js}"></script>
     <script th:src="@{/js/admin-monitor.js}"></script>
+</main>
 </body>
 
 </html>

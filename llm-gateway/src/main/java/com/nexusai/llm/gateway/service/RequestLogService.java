@@ -30,6 +30,7 @@ public class RequestLogService {
     @Transactional
     public void asyncLogRequest(Long apiKeyId, Long userId, String requestId,
                                 Long inputTokens, Long outputTokens,
+                                Long totalInputTokens, Long cachedInputTokens,
                                 String modelName, Long latencyMs,
                                 BigDecimal costAmount,
                                 RequestLog.RequestStatus status) {
@@ -49,13 +50,15 @@ public class RequestLogService {
                     .requestId(requestId)
                     .inputTokens(defaultLong(inputTokens))
                     .outputTokens(defaultLong(outputTokens))
+                    .totalInputTokens(defaultLong(totalInputTokens))
+                    .cachedInputTokens(defaultLong(cachedInputTokens))
                     .modelName(modelName)
                     .latencyMs(latencyMs)
                     .costAmount(defaultBigDecimal(costAmount))
                     .status(status)
                     .build();
             RequestLog savedLog = requestLogRepository.save(log);
-            logger.info("gateway_request_log_saved | id={} | requestId={} | userId={} | apiKeyId={} | model={} | inputTokens={} | outputTokens={} | latencyMs={} | costAmount={} | status={}",
+            logger.info("gateway_request_log_saved | id={} | requestId={} | userId={} | apiKeyId={} | model={} | inputTokens={} | outputTokens={} | totalInputTokens={} | cachedInputTokens={} | latencyMs={} | costAmount={} | status={}",
                     savedLog.getId(),
                     sanitize(savedLog.getRequestId()),
                     savedLog.getUserId(),
@@ -63,6 +66,8 @@ public class RequestLogService {
                     sanitize(savedLog.getModelName()),
                     defaultLong(savedLog.getInputTokens()),
                     defaultLong(savedLog.getOutputTokens()),
+                    defaultLong(savedLog.getTotalInputTokens()),
+                    defaultLong(savedLog.getCachedInputTokens()),
                     defaultLong(savedLog.getLatencyMs()),
                     defaultBigDecimal(savedLog.getCostAmount()),
                     savedLog.getStatus());

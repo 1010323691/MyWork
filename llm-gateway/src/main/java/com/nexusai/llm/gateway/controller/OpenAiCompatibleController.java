@@ -170,15 +170,22 @@ public class OpenAiCompatibleController {
                 logger.error("OpenAI non-stream upstream failed: requestId={}, latencyMs={}, error={}",
                         requestId, latency, e.getMessage(), e);
                 requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, 0L,
+                        estimatedInput, 0L,
                         resolvedModel, latency, BigDecimal.ZERO, RequestLog.RequestStatus.FAIL);
                 return jsonResponse(502, Map.of("error", Map.of("message", e.getMessage(), "type", "upstream_error")));
             }
 
             long latencyMs = System.currentTimeMillis() - startMs;
-            long outputTokens = openAiForwardService.estimateTokenUsage(openAiForwardService.extractResponseText(response.body()));
+            OpenAiForwardService.UsageStats usageStats = openAiForwardService.extractUsageStats(response.body());
+            long totalInputTokens = usageStats.totalInputTokensOr(estimatedInput);
+            long cachedInputTokens = usageStats.cachedInputTokensOr(0L);
+            long actualInputTokens = usageStats.actualInputTokensOr(estimatedInput);
+            long outputTokens = usageStats.completionTokensOr(
+                    openAiForwardService.estimateTokenUsage(openAiForwardService.extractResponseText(response.body()))
+            );
             RequestLog.RequestStatus status = response.statusCode() >= 400 ? RequestLog.RequestStatus.FAIL : RequestLog.RequestStatus.SUCCESS;
             BigDecimal actualCost = status == RequestLog.RequestStatus.SUCCESS
-                    ? userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens, requestId, resolvedModel)
+                    ? userBillingService.settleUsage(userId, provider, actualInputTokens, outputTokens, requestId, resolvedModel)
                     : BigDecimal.ZERO;
 
             if (provider != null) {
@@ -189,9 +196,10 @@ public class OpenAiCompatibleController {
                 }
             }
             if (status == RequestLog.RequestStatus.SUCCESS) {
-                requestLogService.asyncRecordUsage(key.getId(), estimatedInput + outputTokens);
+                requestLogService.asyncRecordUsage(key.getId(), actualInputTokens + outputTokens);
             }
-            requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, outputTokens,
+            requestLogService.asyncLogRequest(key.getId(), userId, requestId, actualInputTokens, outputTokens,
+                    totalInputTokens, cachedInputTokens,
                     resolvedModel, latencyMs, actualCost, status);
 
             StreamingResponseBody responseBody = outputStream ->
@@ -226,6 +234,7 @@ public class OpenAiCompatibleController {
             logger.error("OpenAI stream upstream open failed: requestId={}, latencyMs={}, error={}",
                     requestId, latency, e.getMessage(), e);
             requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, 0L,
+                    estimatedInput, 0L,
                     resolvedModel, latency, BigDecimal.ZERO, RequestLog.RequestStatus.FAIL);
             return jsonResponse(502, Map.of("error", Map.of("message", e.getMessage(), "type", "upstream_error")));
         }
@@ -234,7 +243,7 @@ public class OpenAiCompatibleController {
         StreamingResponseBody responseBody = outputStream -> {
             RequestLog.RequestStatus finalStatus = initialStatus;
             String visibleContent = "";
-            long outputTokens = 0L;
+            OpenAiForwardService.UsageStats usageStats = OpenAiForwardService.UsageStats.empty();
             boolean providerFailure = false;
             try {
                 OpenAiForwardService.StreamSummary summary = openAiForwardService.relayStream(
@@ -243,7 +252,7 @@ public class OpenAiCompatibleController {
                         outputStream
                 );
                 visibleContent = summary.visibleContent();
-                outputTokens = summary.outputTokens();
+                usageStats = summary.usageStats();
             } catch (Exception e) {
                 finalStatus = RequestLog.RequestStatus.FAIL;
                 providerFailure = true;
@@ -251,11 +260,15 @@ public class OpenAiCompatibleController {
                 throw e;
             } finally {
                 long latencyMs = System.currentTimeMillis() - startMs;
+                long totalInputTokens = usageStats.totalInputTokensOr(estimatedInput);
+                long cachedInputTokens = usageStats.cachedInputTokensOr(0L);
+                long actualInputTokens = usageStats.actualInputTokensOr(estimatedInput);
+                long outputTokens = usageStats.completionTokensOr(0L);
                 if (outputTokens <= 0 && visibleContent != null && !visibleContent.isBlank()) {
                     outputTokens = openAiForwardService.estimateTokenUsage(visibleContent);
                 }
                 BigDecimal actualCost = finalStatus == RequestLog.RequestStatus.SUCCESS
-                        ? userBillingService.settleUsage(userId, provider, estimatedInput, outputTokens, requestId, resolvedModel)
+                        ? userBillingService.settleUsage(userId, provider, actualInputTokens, outputTokens, requestId, resolvedModel)
                         : BigDecimal.ZERO;
                 if (provider != null) {
                     if (finalStatus == RequestLog.RequestStatus.SUCCESS) {
@@ -265,9 +278,10 @@ public class OpenAiCompatibleController {
                     }
                 }
                 if (finalStatus == RequestLog.RequestStatus.SUCCESS) {
-                    requestLogService.asyncRecordUsage(key.getId(), estimatedInput + outputTokens);
+                    requestLogService.asyncRecordUsage(key.getId(), actualInputTokens + outputTokens);
                 }
-                requestLogService.asyncLogRequest(key.getId(), userId, requestId, estimatedInput, outputTokens,
+                requestLogService.asyncLogRequest(key.getId(), userId, requestId, actualInputTokens, outputTokens,
+                        totalInputTokens, cachedInputTokens,
                         resolvedModel, latencyMs, actualCost, finalStatus);
                 permit.close();
             }

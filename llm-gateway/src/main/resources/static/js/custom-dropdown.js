@@ -217,6 +217,7 @@
             this.updateState();
             this.close();
             this.trigger.focus();
+            this.dispatchChangeEvent();
 
             if (typeof this.options.onChange === 'function') {
                 this.options.onChange(this, item.value, item.text);
@@ -317,10 +318,21 @@
             this.selectedValue = null;
             this.selectedText = null;
             this.updateState();
+            this.dispatchChangeEvent();
 
             if (typeof this.options.onChange === 'function') {
                 this.options.onChange(this, null, null);
             }
+        }
+
+        dispatchChangeEvent() {
+            this.element.dispatchEvent(new CustomEvent('change', {
+                bubbles: true,
+                detail: {
+                    value: this.selectedValue,
+                    text: this.selectedText
+                }
+            }));
         }
 
         setEnabled(enabled) {

@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS `request_logs` (
     `user_id` BIGINT NULL,
     `input_tokens` BIGINT NOT NULL DEFAULT 0,
     `output_tokens` BIGINT NOT NULL DEFAULT 0,
+    `total_input_tokens` BIGINT NOT NULL DEFAULT 0,
+    `cached_input_tokens` BIGINT NOT NULL DEFAULT 0,
     `model_name` VARCHAR(255) NULL,
     `latency_ms` BIGINT NULL,
     `cost_amount` DECIMAL(18,8) NULL,

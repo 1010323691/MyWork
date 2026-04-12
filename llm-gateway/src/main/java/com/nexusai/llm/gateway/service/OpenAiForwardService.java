@@ -13,6 +13,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -73,7 +75,7 @@ public class OpenAiForwardService {
         StringBuilder visibleContent = new StringBuilder();
         StringBuilder eventBuffer = new StringBuilder();
         byte[] buffer = new byte[8192];
-        long outputTokens = 0L;
+        UsageStats usageStats = UsageStats.empty();
 
         try (InputStream upstream = inputStream) {
             int read;
@@ -91,8 +93,8 @@ public class OpenAiForwardService {
                 ParsedStreamStats parsedStats = parseStreamingStats(eventBuffer.toString());
                 eventBuffer.setLength(0);
                 eventBuffer.append(parsedStats.remainingBuffer());
-                if (parsedStats.outputTokens() > 0) {
-                    outputTokens = parsedStats.outputTokens();
+                if (parsedStats.usageStats().hasValues()) {
+                    usageStats = usageStats.merge(parsedStats.usageStats());
                 }
                 if (!parsedStats.deltaContent().isEmpty()) {
                     visibleContent.append(parsedStats.deltaContent());
@@ -106,7 +108,7 @@ public class OpenAiForwardService {
         return new StreamSummary(
                 captured.toString(),
                 visibleContent.toString(),
-                outputTokens
+                usageStats
         );
     }
 
@@ -127,7 +129,39 @@ public class OpenAiForwardService {
     }
 
     public String extractResponseText(String responseBody) {
-        return responseBody == null ? "" : responseBody;
+        if (responseBody == null || responseBody.isBlank()) {
+            return "";
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            List<String> contents = new ArrayList<>();
+            JsonNode choices = root.path("choices");
+            if (choices.isArray()) {
+                for (JsonNode choice : choices) {
+                    collectContentText(choice.path("message").path("content"), contents);
+                }
+            }
+            if (!contents.isEmpty()) {
+                return String.join("\n", contents);
+            }
+        } catch (Exception ignored) {
+            // Fallback to raw response body when the upstream format is not standard JSON.
+        }
+        return responseBody;
+    }
+
+    public UsageStats extractUsageStats(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return UsageStats.empty();
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            return parseUsage(root.path("usage"));
+        } catch (Exception ignored) {
+            return UsageStats.empty();
+        }
     }
 
     public long estimateTokenUsage(String content) {
@@ -216,7 +250,7 @@ public class OpenAiForwardService {
     private ParsedStreamStats parseStreamingStats(String buffer) {
         StringBuilder remaining = new StringBuilder();
         StringBuilder deltaContent = new StringBuilder();
-        long outputTokens = 0L;
+        UsageStats usageStats = UsageStats.empty();
 
         String[] lines = buffer.split("\\r?\\n");
         boolean endsWithNewline = buffer.endsWith("\n") || buffer.endsWith("\r");
@@ -240,26 +274,141 @@ public class OpenAiForwardService {
 
             try {
                 JsonNode root = objectMapper.readTree(payload);
-                JsonNode usage = root.path("usage");
-                if (usage.has("completion_tokens")) {
-                    outputTokens = usage.path("completion_tokens").asLong(outputTokens);
+                UsageStats parsedUsage = parseUsage(root.path("usage"));
+                if (parsedUsage.hasValues()) {
+                    usageStats = usageStats.merge(parsedUsage);
                 }
 
                 JsonNode contentNode = root.path("choices").path(0).path("delta").path("content");
-                if (!contentNode.isMissingNode() && !contentNode.isNull()) {
-                    deltaContent.append(contentNode.asText(""));
-                }
+                collectContentText(contentNode, deltaContent);
             } catch (Exception ignored) {
                 remaining.append(line);
             }
         }
 
-        return new ParsedStreamStats(remaining.toString(), deltaContent.toString(), outputTokens);
+        return new ParsedStreamStats(remaining.toString(), deltaContent.toString(), usageStats);
     }
 
-    private record ParsedStreamStats(String remainingBuffer, String deltaContent, long outputTokens) {
+    private UsageStats parseUsage(JsonNode usage) {
+        if (usage == null || usage.isMissingNode() || usage.isNull()) {
+            return UsageStats.empty();
+        }
+
+        Long promptTokens = readLong(usage, "prompt_tokens");
+        if (promptTokens == null) {
+            promptTokens = readLong(usage, "input_tokens");
+        }
+
+        Long completionTokens = readLong(usage, "completion_tokens");
+        if (completionTokens == null) {
+            completionTokens = readLong(usage, "output_tokens");
+        }
+
+        Long cachedTokens = readNestedLong(usage, "prompt_tokens_details", "cached_tokens");
+        if (cachedTokens == null) {
+            cachedTokens = readNestedLong(usage, "input_tokens_details", "cached_tokens");
+        }
+        if (cachedTokens == null) {
+            cachedTokens = readLong(usage, "cached_tokens");
+        }
+
+        return new UsageStats(promptTokens, completionTokens, cachedTokens);
     }
 
-    public record StreamSummary(String capturedBody, String visibleContent, long outputTokens) {
+    private Long readLong(JsonNode node, String fieldName) {
+        if (node == null || node.isMissingNode() || node.isNull() || !node.has(fieldName)) {
+            return null;
+        }
+        JsonNode value = node.path(fieldName);
+        return value.isNumber() ? value.asLong() : null;
+    }
+
+    private Long readNestedLong(JsonNode node, String objectField, String fieldName) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return null;
+        }
+        return readLong(node.path(objectField), fieldName);
+    }
+
+    private void collectContentText(JsonNode contentNode, StringBuilder builder) {
+        if (contentNode == null || contentNode.isMissingNode() || contentNode.isNull()) {
+            return;
+        }
+        if (contentNode.isTextual()) {
+            builder.append(contentNode.asText(""));
+            return;
+        }
+        if (contentNode.isArray()) {
+            for (JsonNode item : contentNode) {
+                collectContentText(item.path("text"), builder);
+            }
+        }
+    }
+
+    private void collectContentText(JsonNode contentNode, List<String> contents) {
+        if (contentNode == null || contentNode.isMissingNode() || contentNode.isNull()) {
+            return;
+        }
+        if (contentNode.isTextual()) {
+            String text = contentNode.asText("");
+            if (!text.isBlank()) {
+                contents.add(text);
+            }
+            return;
+        }
+        if (contentNode.isArray()) {
+            for (JsonNode item : contentNode) {
+                if (item.has("text")) {
+                    collectContentText(item.path("text"), contents);
+                }
+            }
+        }
+    }
+
+    private record ParsedStreamStats(String remainingBuffer, String deltaContent, UsageStats usageStats) {
+    }
+
+    public record StreamSummary(String capturedBody, String visibleContent, UsageStats usageStats) {
+    }
+
+    public record UsageStats(Long promptTokens, Long completionTokens, Long cachedPromptTokens) {
+        public static UsageStats empty() {
+            return new UsageStats(null, null, null);
+        }
+
+        public boolean hasValues() {
+            return promptTokens != null || completionTokens != null || cachedPromptTokens != null;
+        }
+
+        public long totalInputTokensOr(long fallback) {
+            return promptTokens != null ? Math.max(promptTokens, 0L) : fallback;
+        }
+
+        public long cachedInputTokensOr(long fallback) {
+            long value = cachedPromptTokens != null ? Math.max(cachedPromptTokens, 0L) : fallback;
+            long total = totalInputTokensOr(Long.MAX_VALUE);
+            return Math.min(value, total);
+        }
+
+        public long actualInputTokensOr(long fallback) {
+            long total = totalInputTokensOr(fallback);
+            long cached = Math.min(cachedInputTokensOr(0L), total);
+            return Math.max(total - cached, 0L);
+        }
+
+        public long completionTokensOr(long fallback) {
+            return completionTokens != null ? Math.max(completionTokens, 0L) : fallback;
+        }
+
+        public UsageStats merge(UsageStats other) {
+            if (other == null || !other.hasValues()) {
+                return this;
+            }
+            return new UsageStats(
+                    other.promptTokens != null ? other.promptTokens : promptTokens,
+                    other.completionTokens != null ? other.completionTokens : completionTokens,
+                    other.cachedPromptTokens != null ? other.cachedPromptTokens : cachedPromptTokens
+            );
+        }
     }
 }

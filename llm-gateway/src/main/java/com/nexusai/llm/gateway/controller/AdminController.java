@@ -29,7 +29,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
 import java.util.Objects;
 
 @RestController
@@ -64,7 +63,7 @@ public class AdminController {
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String username) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "id"));
         Page<User> users = userRepository.searchUsers(userId, username, pageable);
         return ResponseEntity.ok(users.map(this::toUserResponse));
     }
@@ -157,18 +156,6 @@ public class AdminController {
     @GetMapping("/monitor")
     @Transactional(readOnly = true)
     public ResponseEntity<SystemMonitorResponse> getMonitorStats() {
-        Long successCount = requestLogRepository.countSuccess();
-        Long failCount = requestLogRepository.countFail();
-        Long totalRequests = (successCount != null ? successCount : 0L) + (failCount != null ? failCount : 0L);
-        Long totalTokens = requestLogRepository.sumAllTokens();
-        Double avgLatency = requestLogRepository.avgLatencySince(LocalDateTime.now().minusDays(1));
-        Long totalUsers = userRepository.count();
-        Long totalApiKeys = apiKeyRepository.count();
-
-        double errorRate = totalRequests > 0
-                ? (double) (failCount != null ? failCount : 0L) / totalRequests * 100
-                : 0.0;
-
         SystemService.SystemResourceData resourceData = systemService.getSystemResources();
         java.util.List<SystemService.GpuData> gpuDataList = resourceData.getGpuDataList();
 
@@ -187,14 +174,6 @@ public class AdminController {
         }
 
         SystemMonitorResponse monitor = SystemMonitorResponse.builder()
-                .totalRequests(totalRequests)
-                .successRequests(successCount != null ? successCount : 0L)
-                .failRequests(failCount != null ? failCount : 0L)
-                .totalTokens(totalTokens != null ? totalTokens : 0L)
-                .errorRate(errorRate)
-                .avgLatencyMs(avgLatency != null ? avgLatency : 0.0)
-                .totalUsers(totalUsers)
-                .totalApiKeys(totalApiKeys)
                 .cpuUsage(resourceData.getCpuUsage())
                 .memoryUsage(resourceData.getMemoryUsage())
                 .gpus(gpuInfoList)

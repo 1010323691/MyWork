@@ -56,9 +56,11 @@
 
         setText('todayTokens', formatNumber(usage.todayTokens));
         setText('monthTokens', formatNumber(usage.monthTokens));
+        setText('todayCacheHitRate', formatPercent(usage.todayCacheHitRate));
+        setText('monthCacheHitRate', formatPercent(usage.monthCacheHitRate));
+        setText('todayCachedTokensText', '缓存命中 Token ' + formatNumber(usage.todayCachedTokens));
+        setText('monthCachedTokensText', '缓存命中 Token ' + formatNumber(usage.monthCachedTokens));
         setText('todayRequests', formatNumber(usage.todayRequests));
-        setText('avgTokensPerRequest', formatDecimal(usage.avgTokensPerRequest));
-
         setText('totalApiKeys', formatNumber(audience.totalApiKeys));
         setText('activeApiKeys', formatNumber(audience.activeApiKeys));
         setText('activeModelsText', '近 30 天模型数 ' + formatNumber(usage.activeModels30d));

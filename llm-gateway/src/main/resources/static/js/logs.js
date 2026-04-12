@@ -132,7 +132,6 @@
 
             renderLogsTable(logs);
             renderMeta(data, logs);
-            renderSummary(data, logs);
             renderPagination(data?.number || 0, data?.totalPages || 0, data?.totalElements || 0);
 
             if (container) container.classList.remove('d-none');
@@ -224,21 +223,16 @@
         }
 
         tbody.innerHTML = logs.map(function(log) {
-            const inputTokens = numberOrZero(log.inputTokens);
-            const outputTokens = numberOrZero(log.outputTokens);
-            const totalTokens = inputTokens + outputTokens;
             const cells = [];
 
-            cells.push('<td>' + formatDateTime(log.createdAt) + '</td>');
-            cells.push('<td><span class="request-id" title="' + escapeHtml(log.requestId || '-') + '">' + escapeHtml(shortRequestId(log.requestId)) + '</span></td>');
+            cells.push('<td class="time-cell">' + formatDateTime(log.createdAt) + '</td>');
+            cells.push('<td class="request-id-cell"><span class="request-id" title="' + escapeHtml(log.requestId || '-') + '">' + escapeHtml(shortRequestId(log.requestId)) + '</span></td>');
             if (isAdmin) {
-                cells.push('<td>' + escapeHtml(stringValue(log.userId)) + '</td>');
+                cells.push('<td class="user-id-cell">' + escapeHtml(stringValue(log.userId)) + '</td>');
             }
-            cells.push('<td>' + escapeHtml(log.apiKeyName || '-') + '</td>');
-            cells.push('<td>' + escapeHtml(log.modelName || '-') + '</td>');
-            cells.push('<td class="text-right">' + UI.formatNumber(inputTokens) + '</td>');
-            cells.push('<td class="text-right">' + UI.formatNumber(outputTokens) + '</td>');
-            cells.push('<td class="text-right">' + UI.formatNumber(totalTokens) + '</td>');
+            cells.push('<td class="api-key-cell" title="' + escapeHtml(log.apiKeyName || '-') + '">' + escapeHtml(log.apiKeyName || '-') + '</td>');
+            cells.push('<td class="model-cell" title="' + escapeHtml(log.modelName || '-') + '">' + escapeHtml(log.modelName || '-') + '</td>');
+            cells.push('<td class="text-right cost-column">' + escapeHtml(formatCost(log.costAmount)) + '</td>');
             cells.push('<td class="text-right">' + formatLatency(log.latencyMs) + '</td>');
             cells.push('<td class="text-center">' + renderStatusBadge(log.status) + '</td>');
             cells.push('<td><button class="btn btn-sm btn-primary" onclick="viewLogDetails(' + log.id + ')">详情</button></td>');
@@ -254,22 +248,6 @@
         const current = pageData?.numberOfElements ?? logs.length;
         const total = pageData?.totalElements ?? logs.length;
         meta.textContent = '当前显示 ' + current + ' 条，共匹配 ' + total + ' 条';
-    }
-
-    function renderSummary(pageData, logs) {
-        const totals = logs.reduce(function(accumulator, log) {
-            accumulator.success += log.status === 'SUCCESS' ? 1 : 0;
-            accumulator.tokens += numberOrZero(log.inputTokens) + numberOrZero(log.outputTokens);
-            accumulator.latency += numberOrZero(log.latencyMs);
-            return accumulator;
-        }, { success: 0, tokens: 0, latency: 0 });
-
-        const avgLatency = logs.length ? Math.round(totals.latency / logs.length) : 0;
-
-        setText('statTotalRequests', UI.formatNumber(pageData?.totalElements || 0));
-        setText('statSuccessRequests', UI.formatNumber(totals.success));
-        setText('statTotalTokens', UI.formatNumber(totals.tokens));
-        setText('statAvgLatency', formatLatency(avgLatency));
     }
 
     function renderPagination(page, totalPages, totalElements) {
@@ -307,7 +285,10 @@
             const endpoint = isAdmin ? '/admin/logs/' + id : '/user/logs/' + id;
             const log = await API.get(endpoint);
             fillLogDetails(log);
-            document.getElementById('logDetailModal')?.classList.add('show');
+            const modal = document.getElementById('logDetailModal');
+            if (modal) {
+                modal.classList.add('show');
+            }
         } catch (error) {
             console.error('加载日志详情失败:', error);
             UI.showErrorMessage('加载日志详情失败: ' + error.message);
@@ -316,20 +297,22 @@
 
     function fillLogDetails(log) {
         const inputTokens = numberOrZero(log.inputTokens);
+        const cachedInputTokens = numberOrZero(log.cachedInputTokens);
+        const totalInputTokens = numberOrZero(log.totalInputTokens || log.inputTokens);
         const outputTokens = numberOrZero(log.outputTokens);
+        const cacheHitRate = totalInputTokens > 0 ? (cachedInputTokens * 100 / totalInputTokens) : 0;
 
         setText('detailTime', formatDateTime(log.createdAt));
-        setText('detailTimeMirror', formatDateTime(log.createdAt));
         setText('detailRequestId', stringValue(log.requestId));
         if (isAdmin) {
             setText('detailUserId', stringValue(log.userId));
-            setText('detailUserIdMirror', stringValue(log.userId));
         }
         setText('detailApiKey', stringValue(log.apiKeyName));
-        setText('detailApiKeyMirror', stringValue(log.apiKeyName));
         setText('detailModel', stringValue(log.modelName));
-        setText('detailModelMirror', stringValue(log.modelName));
         setText('detailInput', UI.formatNumber(inputTokens));
+        setText('detailCachedInput', UI.formatNumber(cachedInputTokens));
+        setText('detailCacheHitRate', formatPercent(cacheHitRate));
+        setCacheHitRateColor(cacheHitRate);
         setText('detailOutput', UI.formatNumber(outputTokens));
         setText('detailTotal', UI.formatNumber(inputTokens + outputTokens));
         setText('detailLatency', formatLatency(log.latencyMs));
@@ -342,7 +325,10 @@
     }
 
     function closeModal() {
-        document.getElementById('logDetailModal')?.classList.remove('show');
+        const modal = document.getElementById('logDetailModal');
+        if (modal) {
+            modal.classList.remove('show');
+        }
     }
 
     function resetFilters() {
@@ -359,7 +345,7 @@
     }
 
     function getColumnCount() {
-        return isAdmin ? 11 : 10;
+        return isAdmin ? 9 : 8;
     }
 
     function formatDateTime(timestamp) {
@@ -389,11 +375,27 @@
         return numberOrZero(latencyMs) + ' ms';
     }
 
+    function formatPercent(value) {
+        return Number(value || 0).toLocaleString('zh-CN', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }) + '%';
+    }
+
     function formatCost(costAmount) {
         if (costAmount === null || costAmount === undefined || costAmount === '') {
             return '-';
         }
         return String(costAmount);
+    }
+
+    function setCacheHitRateColor(cacheHitRate) {
+        const element = document.getElementById('detailCacheHitRate');
+        if (!element) return;
+
+        const normalizedRate = Math.max(0, Math.min(100, Number(cacheHitRate) || 0));
+        const hue = Math.round(normalizedRate * 1.2);
+        element.style.color = 'hsl(' + hue + ', 68%, 42%)';
     }
 
     function renderStatusBadge(status) {

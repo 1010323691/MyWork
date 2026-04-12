@@ -7,13 +7,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -32,18 +30,15 @@ import java.util.stream.Collectors;
 @EnableConfigurationProperties(SecurityProtectionProperties.class)
 public class SecurityConfig {
 
-    private final UserDetailsService userDetailsService;
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
     private final SecurityProtectionFilter securityProtectionFilter;
     private final boolean swaggerEnabled;
     private final List<String> allowedOriginPatterns;
 
-    public SecurityConfig(UserDetailsService userDetailsService,
-                          ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
+    public SecurityConfig(ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
                           SecurityProtectionFilter securityProtectionFilter,
                           @Value("${app.security.swagger-enabled:false}") boolean swaggerEnabled,
                           @Value("${app.security.allowed-origin-patterns:}") String allowedOriginPatterns) {
-        this.userDetailsService = userDetailsService;
         this.apiKeyAuthenticationFilter = apiKeyAuthenticationFilter;
         this.securityProtectionFilter = securityProtectionFilter;
         this.swaggerEnabled = swaggerEnabled;
@@ -126,19 +121,10 @@ public class SecurityConfig {
                     auth.requestMatchers("/admin/**").hasRole("ADMIN");
                     auth.anyRequest().permitAll();
                 })
-                .authenticationProvider(daoAuthenticationProvider())
                 .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(securityProtectionFilter, ApiKeyAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    @Bean
-    public DaoAuthenticationProvider daoAuthenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder());
-        return provider;
     }
 
     @Bean

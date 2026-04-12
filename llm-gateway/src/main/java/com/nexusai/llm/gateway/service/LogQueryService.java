@@ -170,6 +170,8 @@ public class LogQueryService {
                 .apiKeyName(log.getApiKey().getName())
                 .inputTokens(log.getInputTokens())
                 .outputTokens(log.getOutputTokens())
+                .totalInputTokens(log.getTotalInputTokens())
+                .cachedInputTokens(log.getCachedInputTokens())
                 .modelName(log.getModelName())
                 .latencyMs(log.getLatencyMs())
                 .costAmount(log.getCostAmount())

@@ -364,6 +364,17 @@ pre {
   padding: var(--space-2) 0;
 }
 
+.nav-section-label {
+  display: block;
+  margin: var(--space-5) 0 var(--space-2);
+  padding: 0 var(--space-4);
+  color: var(--color-tertiary);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .nav-item {
   display: flex;
   align-items: center;
@@ -517,16 +528,27 @@ pre {
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
   min-height: 44px;
   min-width: 44px;
   outline: none;
   text-decoration: none;
+  box-shadow: var(--shadow-sm);
 }
 
 .btn:focus-visible {
   outline: 2px solid var(--color-ring);
   outline-offset: 2px;
+}
+
+.btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Primary Button */
@@ -536,11 +558,13 @@ pre {
 }
 
 .btn-primary:hover {
-  background-color: #1F1F1F;
+  background-color: #171717;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 .btn-primary:active {
   background-color: #0A0A0A;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 /* Secondary Button (Ghost - White with Border) */
@@ -811,6 +835,18 @@ pre {
   opacity: 0.6;
   cursor: not-allowed;
   background: var(--color-muted);
+}
+
+/* Hide native spin buttons for number inputs globally */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .input-error {
@@ -1358,7 +1394,7 @@ pre {
   position: relative;
   width: 100%;
   min-height: 40px;
-  padding: 8px 32px 8px 12px;
+  padding: 8px 40px 8px 12px;
   background: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -1367,8 +1403,6 @@ pre {
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
   transition: all 0.15s ease;
 }
 
@@ -1380,6 +1414,7 @@ pre {
 .custom-dropdown-value {
   flex: 1;
   min-width: 0;
+  padding-right: 4px;
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
@@ -1392,11 +1427,16 @@ pre {
 }
 
 .custom-dropdown-arrow {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
   width: 20px;
   height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
   flex-shrink: 0;
   transition: transform 0.2s ease;
 }
@@ -1410,7 +1450,7 @@ pre {
 }
 
 .custom-dropdown.open .custom-dropdown-arrow {
-  transform: rotate(180deg);
+  transform: translateY(-50%) rotate(180deg);
 }
 
 .custom-dropdown.open .custom-dropdown-trigger {
@@ -1534,11 +1574,12 @@ pre {
 
 .custom-dropdown.sm .custom-dropdown-trigger {
   min-height: 36px;
-  padding: 6px 28px 6px 10px;
+  padding: 6px 34px 6px 10px;
   font-size: var(--font-size-sm);
 }
 
 .custom-dropdown.sm .custom-dropdown-arrow {
+  right: 10px;
   width: 16px;
   height: 16px;
 }
@@ -1856,5 +1897,46 @@ pre {
 
 /* Old modal class aliases */
 .modal-overlay {
-  /* Fallback for old class name - use .modal-backdrop instead */
+  position: fixed;
+  inset: 0;
+  background-color: var(--surface-overlay);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal-backdrop);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+
+.modal-overlay.show,
+.modal-overlay[style*="display:block"],
+.modal-overlay[style*="display: block"],
+.modal-overlay[style*="display:flex"],
+.modal-overlay[style*="display: flex"] {
+  display: flex !important;
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  background-color: var(--surface-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  transform: scale(0.95);
+  transition: transform var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-overlay.show .modal-content,
+.modal-overlay[style*="display:block"] .modal-content,
+.modal-overlay[style*="display: block"] .modal-content,
+.modal-overlay[style*="display:flex"] .modal-content,
+.modal-overlay[style*="display: flex"] .modal-content {
+  transform: scale(1);
 }

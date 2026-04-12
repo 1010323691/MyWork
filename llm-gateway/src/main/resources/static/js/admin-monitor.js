@@ -45,10 +45,6 @@
     }
 
     function initCharts() {
-        setText('currentQps', '0');
-        setText('tokenRate', '0');
-        setText('concurrentRequests', '0');
-        setText('avgResponseTime', '0 ms');
 
         initChart('modelDistributionPieChart', buildDonutChartOption([], '暂无模型请求数据'));
         initChart('modelTokenUsageChart', buildBarChartOption([], [], 'Tokens', '#fbbf24', '暂无模型 Token 数据'));
@@ -60,7 +56,6 @@
     async function loadMonitorData() {
         try {
             const data = await API.get('/admin/monitor');
-            updateKpiCards(data || {});
             updateSystemResourceCharts(data || {});
         } catch (error) {
             console.error('Failed to load monitor data', error);
@@ -74,13 +69,6 @@
         } catch (error) {
             console.error('Failed to load dashboard summary', error);
         }
-    }
-
-    function updateKpiCards(data) {
-        setText('avgResponseTime', formatLatency(data.avgLatencyMs));
-        setText('tokenRate', formatNumber(data.totalTokens));
-        setText('currentQps', formatNumber(data.failRequests));
-        setText('concurrentRequests', formatNumber(data.totalApiKeys));
     }
 
     function updateModelCharts(modelMetrics) {

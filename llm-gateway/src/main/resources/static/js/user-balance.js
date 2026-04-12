@@ -72,6 +72,8 @@
             const stats = await API.get('/user/stats');
             setText('todayTokens', formatNumber(stats && stats.todayTokens));
             setText('monthTokens', formatNumber(stats && stats.monthTokens));
+            setText('todayCachedTokens', formatNumber(stats && stats.todayCachedTokens));
+            setText('monthCachedTokens', formatNumber(stats && stats.monthCachedTokens));
             setText('totalRequests', formatNumber(stats && stats.totalRequests));
         } catch (error) {
             console.error('Failed to load user stats', error);

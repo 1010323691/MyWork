@@ -102,6 +102,7 @@ public class LlmController {
                     upstreamProviderService.recordFailure(provider.getId());
                 }
                 requestLogService.asyncLogRequest(key.getId(), userId, null, estimatedInput, 0L,
+                        estimatedInput, 0L,
                         resolvedModel, latency, BigDecimal.ZERO, status);
                 return ResponseEntity.status(502).body("{\"error\": \"Upstream request failed\"}");
             }
@@ -113,6 +114,7 @@ public class LlmController {
 
             requestLogService.asyncRecordUsage(key.getId(), totalTokens);
             requestLogService.asyncLogRequest(key.getId(), userId, null, estimatedInput, outputTokens,
+                    estimatedInput, 0L,
                     resolvedModel, latencyMs, actualCost, status);
 
             return ResponseEntity.ok(response);

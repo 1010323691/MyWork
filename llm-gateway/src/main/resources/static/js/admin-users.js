@@ -121,9 +121,9 @@
         }
 
         el.innerHTML =
-            '<button ' + (page === 0 ? 'disabled' : '') + ' onclick="goPage(' + (page - 1) + ')">上一页</button>' +
+            '<button class="btn btn-secondary" type="button" ' + (page === 0 ? 'disabled' : '') + ' onclick="goPage(' + (page - 1) + ')">上一页</button>' +
             '<span class="page-info">第 ' + (page + 1) + ' / ' + totalPages + ' 页，共 ' + totalElements + ' 条</span>' +
-            '<button ' + (page >= totalPages - 1 ? 'disabled' : '') + ' onclick="goPage(' + (page + 1) + ')">下一页</button>';
+            '<button class="btn btn-secondary" type="button" ' + (page >= totalPages - 1 ? 'disabled' : '') + ' onclick="goPage(' + (page + 1) + ')">下一页</button>';
     }
 
     function bindSearchEvents() {

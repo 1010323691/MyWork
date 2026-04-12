@@ -20,6 +20,8 @@ public class RequestLogResponse {
     private String apiKeyName;
     private Long inputTokens;
     private Long outputTokens;
+    private Long totalInputTokens;
+    private Long cachedInputTokens;
     private String modelName;
     private Long latencyMs;
     private BigDecimal costAmount;

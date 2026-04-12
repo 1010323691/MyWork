@@ -105,6 +105,30 @@
             <div class="stat-card">
                 <div class="stat-icon svg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12h18"/>
+                        <path d="M3 7h12"/>
+                        <path d="M3 17h8"/>
+                    </svg>
+                </div>
+                <div class="stat-value" id="todayCacheHitRate">0%</div>
+                <div class="stat-label">今日缓存命中率</div>
+                <div class="stat-sublabel" id="todayCachedTokensText">缓存命中 Token 0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon svg-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12h18"/>
+                        <path d="M7 7h14"/>
+                        <path d="M10 17h11"/>
+                    </svg>
+                </div>
+                <div class="stat-value" id="monthCacheHitRate">0%</div>
+                <div class="stat-label">本月缓存命中率</div>
+                <div class="stat-sublabel" id="monthCachedTokensText">缓存命中 Token 0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon svg-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="23,4 23,10 17,10"/>
                         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
                     </svg>
@@ -112,19 +136,6 @@
                 <div class="stat-value" id="todayRequests">0</div>
                 <div class="stat-label">今日请求数</div>
                 <div class="stat-sublabel">按日志记录统计</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon svg-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="6" y1="3" x2="6" y2="15"/>
-                        <circle cx="18" cy="6" r="3"/>
-                        <path d="M9 12h.01"/>
-                        <circle cx="21" cy="21" r="3"/>
-                    </svg>
-                </div>
-                <div class="stat-value" id="avgTokensPerRequest">0</div>
-                <div class="stat-label">平均单请求 Token</div>
-                <div class="stat-sublabel">全量历史均值</div>
             </div>
         </div>
     </section>

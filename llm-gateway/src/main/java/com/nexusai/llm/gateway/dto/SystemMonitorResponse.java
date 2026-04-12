@@ -12,15 +12,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SystemMonitorResponse {
-    private Long totalRequests;
-    private Long successRequests;
-    private Long failRequests;
-    private Long totalTokens;
-    private Double errorRate;
-    private Double avgLatencyMs;
-    private Long totalUsers;
-    private Long totalApiKeys;
-
     private Double cpuUsage;
     private Double memoryUsage;
     private List<GpuInfo> gpus;

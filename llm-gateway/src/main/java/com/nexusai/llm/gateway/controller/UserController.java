@@ -93,6 +93,8 @@ public class UserController {
 
         Long todayTokens = requestLogRepository.sumTokensByUserSince(userId, todayStart);
         Long monthTokens = requestLogRepository.sumTokensByUserSince(userId, monthStart);
+        Long todayCachedTokens = requestLogRepository.sumCachedInputTokensByUserSince(userId, todayStart);
+        Long monthCachedTokens = requestLogRepository.sumCachedInputTokensByUserSince(userId, monthStart);
         Long totalRequests = requestLogRepository.countByUserId(userId);
         Long successCount = requestLogRepository.countSuccessByUserId(userId);
         Long totalKeys = apiKeyRepository.countByUserId(userId);
@@ -110,6 +112,8 @@ public class UserController {
         UserStatsResponse stats = UserStatsResponse.builder()
                 .todayTokens(todayTokens != null ? todayTokens : 0L)
                 .monthTokens(monthTokens != null ? monthTokens : 0L)
+                .todayCachedTokens(todayCachedTokens != null ? todayCachedTokens : 0L)
+                .monthCachedTokens(monthCachedTokens != null ? monthCachedTokens : 0L)
                 .totalRequests(totalRequests != null ? totalRequests : 0L)
                 .successRate(successRate)
                 .activeKeys(activeKeys != null ? activeKeys : 0L)

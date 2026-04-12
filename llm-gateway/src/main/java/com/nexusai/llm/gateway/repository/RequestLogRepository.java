@@ -32,6 +32,14 @@ public interface RequestLogRepository extends JpaRepository<RequestLog, Long>, J
            "WHERE r.apiKey.user.id = :userId AND r.createdAt >= :since")
     Long sumTokensByUserSince(@Param("userId") Long userId, @Param("since") LocalDateTime since);
 
+    @Query("SELECT COALESCE(SUM(r.cachedInputTokens), 0) FROM RequestLog r " +
+           "WHERE r.apiKey.user.id = :userId AND r.createdAt >= :since")
+    Long sumCachedInputTokensByUserSince(@Param("userId") Long userId, @Param("since") LocalDateTime since);
+
+    @Query("SELECT COALESCE(SUM(r.totalInputTokens), 0) FROM RequestLog r " +
+           "WHERE r.apiKey.user.id = :userId AND r.createdAt >= :since")
+    Long sumTotalInputTokensByUserSince(@Param("userId") Long userId, @Param("since") LocalDateTime since);
+
     @Query("SELECT COUNT(r) FROM RequestLog r WHERE r.apiKey.user.id = :userId")
     Long countByUserId(@Param("userId") Long userId);
 
@@ -64,6 +72,12 @@ public interface RequestLogRepository extends JpaRepository<RequestLog, Long>, J
 
     @Query("SELECT COALESCE(SUM(r.inputTokens + r.outputTokens), 0) FROM RequestLog r WHERE r.createdAt >= :since")
     Long sumTokensSince(@Param("since") LocalDateTime since);
+
+    @Query("SELECT COALESCE(SUM(r.cachedInputTokens), 0) FROM RequestLog r WHERE r.createdAt >= :since")
+    Long sumCachedInputTokensSince(@Param("since") LocalDateTime since);
+
+    @Query("SELECT COALESCE(SUM(r.totalInputTokens), 0) FROM RequestLog r WHERE r.createdAt >= :since")
+    Long sumTotalInputTokensSince(@Param("since") LocalDateTime since);
 
     @Query("SELECT COALESCE(SUM(r.costAmount), 0) FROM RequestLog r WHERE r.createdAt >= :since")
     BigDecimal sumCostSince(@Param("since") LocalDateTime since);

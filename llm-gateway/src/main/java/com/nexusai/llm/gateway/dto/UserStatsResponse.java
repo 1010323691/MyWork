@@ -14,6 +14,8 @@ import java.util.List;
 public class UserStatsResponse {
     private Long todayTokens;
     private Long monthTokens;
+    private Long todayCachedTokens;
+    private Long monthCachedTokens;
     private Long totalRequests;
     private Double successRate;
     private Long activeKeys;

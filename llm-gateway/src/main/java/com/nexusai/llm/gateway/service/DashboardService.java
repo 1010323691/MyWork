@@ -56,6 +56,18 @@ public class DashboardService {
         long monthTokens = safeLong(isAdmin
                 ? requestLogRepository.sumTokensSince(monthStart)
                 : requestLogRepository.sumTokensByUserSince(userId, monthStart));
+        long todayCachedTokens = safeLong(isAdmin
+                ? requestLogRepository.sumCachedInputTokensSince(todayStart)
+                : requestLogRepository.sumCachedInputTokensByUserSince(userId, todayStart));
+        long monthCachedTokens = safeLong(isAdmin
+                ? requestLogRepository.sumCachedInputTokensSince(monthStart)
+                : requestLogRepository.sumCachedInputTokensByUserSince(userId, monthStart));
+        long todayTotalInputTokens = safeLong(isAdmin
+                ? requestLogRepository.sumTotalInputTokensSince(todayStart)
+                : requestLogRepository.sumTotalInputTokensByUserSince(userId, todayStart));
+        long monthTotalInputTokens = safeLong(isAdmin
+                ? requestLogRepository.sumTotalInputTokensSince(monthStart)
+                : requestLogRepository.sumTotalInputTokensByUserSince(userId, monthStart));
         long totalTokens = safeLong(isAdmin
                 ? requestLogRepository.sumAllTokens()
                 : requestLogRepository.sumTokensByUserSince(userId, LocalDate.of(1970, 1, 1).atStartOfDay()));
@@ -118,6 +130,10 @@ public class DashboardService {
                 .usage(DashboardSummaryResponse.UsageMetrics.builder()
                         .todayTokens(todayTokens)
                         .monthTokens(monthTokens)
+                        .todayCachedTokens(todayCachedTokens)
+                        .monthCachedTokens(monthCachedTokens)
+                        .todayCacheHitRate(calculateRate(todayCachedTokens, todayTotalInputTokens))
+                        .monthCacheHitRate(calculateRate(monthCachedTokens, monthTotalInputTokens))
                         .todayRequests(todayRequests)
                         .totalRequests(totalRequests)
                         .avgTokensPerRequest(totalRequests > 0 ? round2((double) totalTokens / totalRequests) : 0.0)
@@ -227,6 +243,13 @@ public class DashboardService {
 
     private double round2(double value) {
         return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP).doubleValue();
+    }
+
+    private double calculateRate(long numerator, long denominator) {
+        if (denominator <= 0L) {
+            return 0.0;
+        }
+        return round2((double) numerator * 100.0 / denominator);
     }
 
     private long toLong(Object value) {

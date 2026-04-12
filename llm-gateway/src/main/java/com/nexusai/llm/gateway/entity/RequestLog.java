@@ -39,6 +39,12 @@ public class RequestLog {
     @Column(name = "output_tokens")
     private Long outputTokens;
 
+    @Column(name = "total_input_tokens")
+    private Long totalInputTokens;
+
+    @Column(name = "cached_input_tokens")
+    private Long cachedInputTokens;
+
     @Column(name = "model_name")
     private String modelName;
 

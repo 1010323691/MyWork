@@ -42,6 +42,10 @@ public class DashboardSummaryResponse {
     public static class UsageMetrics {
         private Long todayTokens;
         private Long monthTokens;
+        private Long todayCachedTokens;
+        private Long monthCachedTokens;
+        private Double todayCacheHitRate;
+        private Double monthCacheHitRate;
         private Long todayRequests;
         private Long totalRequests;
         private Double avgTokensPerRequest;

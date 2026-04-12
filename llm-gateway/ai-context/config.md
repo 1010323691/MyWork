@@ -112,6 +112,15 @@
   - queueCapacity: 200
   - threadNamePrefix: "async-executor-"
 
+### AdminUserBootstrapService
+**文件**: `AdminUserBootstrapService.java`
+- **职责**: 应用启动后检查管理员账号是否存在
+- **初始化逻辑**:
+  - 当数据库中不存在 `ADMIN` 角色用户时，自动补齐一个管理员账号
+  - 默认用户名固定为 `admin`
+  - 初始密码取 `spring.datasource.password` / `DB_PASSWORD`，并通过 `PasswordEncoder` 做 BCrypt 加密后入库
+  - 如果 `admin` 用户名已存在但还不是管理员，则提升为 `ADMIN` 并重置为初始化密码
+
 ## 环境变量覆盖
 
 所有配置支持通过环境变量覆盖：

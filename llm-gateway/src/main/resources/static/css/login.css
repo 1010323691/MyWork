@@ -1,6 +1,6 @@
 /* ============================================
    LLM Gateway - Auth Pages
-   Shared styling for login/register pages
+   OpenAI Minimal Style - Login/Register
    ============================================ */
 
 body {
@@ -9,211 +9,141 @@ body {
     align-items: center;
     justify-content: center;
     padding: 32px 20px;
+    background-color: #FFFFFF;
 }
 
 .login-container {
-    width: min(100%, 460px);
+    width: min(100%, 440px);
     position: relative;
-    z-index: 1;
-    animation: auth-enter 0.7s ease-out;
+    animation: authEnter 0.5s ease-out;
 }
 
-@keyframes auth-enter {
+@keyframes authEnter {
     from {
         opacity: 0;
-        transform: translateY(24px) scale(0.98);
+        transform: translateY(12px);
     }
     to {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translateY(0);
     }
 }
 
 .login-card {
-    position: relative;
-    overflow: hidden;
-    padding: 42px 36px 32px;
-    border-radius: 22px;
-    background:
-        linear-gradient(180deg, rgba(20, 28, 72, 0.92) 0%, rgba(10, 14, 39, 0.95) 100%);
-    border: 1px solid rgba(0, 212, 255, 0.18);
-    box-shadow:
-        0 28px 80px rgba(0, 0, 0, 0.42),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06),
-        0 0 0 1px rgba(0, 212, 255, 0.06);
-    backdrop-filter: blur(22px);
-    -webkit-backdrop-filter: blur(22px);
+    background: #FFFFFF;
+    border: 1px solid #E6E6E6;
+    border-radius: 12px;
+    padding: 40px 32px 32px;
+    box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.04);
 }
 
-.login-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-        radial-gradient(circle at top left, rgba(0, 212, 255, 0.18), transparent 32%),
-        radial-gradient(circle at bottom right, rgba(255, 0, 102, 0.14), transparent 30%);
-    pointer-events: none;
-}
-
-.login-card::after {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto;
-    height: 3px;
-    background: linear-gradient(90deg, #00d4ff, #8b5cf6, #ff0066);
-    box-shadow: 0 0 18px rgba(0, 212, 255, 0.45);
-}
-
-.auth-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    margin-bottom: 18px;
-    background: rgba(0, 212, 255, 0.1);
-    border: 1px solid rgba(0, 212, 255, 0.18);
-    color: #7de8ff;
-    font-size: 12px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-}
-
-.auth-badge::before {
-    content: "";
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #00d4ff;
-    box-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
-}
-
-.login-logo,
-.login-card .login-logo {
-    position: relative;
-    margin: 0 0 10px;
-    font-size: 34px;
+.login-logo {
+    font-size: 28px;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    color: #f4f8ff;
-    text-align: left;
-    text-shadow: 0 0 18px rgba(0, 212, 255, 0.18);
+    color: #000000;
+    text-align: center;
+    margin-bottom: 8px;
 }
 
-.login-subtitle,
-.login-card .login-subtitle {
-    position: relative;
-    margin: 0 0 28px;
-    color: #94a3c3;
+.login-subtitle {
+    color: #737373;
     font-size: 15px;
-    line-height: 1.7;
+    line-height: 1.6;
+    text-align: center;
+    margin-bottom: 28px;
 }
 
 .login-container .form-group {
-    position: relative;
     margin-bottom: 18px;
 }
 
 .login-container .form-group label {
     display: block;
     margin-bottom: 8px;
-    color: #d9e7ff;
+    color: #000000;
     font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
+    font-weight: 500;
 }
 
 .login-container .form-group input {
     width: 100%;
-    min-height: 48px;
-    padding: 13px 14px;
-    border-radius: 12px;
-    background: rgba(10, 14, 39, 0.85);            /* 更深背景，减少灰感 */
-    border: 1px solid rgba(168, 85, 247, 0.28);   /* 紫色边框 */
-    color: #eef4ff;
-    transition: all 0.25s ease;
-}
-
-.login-container .form-group input:hover {
-    background: rgba(15, 20, 60, 0.95);
-    border-color: rgba(168, 85, 247, 0.5);
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #E6E6E6;
+    border-radius: 4px;
+    font-size: 14px;
+    background: #FFFFFF;
+    color: #000000;
+    transition: all 0.2s ease;
 }
 
 .login-container .form-group input::placeholder {
-    color: rgba(148, 163, 195, 0.55);              /* 浅灰紫色占位符 */
+    color: #737373;
+}
+
+.login-container .form-group input:hover {
+    border-color: #D0D0D0;
 }
 
 .login-container .form-group input:focus {
     outline: none;
-    background: rgba(10, 14, 39, 0.95);
-    border-color: rgba(168, 85, 247, 0.85);
-    box-shadow:
-        0 0 0 4px rgba(168, 85, 247, 0.12),       /* 内层紫色光晕 */
-        0 0 0 8px rgba(168, 85, 247, 0.06),       /* 中层紫色光晕 */
-        0 0 20px rgba(168, 85, 247, 0.15);        /* 外层霓虹扩散 */
-    transform: translateY(-1px);
+    border-color: #000000;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
 }
 
 .login-container .btn {
     width: 100%;
-    min-height: 50px;
-    margin-top: 12px;
-    border: 0;
-    border-radius: 12px;
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
+    min-height: 44px;
+    margin-top: 8px;
+    font-size: 14px;
+    font-weight: 500;
 }
 
 .login-container .btn-primary {
-    color: #06101f;
-    background: linear-gradient(135deg, #00d4ff 0%, #67e8f9 42%, #8b5cf6 100%);
-    box-shadow:
-        0 12px 28px rgba(0, 212, 255, 0.24),
-        0 0 20px rgba(0, 212, 255, 0.18);
+    background: #000000;
+    color: #FFFFFF;
 }
 
 .login-container .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow:
-        0 16px 32px rgba(0, 212, 255, 0.28),
-        0 0 24px rgba(139, 92, 246, 0.24);
+    background: #1F1F1F;
 }
 
 .login-container .btn-primary:disabled {
-    opacity: 0.7;
+    opacity: 0.6;
     cursor: not-allowed;
-    transform: none;
-    box-shadow: 0 10px 24px rgba(0, 212, 255, 0.18);
 }
 
 .auth-footer {
     margin-top: 22px;
     text-align: center;
-    color: #94a3c3;
+    color: #737373;
     font-size: 14px;
 }
 
 .login-card a,
 .auth-footer a {
-    color: #7de8ff;
+    color: #000000;
     text-decoration: none;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .login-card a:hover,
 .auth-footer a:hover {
-    color: #b794ff;
+    color: #3E3E3E;
 }
 
 .login-container .alert {
     margin-bottom: 16px;
-    border-radius: 12px;
-    padding: 12px 14px;
+    border-radius: 4px;
+    padding: 12px;
     font-size: 14px;
-    border: 1px solid rgba(255, 0, 102, 0.3);
-    background: rgba(255, 0, 102, 0.12);
-    color: #ffd3e3;
+    display: block;
+}
+
+.login-container .alert-error {
+    background: #FEF3F6;
+    color: #E01159;
+    border: 1px solid rgba(224, 17, 89, 0.2);
 }
 
 @media (max-width: 520px) {
@@ -222,17 +152,10 @@ body {
     }
 
     .login-card {
-        padding: 34px 22px 26px;
-        border-radius: 18px;
+        padding: 32px 24px 24px;
     }
 
-    .login-logo,
-    .login-card .login-logo {
-        font-size: 28px;
-    }
-
-    .login-subtitle,
-    .login-card .login-subtitle {
-        font-size: 14px;
+    .login-logo {
+        font-size: 24px;
     }
 }

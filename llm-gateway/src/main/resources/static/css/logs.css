@@ -1,5 +1,5 @@
 /* ============================================
-   Logs Page
+   Logs Page - OpenAI Minimal Style
    ============================================ */
 
 .logs-stats {
@@ -13,121 +13,91 @@
 .filter-item label {
     display: block;
     margin-bottom: 6px;
-    color: var(--text-secondary);
-    font-size: var(--font-size-small);
-    font-weight: 600;
-    letter-spacing: 0.3px;
+    color: #525252;
+    font-size: 13px;
+    font-weight: 500;
 }
 
-.filter-item input {
+.filter-item input,
+.filter-item select {
     width: 100%;
-    padding: 10px 14px;
+    padding: 10px 12px;
     min-height: 44px;
-    color: #e8ecf1;                               /* 亮白文字 */
-    background: rgba(10, 14, 39, 0.85);          /* 深紫背景 */
-    border: 1px solid rgba(168, 85, 247, 0.25);  /* 紫色边框 */
-    border-radius: var(--radius-sm);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    transition: all 0.25s ease;
+    border: 1px solid #E6E6E6;
+    border-radius: 4px;
+    font-size: 14px;
+    background: #FFFFFF;
+    color: #000000;
+    transition: all 0.2s ease;
 }
 
-/* ============================================
-   Neon Tech Date Picker
-   霓虹科技风格日期选择器
-   ============================================ */
+.filter-item select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
 
-/* 日期输入框容器 */
+.filter-item input::placeholder {
+    color: #737373;
+}
+
+.filter-item input:hover,
+.filter-item select:hover {
+    border-color: #D0D0D0;
+}
+
+.filter-item input:focus,
+.filter-item select:focus {
+    outline: none;
+    border-color: #000000;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Date Picker - Minimal Style */
 .date-picker-wrapper {
     position: relative;
 }
 
-/* 日期输入框 - 霓虹风格 */
 .date-picker-input {
     width: 100%;
-    padding: 12px 45px 12px 16px;
-    min-height: 46px;
-    color: var(--text-primary);
-    background: rgba(10, 14, 39, 0.92);
-    border: 1px solid rgba(0, 212, 255, 0.2);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-base);
-    font-family: var(--font-family);
-    letter-spacing: 0.5px;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 10px 40px 10px 12px;
+    min-height: 44px;
+    border: 1px solid #E6E6E6;
+    border-radius: 4px;
+    font-size: 14px;
+    background: #FFFFFF;
+    color: #000000;
     cursor: pointer;
-    position: relative;
-    z-index: 2;
+    transition: all 0.2s ease;
 }
 
-/* 霓虹边框动画 */
-.date-picker-input::before {
-    content: '';
-    position: absolute;
-    top: -1px;
-    left: -1px;
-    right: -1px;
-    bottom: -1px;
-    background: linear-gradient(135deg,
-        var(--accent-cyan) 0%,
-        var(--accent-purple) 50%,
-        var(--accent-magenta) 100%);
-    border-radius: var(--radius-md);
-    opacity: 0;
-    z-index: -1;
-    transition: opacity 0.3s ease;
-}
-
-.date-picker-wrapper:focus-within .date-picker-input::before {
-    opacity: 0.6;
-}
-
-/* Hover 效果 - 边框渐变动画 */
 .date-picker-input:hover {
-    border-color: rgba(0, 212, 255, 0.5);
-    box-shadow:
-        0 0 12px rgba(0, 212, 255, 0.15),
-        inset 0 0 0 1px rgba(0, 212, 255, 0.1);
-    background: rgba(15, 20, 60, 0.95);
+    border-color: #D0D0D0;
 }
 
-/* Focus 效果 - 强霓虹发光 */
 .date-picker-input:focus {
     outline: none;
-    border-color: transparent;
-    box-shadow:
-        0 0 0 2px rgba(10, 14, 39, 0.95),
-        0 0 0 3px rgba(0, 212, 255, 0.4),
-        0 0 16px rgba(0, 212, 255, 0.3),
-        0 0 24px rgba(168, 85, 247, 0.2);
-    background: rgba(10, 14, 39, 0.98);
+    border-color: #000000;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
 }
 
-/* 日期图标 */
 .date-picker-wrapper > .date-picker-icon {
     position: absolute;
-    right: 14px;
+    right: 12px;
     top: 50%;
     transform: translateY(-50%);
-    width: 20px;
-    height: 20px;
-    color: var(--accent-cyan);
+    width: 18px;
+    height: 18px;
+    color: #525252;
     pointer-events: none;
-    transition: all 0.3s ease;
-    filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.5));
     z-index: 3;
 }
 
-.date-picker-wrapper:focus-within .date-picker-icon {
-    color: var(--accent-magenta);
-    filter: drop-shadow(0 0 8px rgba(255, 0, 102, 0.8));
-    transform: translateY(-50%) scale(1.1);
-}
-
-/* 日历弹出面板 */
+/* Date Picker Panel */
 .date-picker-panel {
     position: absolute;
     top: calc(100% + 8px);
@@ -135,105 +105,33 @@
     right: 0;
     width: auto;
     min-width: 312px;
-    background: rgba(15, 20, 60, 0.98);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(0, 212, 255, 0.3);
-    border-radius: var(--radius-lg);
-    box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.6),
-        0 0 0 1px rgba(0, 212, 255, 0.2),
-        0 0 24px rgba(0, 212, 255, 0.15),
-        0 0 32px rgba(168, 85, 247, 0.1);
+    background: #FFFFFF;
+    border: 1px solid #E6E6E6;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.06);
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(-10px) scale(0.95);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
     overflow: hidden;
-}
-
-/* 角落装饰 - 左上 */
-.date-picker-panel::before {
-    content: '';
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    width: 18px;
-    height: 18px;
-    border-top: 2px solid rgba(0, 212, 255, 0.85);
-    border-left: 2px solid rgba(0, 212, 255, 0.85);
-    border-top-left-radius: 6px;
-    background: transparent;
-    box-shadow: 0 0 6px rgba(0, 212, 255, 0.35);
-    pointer-events: none;
-    z-index: 2;
-}
-
-/* 角落装饰 - 右下 */
-.date-picker-panel::after {
-    content: '';
-    position: absolute;
-    right: 8px;
-    bottom: 8px;
-    width: 18px;
-    height: 18px;
-    border-right: 2px solid rgba(255, 0, 102, 0.85);
-    border-bottom: 2px solid rgba(255, 0, 102, 0.85);
-    border-bottom-right-radius: 6px;
-    background: transparent;
-    box-shadow: 0 0 6px rgba(255, 0, 102, 0.3);
-    pointer-events: none;
-    z-index: 2;
 }
 
 .date-picker-wrapper.show .date-picker-panel {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
 }
 
-/* 日历头部 */
 .date-picker-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 16px 12px;
-    background: linear-gradient(135deg,
-        rgba(0, 212, 255, 0.08) 0%,
-        rgba(168, 85, 247, 0.05) 100%);
-    border-bottom: 1px solid rgba(0, 212, 255, 0.15);
-    position: relative;
+    padding: 14px 16px;
+    background: #F7F7F8;
+    border-bottom: 1px solid #E6E6E6;
 }
 
-/* 顶部霓虹灯条效果 */
-.date-picker-header::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg,
-        transparent 0%,
-        var(--accent-cyan) 25%,
-        var(--accent-purple) 50%,
-        var(--accent-magenta) 75%,
-        transparent 100%);
-    animation: neonBarMove 3s ease-in-out infinite;
-    background-size: 200% 100%;
-}
-
-@keyframes neonBarMove {
-    0%, 100% {
-        background-position: 0% 0%;
-    }
-    50% {
-        background-position: 100% 0%;
-    }
-}
-
-/* 年月选择器 */
 .date-picker-month-year {
     display: flex;
     align-items: center;
@@ -241,31 +139,17 @@
 }
 
 .date-picker-month-year select {
-    background: rgba(10, 14, 39, 0.8);
-    color: var(--text-primary);
-    border: 1px solid rgba(0, 212, 255, 0.25);
-    border-radius: var(--radius-sm);
+    background: #FFFFFF;
+    color: #000000;
+    border: 1px solid #E6E6E6;
+    border-radius: 4px;
     padding: 6px 10px;
-    font-size: var(--font-size-base);
+    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
     outline: none;
 }
 
-.date-picker-month-year select:hover {
-    border-color: rgba(0, 212, 255, 0.5);
-    box-shadow: 0 0 8px rgba(0, 212, 255, 0.15);
-}
-
-.date-picker-month-year select:focus {
-    border-color: var(--accent-cyan);
-    box-shadow:
-        0 0 0 2px rgba(0, 212, 255, 0.2),
-        0 0 8px rgba(0, 212, 255, 0.25);
-}
-
-/* 导航按钮 */
 .date-picker-nav {
     display: flex;
     gap: 4px;
@@ -277,44 +161,35 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(10, 14, 39, 0.8);
-    border: 1px solid rgba(0, 212, 255, 0.25);
-    border-radius: var(--radius-sm);
+    background: #FFFFFF;
+    border: 1px solid #E6E6E6;
+    border-radius: 4px;
     cursor: pointer;
+    color: #000000;
     transition: all 0.2s ease;
-    color: var(--accent-cyan);
 }
 
 .date-picker-nav-btn:hover {
-    background: rgba(0, 212, 255, 0.15);
-    border-color: var(--accent-cyan);
-    box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
-    transform: scale(1.05);
+    background: #F7F7F8;
+    border-color: #D0D0D0;
 }
 
-.date-picker-nav-btn:active {
-    transform: scale(0.95);
-}
-
-/* 星期标题 */
 .date-picker-weekdays {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     padding: 8px 16px;
-    background: rgba(0, 0, 0, 0.2);
-    border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+    background: #F7F7F8;
+    border-bottom: 1px solid #E6E6E6;
 }
 
 .date-picker-weekday {
-    color: var(--text-muted);
-    font-size: var(--font-size-small);
-    font-weight: 600;
+    color: #737373;
+    font-size: 12px;
+    font-weight: 500;
     text-align: center;
     text-transform: uppercase;
-    letter-spacing: 1px;
 }
 
-/* 日期网格 */
 .date-picker-days {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -325,335 +200,83 @@
 .date-picker-day {
     padding: 8px;
     text-align: center;
-    font-size: var(--font-size-base);
+    font-size: 14px;
     font-weight: 500;
-    color: var(--text-secondary);
-    background: rgba(10, 14, 39, 0.5);
+    color: #000000;
+    background: transparent;
     border: 1px solid transparent;
-    border-radius: var(--radius-sm);
+    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-}
-
-.date-picker-day::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg,
-        rgba(0, 212, 255, 0.1) 0%,
-        rgba(168, 85, 247, 0.1) 100%);
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
 }
 
 .date-picker-day:hover:not(.empty):not(.other-month) {
-    color: var(--text-primary);
-    background: rgba(0, 212, 255, 0.1);
-    border-color: rgba(0, 212, 255, 0.3);
-    box-shadow:
-        0 0 8px rgba(0, 212, 255, 0.2),
-        inset 0 0 0 1px rgba(0, 212, 255, 0.1);
-    transform: scale(1.05);
-    z-index: 1;
+    background: #F7F7F8;
+    border-color: #E6E6E6;
 }
 
-.date-picker-day:hover::before {
-    opacity: 1;
-}
-
-/* 其他月份的日期 */
 .date-picker-day.other-month {
-    color: rgba(148, 163, 195, 0.3);
+    color: #737373;
+    opacity: 0.5;
 }
 
 .date-picker-day.other-month:hover {
-    color: rgba(148, 163, 195, 0.6);
-    background: rgba(10, 14, 39, 0.3);
+    background: transparent;
     border-color: transparent;
-    box-shadow: none;
-    transform: none;
 }
 
-/* 空单元格 */
 .date-picker-day.empty {
     background: transparent;
     cursor: default;
-    border: none;
 }
 
-/* 今日 */
 .date-picker-day.today {
-    color: var(--accent-cyan);
-    border-color: rgba(0, 212, 255, 0.5);
-    text-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
-    box-shadow:
-        0 0 8px rgba(0, 212, 255, 0.15),
-        inset 0 0 0 1px rgba(0, 212, 255, 0.1);
-}
-
-/* 选中的日期 */
-.date-picker-day.selected {
-    color: #fff;
-    background: linear-gradient(135deg,
-        var(--accent-cyan) 0%,
-        var(--accent-purple) 100%);
-    border-color: transparent;
-    font-weight: 700;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    box-shadow:
-        0 0 16px rgba(0, 212, 255, 0.4),
-        0 0 24px rgba(168, 85, 247, 0.3);
-    transform: scale(1.1);
-    z-index: 2;
-    animation: selectPulse 0.4s ease-out;
-}
-
-@keyframes selectPulse {
-    0% {
-        transform: scale(1);
-        box-shadow:
-            0 0 0 rgba(0, 212, 255, 0),
-            0 0 0 rgba(168, 85, 247, 0);
-    }
-    50% {
-        transform: scale(1.2);
-        box-shadow:
-            0 0 24px rgba(0, 212, 255, 0.6),
-            0 0 32px rgba(168, 85, 247, 0.5);
-    }
-    100% {
-        transform: scale(1.1);
-        box-shadow:
-            0 0 16px rgba(0, 212, 255, 0.4),
-            0 0 24px rgba(168, 85, 247, 0.3);
-    }
-}
-
-.date-picker-day.selected:hover {
-    transform: scale(1.15);
-    box-shadow:
-        0 0 20px rgba(0, 212, 255, 0.5),
-        0 0 32px rgba(168, 85, 247, 0.4);
-}
-
-/* 日期范围选择 */
-.date-picker-day.in-range {
-    background: rgba(168, 85, 247, 0.15);
-    border-color: rgba(168, 85, 247, 0.3);
-    color: var(--text-primary);
-}
-
-.date-picker-day.range-start,
-.date-picker-day.range-end {
-    background: linear-gradient(135deg,
-        rgba(168, 85, 247, 0.3) 0%,
-        rgba(168, 85, 247, 0.15) 100%);
-    border-color: rgba(168, 85, 247, 0.5);
-    color: var(--text-primary);
+    color: #000000;
+    border-color: #000000;
     font-weight: 600;
 }
 
-/* 日历底部操作栏 */
+.date-picker-day.selected {
+    color: #FFFFFF;
+    background: #000000;
+    border-color: #000000;
+    font-weight: 600;
+}
+
 .date-picker-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    background: rgba(0, 0, 0, 0.2);
-    border-top: 1px solid rgba(0, 212, 255, 0.15);
+    background: #F7F7F8;
+    border-top: 1px solid #E6E6E6;
     gap: 12px;
 }
 
 .date-picker-footer-btn {
     flex: 1;
     padding: 10px 20px;
-    background: rgba(10, 14, 39, 0.8);
-    color: var(--accent-cyan);
-    border: 1px solid rgba(0, 212, 255, 0.3);
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-base);
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    background: #FFFFFF;
+    color: #000000;
+    border: 1px solid #E6E6E6;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.25s ease;
+    transition: all 0.2s ease;
     text-align: center;
-    position: relative;
-    overflow: hidden;
-}
-
-.date-picker-footer-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg,
-        transparent,
-        rgba(0, 212, 255, 0.2),
-        transparent);
-    transition: left 0.5s ease;
-}
-
-.date-picker-footer-btn:hover::before {
-    left: 100%;
 }
 
 .date-picker-footer-btn:hover {
-    background: rgba(0, 212, 255, 0.15);
-    border-color: var(--accent-cyan);
-    box-shadow:
-        0 0 12px rgba(0, 212, 255, 0.3),
-        inset 0 0 0 1px rgba(0, 212, 255, 0.1);
-    text-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+    background: #F7F7F8;
+    border-color: #D0D0D0;
 }
 
 .date-picker-footer-btn.secondary {
-    color: var(--accent-purple);
-    border-color: rgba(168, 85, 247, 0.3);
+    color: #525252;
 }
 
-.date-picker-footer-btn.secondary::before {
-    background: linear-gradient(90deg,
-        transparent,
-        rgba(168, 85, 247, 0.2),
-        transparent);
-}
-
-.date-picker-footer-btn.secondary:hover {
-    background: rgba(168, 85, 247, 0.15);
-    border-color: var(--accent-purple);
-    color: var(--accent-purple);
-    box-shadow:
-        0 0 12px rgba(168, 85, 247, 0.3),
-        inset 0 0 0 1px rgba(168, 85, 247, 0.1);
-    text-shadow: 0 0 8px rgba(168, 85, 247, 0.5);
-}
-
-/* 渐变动画背景 */
-@keyframes neonPulse {
-    0%, 100% {
-        box-shadow:
-            0 0 0 1px rgba(0, 212, 255, 0.3),
-            0 0 16px rgba(0, 212, 255, 0.15);
-    }
-    50% {
-        box-shadow:
-            0 0 0 1px rgba(168, 85, 247, 0.4),
-            0 0 24px rgba(168, 85, 247, 0.25);
-    }
-}
-
-.date-picker-panel.show {
-    animation: neonPulse 3s ease-in-out infinite;
-}
-
-/* 响应式 */
-@media (max-width: 768px) {
-    .date-picker-panel {
-        width: calc(100vw - 32px);
-        max-width: 320px;
-        left: 50%;
-        transform: translateX(-50%) translateY(-10px) scale(0.95);
-    }
-
-    .date-picker-wrapper.show .date-picker-panel {
-        transform: translateX(-50%) translateY(0) scale(1);
-    }
-}
-
-/* Select with custom arrow */
-.filter-item select {
-    width: 100%;
-    height: 44px;
-    padding: 10px 40px 10px 14px;
-    border: 1px solid rgba(168, 85, 247, 0.25);  /* 紫色边框 */
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-base);
-    line-height: 1.4;
-    color: #e8ecf1;                               /* 亮白文字 */
-    background-color: rgba(10, 14, 39, 0.92);    /* 深紫背景 */
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    transition: all 0.25s ease;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a855f7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    cursor: pointer;
-}
-
-.filter-item select option {
-    background-color: rgba(10, 14, 39, 0.98) !important;
-    color: #e8ecf1 !important;
-    padding: 10px 12px;
-}
-
-.filter-item input::placeholder {
-    color: rgba( 148, 163, 195, 0.55);            /* 浅灰紫色占位符 */
-}
-
-/* 日期选择器输入框占位符 */
-.date-picker-input::placeholder {
-    color: rgba(148, 163, 195, 0.45);
-    letter-spacing: 0.3px;
-}
-
-.date-picker-wrapper:focus-within .date-picker-input::placeholder {
-    color: rgba(148, 163, 195, 0.3);
-    opacity: 0.6;
-}
-
-.filter-item input:hover {
-    background: rgba(15, 20, 60, 0.95);
-    border-color: rgba(168, 85, 247, 0.45);
-}
-
-/* Select hover with arrow color change */
-.filter-item select:hover {
-    background-color: rgba(15, 20, 60, 0.98);
-    border-color: rgba(168, 85, 247, 0.55);
-    box-shadow: 0 0 12px rgba(168, 85, 247, 0.15);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23c084fc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-}
-
-.filter-item input:focus {
-    outline: none;
-    background: rgba(10, 14, 39, 0.95);
-    border-color: var(--accent-purple);
-    box-shadow:
-        0 0 0 3px rgba(168, 85, 247, 0.15),
-        0 0 0 6px rgba(168, 85, 247, 0.08),
-        0 0 16px rgba(168, 85, 247, 0.18);
-}
-
-/* Select focus with glow */
-.filter-item select:focus {
-    outline: none;
-    background-color: rgba(10, 14, 39, 0.98);
-    border-color: var(--accent-purple);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e879f9' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    box-shadow:
-        0 0 0 3px rgba(168, 85, 247, 0.12),
-        0 0 0 6px rgba(168, 85, 247, 0.06),
-        0 0 20px rgba(168, 85, 247, 0.2);
-}
-
-.filter-item.filter-btn {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    flex: 2;
-}
-
+/* Logs Table */
 .logs-toolbar {
     display: flex;
     justify-content: space-between;
@@ -663,7 +286,7 @@
 }
 
 .logs-meta {
-    color: var(--text-secondary);
+    color: #525252;
     font-size: 14px;
 }
 
@@ -688,34 +311,28 @@
 
 .table-empty {
     text-align: center;
-    color: var(--text-muted);
+    color: #737373;
     padding: 40px 16px;
 }
 
 .request-id {
-    font-family: Consolas, 'Courier New', monospace;
+    font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
     font-size: 12px;
-    color: var(--text-secondary);
+    color: #525252;
 }
 
+/* Log Detail Modal */
 .log-detail-modal {
     max-width: 1040px;
     width: min(92vw, 1040px);
-    background:
-        radial-gradient(circle at top right, rgba(168, 85, 247, 0.1), transparent 24%),
-        radial-gradient(circle at 20% 0%, rgba(0, 212, 255, 0.08), transparent 20%),
-        rgba(14, 19, 52, 0.97);
-    border: 1px solid rgba(0, 212, 255, 0.26);
-    box-shadow:
-        0 28px 80px rgba(0, 0, 0, 0.5),
-        0 0 0 1px rgba(0, 212, 255, 0.08),
-        0 0 28px rgba(0, 212, 255, 0.08);
+    background: #FFFFFF;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
 }
 
 .log-detail-modal .modal-header {
     padding: 18px 24px 14px;
-    border-bottom: 1px solid rgba(0, 212, 255, 0.12);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent);
+    border-bottom: 1px solid #E6E6E6;
 }
 
 .log-detail-modal .modal-body {
@@ -724,8 +341,7 @@
 
 .log-detail-modal .modal-footer {
     padding: 14px 24px 18px;
-    border-top: 1px solid rgba(0, 212, 255, 0.12);
-    background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.02));
+    border-top: 1px solid #E6E6E6;
 }
 
 .log-detail-heading {
@@ -739,7 +355,8 @@
     line-height: 1;
     letter-spacing: 1.8px;
     text-transform: uppercase;
-    color: rgba(0, 212, 255, 0.78);
+    color: #737373;
+    font-weight: 500;
 }
 
 .log-detail-heading h3 {
@@ -753,14 +370,10 @@
 .log-detail-section-title {
     margin-bottom: 12px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 1px;
     text-transform: uppercase;
-    color: rgba(188, 206, 241, 0.78);
-}
-
-.log-detail-section-title-main {
-    padding-left: 4px;
+    color: #525252;
 }
 
 .log-detail-layout {
@@ -780,26 +393,13 @@
 .log-hero-card {
     position: relative;
     padding: 18px;
-    border-radius: 18px;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015)),
-        rgba(16, 22, 58, 0.92);
-    border: 1px solid rgba(116, 140, 204, 0.18);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.04),
-        0 16px 36px rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    background: #F7F7F8;
+    border: 1px solid #E6E6E6;
     overflow: hidden;
     min-height: 100%;
     display: flex;
     flex-direction: column;
-}
-
-.log-hero-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(0, 212, 255, 0.08), transparent 32%, rgba(168, 85, 247, 0.06));
-    pointer-events: none;
 }
 
 .log-hero-request {
@@ -808,9 +408,8 @@
     margin-bottom: 16px;
     font-size: 22px;
     line-height: 1.2;
-    font-weight: 800;
-    color: #f7fbff;
-    letter-spacing: -0.02em;
+    font-weight: 700;
+    color: #000000;
     word-break: break-word;
     min-height: 80px;
     display: flex;
@@ -830,9 +429,9 @@
 .log-hero-meta-item {
     min-height: 116px;
     padding: 12px 14px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(162, 179, 220, 0.12);
+    border-radius: 8px;
+    background: #FFFFFF;
+    border: 1px solid #E6E6E6;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -842,14 +441,14 @@
     display: block;
     margin-bottom: 4px;
     font-size: 11px;
-    color: rgba(176, 191, 223, 0.66);
+    color: #737373;
 }
 
 .log-hero-meta-value {
     display: block;
-    color: #eff6ff;
+    color: #000000;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.45;
     word-break: break-word;
     min-height: 42px;
@@ -863,7 +462,7 @@
     justify-content: space-between;
     margin-top: 16px;
     padding-top: 16px;
-    border-top: 1px solid rgba(162, 179, 220, 0.12);
+    border-top: 1px solid #E6E6E6;
     min-height: 58px;
 }
 
@@ -871,7 +470,8 @@
     font-size: 12px;
     letter-spacing: 1px;
     text-transform: uppercase;
-    color: rgba(176, 191, 223, 0.68);
+    color: #737373;
+    font-weight: 500;
 }
 
 .log-hero-status-value {
@@ -891,26 +491,12 @@
 .metric-card {
     min-height: 116px;
     padding: 14px 16px 16px;
-    border-radius: 16px;
-    background:
-        radial-gradient(circle at top left, rgba(255, 255, 255, 0.06), transparent 40%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01)),
-        rgba(12, 18, 49, 0.9);
-    border: 1px solid rgba(96, 122, 186, 0.2);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.03),
-        0 10px 24px rgba(0, 0, 0, 0.12);
+    border-radius: 8px;
+    background: #FFFFFF;
+    border: 1px solid #E6E6E6;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-}
-
-.metric-card-accent {
-    background:
-        radial-gradient(circle at top left, rgba(0, 212, 255, 0.12), transparent 42%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01)),
-        rgba(12, 18, 49, 0.92);
-    border-color: rgba(0, 212, 255, 0.24);
 }
 
 .metric-card-cost {
@@ -924,38 +510,22 @@
 }
 
 .metric-label {
-    color: rgba(176, 191, 223, 0.76);
+    color: #737373;
     font-size: 11px;
     margin-bottom: 10px;
-    letter-spacing: 0.3px;
+    font-weight: 500;
 }
 
 .metric-value {
-    color: #f4fbff;
+    color: #000000;
     font-size: 15px;
     line-height: 1.2;
-    font-weight: 800;
-    letter-spacing: 0.2px;
+    font-weight: 700;
 }
 
 .log-detail-modal #detailStatus .badge {
     min-width: 84px;
     justify-content: center;
-}
-
-.log-detail-modal .modal-close {
-    width: 42px;
-    height: 42px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(162, 179, 220, 0.14);
-}
-
-.log-detail-modal .modal-close:hover {
-    background: rgba(255, 0, 102, 0.08);
 }
 
 .log-detail-modal .modal-footer .btn {
@@ -969,7 +539,7 @@
 }
 
 .pagination .page-info {
-    color: var(--text-secondary);
+    color: #525252;
     font-size: 14px;
 }
 
@@ -1004,10 +574,6 @@
     .log-hero-meta,
     .detail-metrics {
         grid-template-columns: 1fr;
-    }
-
-    .log-hero-request {
-        font-size: 22px;
     }
 
     .metric-card,

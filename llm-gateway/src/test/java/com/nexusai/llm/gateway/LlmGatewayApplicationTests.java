@@ -1,8 +1,16 @@
 package com.nexusai.llm.gateway;
 
+import com.nexusai.llm.gateway.entity.User;
+import com.nexusai.llm.gateway.repository.UserRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * LLM Gateway 应用测试类
@@ -11,8 +19,18 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 @SpringBootTest
 class LlmGatewayApplicationTests {
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @Test
     void contextLoads() {
+        Optional<User> adminUser = userRepository.findByUsername("admin");
+        assertTrue(adminUser.isPresent(), "startup should create initial admin user");
+        assertEquals("ADMIN", adminUser.get().getUserRole());
+        assertTrue(passwordEncoder.matches("", adminUser.get().getPassword()));
     }
 
     // ==================== 密码加密工具 ====================
@@ -30,7 +48,7 @@ class LlmGatewayApplicationTests {
      */
     @Test
     void encodePassword() {
-        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+        PasswordEncoder passwordEncoder = this.passwordEncoder;
         java.util.Scanner scanner = new java.util.Scanner(System.in);
 
         System.out.println("================================");

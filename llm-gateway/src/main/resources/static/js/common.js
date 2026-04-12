@@ -388,28 +388,6 @@ class UI {
     }
 
     /**
-     * 切换标签页
-     */
-    static switchTab(tabId) {
-        // 查找所有 tab 按钮
-        const tabs = document.querySelectorAll('.tab');
-        // 查找所有 tab-content 区域
-        const contents = document.querySelectorAll('.tab-content');
-
-        // 移除所有激活状态
-        tabs.forEach(tab => tab.classList.remove('active'));
-        contents.forEach(content => content.classList.remove('active'));
-
-        // 激活选中的 tab 按钮
-        const activeTab = Array.from(tabs).find(tab => tab.getAttribute('onclick')?.includes(tabId));
-        // 激活选中的内容区域
-        const activeContent = document.getElementById(tabId);
-
-        if (activeTab) activeTab.classList.add('active');
-        if (activeContent) activeContent.classList.add('active');
-    }
-
-    /**
      * 显示确认对话框
      */
     static confirm(message, callback) {

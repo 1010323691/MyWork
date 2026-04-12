@@ -19,6 +19,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
+    boolean existsByUserRole(String userRole);
     Long countByCreatedAtGreaterThanEqual(LocalDateTime createdAt);
 
     Page<User> findByUsernameContainingIgnoreCase(String username, Pageable pageable);

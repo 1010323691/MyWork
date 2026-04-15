@@ -7,7 +7,7 @@ import {auth} from '../models';
 
 export function ClearLogs():Promise<void>;
 
-export function FetchConfig():Promise<config.FrpConfig>;
+export function FetchConfig():Promise<config.NexusConfig>;
 
 export function GetLogs(arg1:number):Promise<Array<service.LogEntry>>;
 
@@ -23,7 +23,7 @@ export function GetUserInfo():Promise<auth.UserInfo>;
 
 export function IsLoggedIn():Promise<boolean>;
 
-export function LoadLocalConfig():Promise<config.FrpConfig>;
+export function LoadLocalConfig():Promise<config.NexusConfig>;
 
 export function Login(arg1:string):Promise<boolean>;
 

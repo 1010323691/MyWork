@@ -34,6 +34,11 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to, _, next) => {
+  // 开发模式：清除旧登录状态，总是显示登录页
+  if (import.meta.env.DEV) {
+    localStorage.removeItem('isLoggedIn')
+  }
+
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true'
 
   if (to.meta.requiresAuth && !isLoggedIn) {

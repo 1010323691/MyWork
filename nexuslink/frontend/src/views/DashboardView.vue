@@ -1,26 +1,26 @@
 <template>
-  <div class="min-h-screen bg-black">
+  <div class="min-h-screen bg-stone-50">
     <!-- 顶部导航 -->
-    <nav class="border-b border-[#262626] sticky top-0 z-50 bg-black/80 backdrop-blur">
+    <nav class="border-b border-stone-200 sticky top-0 z-50 bg-stone-50/80 backdrop-blur">
       <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
         <div class="flex items-center gap-3">
-          <div class="inline-flex w-8 h-8 items-center justify-center rounded bg-white text-black">
+          <div class="inline-flex w-8 h-8 items-center justify-center rounded bg-stone-900 text-white">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
           <div>
-            <h1 class="text-base font-medium text-white">NexusLink</h1>
-            <p class="text-xs text-gray-500">
+            <h1 class="text-base font-medium text-stone-900">NexusLink</h1>
+            <p class="text-xs text-stone-500">
               {{ userInfo?.name || '用户' }}
             </p>
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <button @click="goToSettings" class="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors rounded hover:bg-[#171717]">
+          <button @click="goToSettings" class="px-3 py-1.5 text-sm text-stone-600 hover:text-stone-900 transition-colors rounded hover:bg-stone-100">
             设置
           </button>
-          <button @click="handleLogout" class="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors rounded hover:bg-[#171717]">
+          <button @click="handleLogout" class="px-3 py-1.5 text-sm text-stone-600 hover:text-stone-900 transition-colors rounded hover:bg-stone-100">
             退出
           </button>
         </div>
@@ -30,7 +30,7 @@
     <!-- 主内容区 -->
     <div class="max-w-6xl mx-auto p-6">
       <!-- 错误提示 -->
-      <div v-if="errorMessage" class="mb-4 p-3 bg-[#171717] border border-[#EF4444]/30 rounded text-sm text-[#EF4444] flex items-center justify-between">
+      <div v-if="errorMessage" class="mb-4 p-3 bg-white border border-red-200 rounded text-sm text-red-600 flex items-center justify-between shadow-sm">
         <span>{{ errorMessage }}</span>
         <button @click="serviceStore.clearErrorMessage()" class="opacity-50 hover:opacity-100">×</button>
       </div>
@@ -41,8 +41,8 @@
         <div class="card">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-xs text-gray-500 mb-1">服务状态</p>
-              <p class="text-lg font-medium text-white">{{ statusLabel }}</p>
+              <p class="text-xs text-stone-500 mb-1">服务状态</p>
+              <p class="text-lg font-medium text-stone-900">{{ statusLabel }}</p>
             </div>
             <div :class="statusDotClass" class="w-2.5 h-2.5 rounded-full"></div>
           </div>
@@ -52,10 +52,10 @@
         <div class="card">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-xs text-gray-500 mb-1">运行时间</p>
-              <p class="text-lg font-medium text-white">{{ uptime }}</p>
+              <p class="text-xs text-stone-500 mb-1">运行时间</p>
+              <p class="text-lg font-medium text-stone-900">{{ uptime }}</p>
             </div>
-            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
@@ -65,10 +65,10 @@
         <div class="card">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-xs text-gray-500 mb-1">代理数量</p>
-              <p class="text-lg font-medium text-white">{{ proxies.length }}</p>
+              <p class="text-xs text-stone-500 mb-1">代理数量</p>
+              <p class="text-lg font-medium text-stone-900">{{ proxies.length }}</p>
             </div>
-            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
           </div>
@@ -101,14 +101,14 @@
         <button
           @click="refreshConfig"
           :disabled="loading"
-          class="px-3 py-1.5 text-sm border border-[#262626] rounded hover:bg-[#171717] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="px-3 py-1.5 text-sm border border-stone-200 rounded hover:bg-stone-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-stone-700"
         >
           刷新配置
         </button>
         <button
           @click="fetchConfig"
           :disabled="loading"
-          class="px-3 py-1.5 text-sm border border-[#262626] rounded hover:bg-[#171717] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="px-3 py-1.5 text-sm border border-stone-200 rounded hover:bg-stone-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-stone-700"
         >
           获取配置
         </button>
@@ -116,11 +116,11 @@
 
       <!-- 代理列表 -->
       <div class="card mb-6">
-        <h2 class="text-sm font-medium text-white mb-4">代理列表</h2>
+        <h2 class="text-sm font-medium text-stone-900 mb-4">代理列表</h2>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
-            <thead class="border-b border-[#262626]">
-              <tr class="text-gray-500">
+            <thead class="border-b border-stone-200">
+              <tr class="text-stone-500">
                 <th class="pb-2.5 font-normal">名称</th>
                 <th class="pb-2.5 font-normal">类型</th>
                 <th class="pb-2.5 font-normal">本地端口</th>
@@ -130,33 +130,33 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="proxy in proxies" :key="proxy.name" class="border-b border-[#262626]/50 last:border-0">
-                <td class="py-3 text-white">{{ proxy.name }}</td>
-                <td class="py-3 text-gray-400">{{ proxy.type }}</td>
-                <td class="py-3 text-gray-400 font-mono">{{ proxy.local_port }}</td>
-                <td class="py-3 text-gray-400 font-mono">{{ proxy.remote_port }}</td>
+              <tr v-for="proxy in proxies" :key="proxy.name" class="border-b border-stone-100 last:border-0">
+                <td class="py-3 text-stone-900">{{ proxy.name }}</td>
+                <td class="py-3 text-stone-500">{{ proxy.type }}</td>
+                <td class="py-3 text-stone-500 font-mono">{{ proxy.local_port }}</td>
+                <td class="py-3 text-stone-500 font-mono">{{ proxy.remote_port }}</td>
                 <td class="py-3">
-                  <span :class="proxy.status === 'online' ? 'text-[#10B981]' : 'text-gray-500'" class="text-xs">
+                  <span :class="proxy.status === 'online' ? 'text-emerald-600' : 'text-stone-400'" class="text-xs">
                     {{ proxy.status === 'online' ? '运行中' : '已停止' }}
                   </span>
                 </td>
                 <td class="py-3">
                   <div class="flex items-center gap-1 justify-end">
-                    <button class="p-1 text-gray-500 hover:text-white rounded hover:bg-[#262626] transition-colors">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button class="p-1 text-stone-400 hover:text-stone-700 rounded hover:bg-stone-100 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
+                        </svg>
                     </button>
-                    <button @click="() => confirmDelete(proxy)" class="p-1 text-gray-500 hover:text-[#EF4444] rounded hover:bg-[#262626] transition-colors">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button @click="() => confirmDelete(proxy)" class="p-1 text-stone-400 hover:text-red-600 rounded hover:bg-stone-100 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+                        </svg>
                     </button>
                   </div>
                 </td>
               </tr>
               <tr v-if="proxies.length === 0">
-                <td colspan="6" class="py-8 text-center text-gray-500">暂无代理配置</td>
+                <td colspan="6" class="py-8 text-center text-stone-400">暂无代理配置</td>
               </tr>
             </tbody>
           </table>
@@ -166,18 +166,18 @@
       <!-- 日志面板 -->
       <div class="card">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-sm font-medium text-white">日志</h2>
-          <span class="text-xs text-gray-500">{{ logs.length }} 条记录</span>
+          <h2 class="text-sm font-medium text-stone-900">日志</h2>
+          <span class="text-xs text-stone-500">{{ logs.length }} 条记录</span>
         </div>
-        <div class="bg-black border border-[#262626] rounded p-3 font-mono text-xs h-64 overflow-y-auto">
+        <div class="bg-stone-50 border border-stone-200 rounded p-3 font-mono text-xs h-64 overflow-y-auto">
           <div v-for="(log, index) in logs" :key="index" class="mb-1">
-            <span class="text-gray-600">[{{ formatTime(log.time) }}]</span>
+            <span class="text-stone-400">[{{ formatTime(log.time) }}]</span>
             <span :class="logLevelBadge(log.level)" class="mx-2">
               {{ log.level }}
             </span>
-            <span class="text-gray-400">{{ log.message }}</span>
+            <span class="text-stone-600">{{ log.message }}</span>
           </div>
-          <div v-if="logs.length === 0" class="text-gray-600">
+          <div v-if="logs.length === 0" class="text-stone-400">
             暂无日志...
           </div>
         </div>

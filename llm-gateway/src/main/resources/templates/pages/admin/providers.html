@@ -6,36 +6,35 @@
 </head>
 <body>
 <main th:fragment="main-content">
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-title">上游提供商管理</div>
-                            <button class="btn btn-primary" onclick="showCreateModal()">
-                                + 新增提供商
-                            </button>
-                        </div>
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">上游提供商管理</div>
+            <button class="btn btn-primary" onclick="showCreateModal()">
+                + 新增提供商
+            </button>
+        </div>
 
-                        <div id="providersLoading" class="spinner">加载中...</div>
-                        <div id="providersContainer" class="d-none">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>名称</th>
-                                        <th>基础 URL</th>
-                                        <th>模型名</th>
-                                        <th>服务类型</th>
-                                        <th>输入卖出价</th>
-                                        <th>输出卖出价</th>
-                                        <th>失败次数</th>
-                                        <th>状态</th>
-                                        <th>熔断状态</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="providersTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
+        <div id="providersLoading" class="spinner">加载中...</div>
+        <div id="providersContainer" class="d-none">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>名称</th>
+                        <th>基础 URL</th>
+                        <th>模型名</th>
+                        <th>服务类型</th>
+                        <th>输入卖出价</th>
+                        <th>输出卖出价</th>
+                        <th>失败次数</th>
+                        <th>状态</th>
+                        <th>熔断状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="providersTableBody"></tbody>
+            </table>
+        </div>
     </div>
 
     <div id="providerModal" class="modal-overlay d-none">
@@ -112,10 +111,38 @@
                         </div>
                     </div>
 
+                    <!-- 启用状态滑块 -->
                     <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="enabled" checked> 启用
-                        </label>
+                        <div class="toggle-group">
+                            <div class="toggle-label">启用状态</div>
+                            <div class="toggle-slider-wrapper">
+                                <label class="toggle-label-clickable">
+                                    <input type="checkbox" id="enabled" class="toggle-checkbox enabled-toggle">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <div class="toggle-slider-label">
+                                    <span class="toggle-text-green">启用</span>
+                                    <span class="toggle-text-red">禁用</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 熔断器控制滑块 -->
+                    <div class="form-group">
+                        <div class="toggle-group">
+                            <div class="toggle-label">熔断保护</div>
+                            <div class="toggle-slider-wrapper">
+                                <label class="toggle-label-clickable">
+                                    <input type="checkbox" id="circuitBreakerEnabled" class="toggle-checkbox circuit-toggle" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <div class="toggle-slider-label">
+                                    <span class="toggle-text-green">开启</span>
+                                    <span class="toggle-text-red">关闭</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>

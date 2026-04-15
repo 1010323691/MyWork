@@ -1,6 +1,9 @@
 build/bin
+build/bin/wails.json
 node_modules
 frontend/dist
+build/frontend-dist
 *.exe
 !internal/service/frpc.exe
 frp_0.68.0_windows_amd64/
+*.md5

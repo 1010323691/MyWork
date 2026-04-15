@@ -106,12 +106,48 @@ public class AdminProviderController {
     }
 
     /**
-     * 重置上游提供商熔断状态
+     * 重置上游提供商熔断状态（同时启用服务）
      */
     @PostMapping("/{id}/reset-circuit")
     public ResponseEntity<Void> resetCircuit(@PathVariable Long id) {
-        providerService.resetFailureCount(id);
+        providerService.resetFailureCountAndEnable(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 切换熔断器开关状态（不影响启用状态）
+     */
+    @PatchMapping("/{id}/circuit-breaker")
+    public ResponseEntity<ProviderDTO> toggleCircuitBreaker(
+            @PathVariable Long id,
+            @RequestBody CircuitBreakerRequest request) {
+        BackendService updated = providerService.toggleCircuitBreaker(id, request.getCircuitBreakerEnabled());
+        return ResponseEntity.ok(new ProviderDTO(updated));
+    }
+
+    /**
+     * 仅重置熔断计数（不改变启用状态）
+     */
+    @PostMapping("/{id}/reset-failures")
+    public ResponseEntity<ProviderDTO> resetFailures(@PathVariable Long id) {
+        providerService.resetFailureCountOnly(id);
+        BackendService updated = providerService.findById(id).orElseThrow();
+        return ResponseEntity.ok(new ProviderDTO(updated));
+    }
+
+    /**
+     * 熔断器请求体
+     */
+    public static class CircuitBreakerRequest {
+        private Boolean circuitBreakerEnabled;
+
+        public Boolean getCircuitBreakerEnabled() {
+            return circuitBreakerEnabled;
+        }
+
+        public void setCircuitBreakerEnabled(Boolean circuitBreakerEnabled) {
+            this.circuitBreakerEnabled = circuitBreakerEnabled;
+        }
     }
 
     /**

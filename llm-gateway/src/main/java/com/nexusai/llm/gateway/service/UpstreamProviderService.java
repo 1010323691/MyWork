@@ -114,6 +114,9 @@ public class UpstreamProviderService {
         if (updateData.getSellPriceOutput() != null) {
             existing.setSellPriceOutput(updateData.getSellPriceOutput());
         }
+        if (updateData.getCircuitBreakerEnabled() != null) {
+            existing.setCircuitBreakerEnabled(updateData.getCircuitBreakerEnabled());
+        }
 
         return backendServiceRepository.save(existing);
     }
@@ -162,7 +165,9 @@ public class UpstreamProviderService {
         provider.setFailureCount(newFailureCount);
         provider.setLastFailureAt(LocalDateTime.now());
 
-        if (newFailureCount >= circuitFailureThreshold) {
+        // 仅在熔断器开启时自动禁用服务
+        Boolean circuitBreakerOn = provider.getCircuitBreakerEnabled() != null ? provider.getCircuitBreakerEnabled() : true;
+        if (circuitBreakerOn && newFailureCount >= circuitFailureThreshold) {
             logger.warn("Circuit breaker triggered for provider {}: {} failures", providerId, newFailureCount);
             provider.setEnabled(false);
         }
@@ -194,10 +199,55 @@ public class UpstreamProviderService {
         return false;
     }
 
+    /**
+     * 重置提供商失败计数（仅清除熔断状态，不改变启用状态）
+     */
     @Transactional
     public void resetFailureCount(Long providerId) {
         BackendService provider = backendServiceRepository.findById(providerId)
                 .orElseThrow(() -> new RuntimeException("Provider not found: " + providerId));
+        provider.setFailureCount(0);
+        provider.setLastFailureAt(null);
+        backendServiceRepository.save(provider);
+    }
+
+    /**
+     * 重置熔断状态（仅清除失败计数，不改变启用状态）
+     */
+    @Transactional
+    public void resetFailureCountOnly(Long providerId) {
+        BackendService provider = backendServiceRepository.findById(providerId)
+                .orElseThrow(() -> new RuntimeException("Provider not found: " + providerId));
+        provider.setFailureCount(0);
+        provider.setLastFailureAt(null);
+        backendServiceRepository.save(provider);
+    }
+
+    /**
+     * 切换熔断器开关状态（不影响启用状态）
+     */
+    @Transactional
+    public BackendService toggleCircuitBreaker(Long providerId, Boolean circuitBreakerEnabled) {
+        BackendService provider = backendServiceRepository.findById(providerId)
+                .orElseThrow(() -> new RuntimeException("Provider not found: " + providerId));
+        provider.setCircuitBreakerEnabled(circuitBreakerEnabled);
+        // 如果关闭熔断器，同时清除熔断状态
+        if (!circuitBreakerEnabled) {
+            provider.setFailureCount(0);
+            provider.setLastFailureAt(null);
+        }
+        return backendServiceRepository.save(provider);
+    }
+
+    /**
+     * 重置熔断状态并自动启用服务（管理员手动取消熔断时使用）
+     */
+    @Transactional
+    public void resetFailureCountAndEnable(Long providerId) {
+        BackendService provider = backendServiceRepository.findById(providerId)
+                .orElseThrow(() -> new RuntimeException("Provider not found: " + providerId));
+        // 自动启用服务并清除熔断状态
+        provider.setEnabled(true);
         provider.setFailureCount(0);
         provider.setLastFailureAt(null);
         backendServiceRepository.save(provider);

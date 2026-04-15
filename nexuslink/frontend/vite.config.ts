@@ -11,12 +11,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  css: {
-    tailwindcss: true,
-    postcss: true,
-  },
   build: {
-    outDir: 'dist',
+    outDir: '../build/frontend-dist',
     emptyOutDir: true,
     target: 'esnext',
     rollupOptions: {

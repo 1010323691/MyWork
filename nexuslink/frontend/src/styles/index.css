@@ -5,13 +5,13 @@
 /* Import Inter font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* Custom base styles - OpenAI Minimal Style */
+/* Custom base styles - OpenAI Minimal Light Style */
 html, body, #app {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: #000000;
-  color: #ffffff;
+  background: #FAFAF9; /* stone-50: warm off-white */
+  color: #1C1917; /* stone-900 */
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -24,72 +24,71 @@ html {
 
 /* Focus visible for accessibility */
 :focus-visible {
-  outline: 2px solid #A16207;
+  outline: 2px solid #B45309;
   outline-offset: 2px;
 }
 
-/* Custom scrollbar - dark theme */
+/* Custom scrollbar - light theme */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #171717;
+  background: #F5F5F4;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #404040;
+  background: #D6D3D1;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #525252;
+  background: #A8A29E;
 }
 
-/* Custom scrollbar for horizontal */
 ::-webkit-scrollbar-corner {
-  background: #171717;
+  background: #F5F5F4;
 }
 
 /* Selection color */
 ::selection {
-  background: #A16207;
+  background: #D97706;
   color: #ffffff;
 }
 
 /* Button base styles */
 .btn-primary {
-  @apply bg-white text-black px-4 py-2 rounded font-medium hover:bg-gray-200 transition-colors duration-200;
+  @apply bg-stone-900 text-white px-4 py-2 rounded font-medium hover:bg-stone-800 transition-colors duration-200;
 }
 
 .btn-secondary {
-  @apply bg-[#262626] text-white px-4 py-2 rounded font-medium hover:bg-[#404040] transition-colors duration-200 border border-[#404040];
+  @apply bg-white text-stone-700 px-4 py-2 rounded font-medium hover:bg-stone-50 transition-colors duration-200 border border-stone-200;
 }
 
 /* Card styles */
 .card {
-  @apply bg-[#171717] border border-[#262626] rounded-lg p-4;
+  @apply bg-white border border-stone-200 rounded-lg p-4 shadow-sm;
 }
 
 /* Input styles */
 .input-base {
-  @apply bg-[#171717] border border-[#262626] text-white px-3 py-2 rounded w-full focus:outline-none focus:border-[#404040] focus:ring-1 focus:ring-[#404040] transition-colors;
+  @apply bg-white border border-stone-200 text-stone-900 px-3 py-2 rounded w-full focus:outline-none focus:border-stone-400 focus:ring-1 focus:ring-stone-400 transition-colors placeholder-stone-400;
 }
 
 /* Form label styles */
 .form-label {
-  @apply block text-sm font-medium text-gray-400 mb-1;
+  @apply block text-sm font-medium text-stone-600 mb-1;
 }
 
 /* Utility classes */
 .text-muted {
-  @apply text-gray-500;
+  @apply text-stone-500;
 }
 
 .text-accent {
-  @apply text-[#F59E0B];
+  @apply text-amber-600;
 }
 
 /* Animation utilities */

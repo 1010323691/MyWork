@@ -107,6 +107,7 @@
         document.getElementById('providerId').value = '';
         document.getElementById('timeoutSeconds').value = 300;
         document.getElementById('enabled').checked = true;
+        document.getElementById('circuitBreakerEnabled').checked = true;
 
         const serviceTypeDropdown = window.getDropdownInstance ? window.getDropdownInstance(document.getElementById('serviceType')) : null;
         if (serviceTypeDropdown && typeof serviceTypeDropdown.setValue === 'function') {
@@ -117,6 +118,9 @@
         const modal = document.getElementById('providerModal');
         modal.classList.remove('d-none');
         modal.classList.add('show');
+
+        // 每次打开 modal 时初始化滑块事件监听
+        initToggleControls();
     }
 
     function editProvider(id) {
@@ -141,10 +145,113 @@
         document.getElementById('buyPriceOutput').value = provider.buyPriceOutput ?? '';
         document.getElementById('sellPriceOutput').value = provider.sellPriceOutput ?? '';
         document.getElementById('enabled').checked = provider.enabled !== false;
+        document.getElementById('circuitBreakerEnabled').checked = provider.circuitBreakerEnabled !== false;
+
         setToolsResult('');
         const modal = document.getElementById('providerModal');
         modal.classList.remove('d-none');
         modal.classList.add('show');
+
+        // 每次打开 modal 时初始化滑块事件监听
+        initToggleControls();
+    }
+
+    // 初始化双滑块联动逻辑（使用事件委托，避免重复绑定）
+    let toggleControlsInitialized = false;
+
+    function initToggleControls() {
+        if (toggleControlsInitialized) return;
+        toggleControlsInitialized = true;
+
+        const enabledToggle = document.getElementById('enabled');
+        const circuitBreakerToggle = document.getElementById('circuitBreakerEnabled');
+
+        if (enabledToggle) {
+            enabledToggle.addEventListener('change', function() {
+                updateCircuitButtonState(enabledToggle.checked, circuitBreakerToggle ? circuitBreakerToggle.checked : true);
+                handleEnabledToggleChange();
+            });
+        }
+
+        if (circuitBreakerToggle) {
+            circuitBreakerToggle.addEventListener('change', function() {
+                updateCircuitButtonState(enabledToggle ? enabledToggle.checked : true, circuitBreakerToggle.checked);
+                handleCircuitBreakerToggleChange();
+            });
+        }
+    }
+
+    // 处理启用状态滑块变化
+    async function handleEnabledToggleChange() {
+        const id = document.getElementById('providerId').value;
+        const enabled = document.getElementById('enabled').checked;
+
+        // 如果是新建提供商（没有 ID），则不需要调用 API
+        if (!id) return;
+
+        try {
+            const response = await fetch('/api/admin/providers/' + id + '/enabled', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ enabled: enabled })
+            });
+
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+
+            await loadProviders();
+        } catch (error) {
+            console.error('更新启用状态失败:', error);
+            UI.showAlert('更新状态失败：' + error.message, 'error');
+            // 恢复滑块状态
+            document.getElementById('enabled').checked = !enabled;
+        }
+    }
+
+    // 处理熔断器滑块变化
+    async function handleCircuitBreakerToggleChange() {
+        const id = document.getElementById('providerId').value;
+        const circuitBreakerEnabled = document.getElementById('circuitBreakerEnabled').checked;
+
+        // 如果是新建提供商（没有 ID），则不需要调用 API
+        if (!id) return;
+
+        try {
+            const response = await fetch('/api/admin/providers/' + id + '/circuit-breaker', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ circuitBreakerEnabled: circuitBreakerEnabled })
+            });
+
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+
+            await loadProviders();
+        } catch (error) {
+            console.error('更新熔断器状态失败:', error);
+            UI.showAlert('更新熔断器状态失败：' + error.message, 'error');
+            // 恢复滑块状态
+            document.getElementById('circuitBreakerEnabled').checked = !circuitBreakerEnabled;
+        }
+    }
+
+    // 更新熔断按钮状态（保留用于兼容）
+    function updateCircuitButtonState(serviceEnabled, circuitBreakerOn) {
+        // 已移除熔断信息面板和重置按钮，此函数保留用于兼容
+    }
+
+    // 更新熔断信息面板显示（保留用于兼容）
+    function updateCircuitInfoPanel(failureCount) {
+        // 已移除熔断信息面板，此函数保留用于兼容
+    }
+
+    // 切换熔断按钮状态（保留用于兼容）
+    function toggleCircuitButton(enabled) {
+        // 已移除熔断重置按钮，此函数保留用于兼容
     }
 
     function closeModal() {
@@ -286,7 +393,9 @@
             sellPriceInput: parseNullableNumber('sellPriceInput'),
             buyPriceOutput: parseNullableNumber('buyPriceOutput'),
             sellPriceOutput: parseNullableNumber('sellPriceOutput'),
-            enabled: document.getElementById('enabled').checked
+            enabled: document.getElementById('enabled').checked,
+            // 新增：熔断器开关状态 (true=开启自动熔断，false=关闭)
+            circuitBreakerEnabled: document.getElementById('circuitBreakerEnabled')?.checked ?? true
         };
     }
 
@@ -394,6 +503,7 @@
         return div.innerHTML;
     }
 
+    // 暴露函数给全局
     window.logout = function() {
         fetch('/logout', { method: 'POST', credentials: 'same-origin' })
             .then(function() { window.location.href = '/login'; })
@@ -407,4 +517,5 @@
     window.closeModal = closeModal;
     window.testConnectivity = testConnectivity;
     window.discoverModels = discoverModels;
+    window.toggleCircuitButton = toggleCircuitButton;
 })();

@@ -24,6 +24,7 @@ public class ProviderDTO {
     private BigDecimal sellPriceOutput;
     private Integer failureCount;
     private LocalDateTime lastFailureAt;
+    private Boolean circuitBreakerEnabled;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -44,6 +45,7 @@ public class ProviderDTO {
         this.sellPriceOutput = provider.getSellPriceOutput();
         this.failureCount = provider.getFailureCount();
         this.lastFailureAt = provider.getLastFailureAt();
+        this.circuitBreakerEnabled = provider.getCircuitBreakerEnabled();
         this.createdAt = provider.getCreatedAt();
         this.updatedAt = provider.getUpdatedAt();
         // 注意：upstreamKey 不复制到 DTO 中，确保不会暴露

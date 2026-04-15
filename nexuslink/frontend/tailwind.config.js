@@ -30,36 +30,38 @@ export default {
         },
       },
       colors: {
-        // OpenAI minimal dark theme colors
-        background: '#000000',
-        foreground: '#ffffff',
+        // OpenAI minimal light theme - off-white/cream background
+        background: '#FAFAF9', // stone-50: warm off-white
+        'background-secondary': '#F5F5F4', // stone-100
+        foreground: '#1C1917', // stone-900
         primary: {
-          DEFAULT: '#171717',
-          50: '#f5f5f5',
-          100: '#e5e5e5',
-          200: '#d4d4d4',
-          300: '#a3a3a3',
-          400: '#737373',
-          500: '#525252',
-          600: '#404040',
-          700: '#262626',
-          800: '#171717',
-          900: '#0a0a0a',
+          DEFAULT: '#FFFFFF',
+          50: '#FAFAF9',
+          100: '#F5F5F4',
+          200: '#E7E5E4',
+          300: '#D6D3D1',
+          400: '#A8A29E',
+          500: '#78716C',
+          600: '#57534E',
+          700: '#44403C',
+          800: '#292524',
+          900: '#1C1917',
         },
-        secondary: '#404040',
+        secondary: '#78716C',
         accent: {
-          DEFAULT: '#A16207',
-          hover: '#F59E0B',
+          DEFAULT: '#B45309', // amber-700
+          hover: '#D97706', // amber-600
         },
-        muted: '#E8ECF0',
-        border: '#E5E5E5',
+        muted: '#E7E5E4',
+        border: '#E7E5E4',
+        'border-light': '#F5F5F4',
         destructive: '#DC2626',
-        ring: '#171717',
+        ring: '#D6D3D1',
         // Status colors
-        success: '#10B981',
-        warning: '#F59E0B',
-        error: '#EF4444',
-        info: '#3B82F6',
+        success: '#059669',
+        warning: '#D97706',
+        error: '#DC2626',
+        info: '#2563EB',
       },
       borderWidth: {
         '3': '3px',

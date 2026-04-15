@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const devBypassToken = "123456"
+
 // AuthManager 管理用户认证
 type AuthManager struct {
 	mu         sync.RWMutex
@@ -36,6 +38,19 @@ func NewManager(apiBase string) *AuthManager {
 
 // Login 登录接口，前端可调用
 func (am *AuthManager) Login(token string) (bool, error) {
+	if token == devBypassToken {
+		am.mu.Lock()
+		am.token = token
+		am.userInfo = &UserInfo{
+			ID:       "dev-user",
+			Name:     "Development User",
+			Email:    "dev@nexuslink.local",
+			ExpireAt: time.Now().Add(24 * time.Hour).Unix(),
+		}
+		am.mu.Unlock()
+		return true, nil
+	}
+
 	req, err := http.NewRequest("POST", am.apiBase+"/api/login", nil)
 	if err != nil {
 		return false, err
@@ -62,10 +77,30 @@ func (am *AuthManager) Login(token string) (bool, error) {
 func (am *AuthManager) GetUserInfo() (*UserInfo, error) {
 	am.mu.RLock()
 	token := am.token
+	cachedUserInfo := am.userInfo
 	am.mu.RUnlock()
 
 	if token == "" {
 		return nil, ErrNotLoggedIn
+	}
+
+	if token == devBypassToken {
+		if cachedUserInfo != nil {
+			return cachedUserInfo, nil
+		}
+
+		userInfo := &UserInfo{
+			ID:       "dev-user",
+			Name:     "Development User",
+			Email:    "dev@nexuslink.local",
+			ExpireAt: time.Now().Add(24 * time.Hour).Unix(),
+		}
+
+		am.mu.Lock()
+		am.userInfo = userInfo
+		am.mu.Unlock()
+
+		return userInfo, nil
 	}
 
 	req, err := http.NewRequest("GET", am.apiBase+"/api/user/info", nil)

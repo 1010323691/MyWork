@@ -49,7 +49,7 @@ export namespace config {
 	        this.routes = source["routes"];
 	    }
 	}
-	export class FrpConfig {
+	export class NexusConfig {
 	    server_addr: string;
 	    server_port: number;
 	    auth_type?: string;
@@ -62,7 +62,7 @@ export namespace config {
 	    enable_compression?: boolean;
 	
 	    static createFrom(source: any = {}) {
-	        return new FrpConfig(source);
+	        return new NexusConfig(source);
 	    }
 	
 	    constructor(source: any = {}) {

@@ -60,6 +60,10 @@ public class BackendService {
     @Column(name = "last_failure_at")
     private LocalDateTime lastFailureAt;  // 上次失败时间
 
+    @Column(name = "circuit_breaker_enabled")
+    @Builder.Default
+    private Boolean circuitBreakerEnabled = true;  // 是否启用自动熔断（true=开启自动熔断，false=关闭）
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
